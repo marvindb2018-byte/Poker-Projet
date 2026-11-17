@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1511">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Poker→Claude">
+  <meta name="description" content="Suivi d'une partie de Texas Hold'em entre amis et génération des messages à envoyer à Claude.">
+  <title>Poker → Claude</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="suit">♠</span> Poker <span class="arrow">→</span> Claude</div>
+    <button id="undo" class="undo" data-a="undo" title="Annuler la dernière action" disabled>↶ Annuler</button>
+  </header>
+
+  <main id="view"></main>
+
+  <nav class="nav" hidden>
+    <button data-a="tab" data-tab="main">Main</button>
+    <button data-a="tab" data-tab="table">Table</button>
+    <button data-a="tab" data-tab="prompt">Prompt</button>
+    <button data-a="tab" data-tab="settings">Réglages</button>
+  </nav>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
