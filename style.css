@@ -524,3 +524,32 @@ h2 .help-q, h3 .help-q { vertical-align: 3px; }
 }
 .small-legend { font-size: 12px; margin-top: 6px; }
 .small-legend .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); vertical-align: 2px; }
+
+/* ---------- table : places en attente, « + » et « − » */
+.seat.waiting { opacity: .45; }
+.seat.leaving .seat-box { border-style: dashed; border-color: var(--danger); }
+.seat-tag.new { background: #234a37; color: #bfe8d0; }
+.muted-pot { color: var(--muted); font-weight: 600; font-size: 13px; }
+.seat-remove {
+  position: absolute; z-index: 5; top: -9px; left: -9px; width: 22px; height: 22px; padding: 0;
+  border-radius: 50%; border: 0; background: var(--danger); color: #fff; font: 800 15px/1 var(--sans);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  opacity: 0; transform: scale(.8); transition: opacity .12s, transform .12s;
+}
+.seat:hover .seat-remove, .seat-remove:focus-visible { opacity: 1; transform: scale(1); }
+.seat-add {
+  position: absolute; z-index: 1; transform: translate(-50%, -50%); width: 22px; height: 22px; padding: 0;
+  border-radius: 50%; border: 1px dashed rgba(236, 243, 238, .45); background: rgba(11, 21, 17, .7);
+  color: var(--muted); font: 700 15px/1 var(--sans); cursor: pointer; opacity: .35; transition: opacity .12s;
+}
+.ptable:hover .seat-add { opacity: .7; }
+.seat-add:hover, .seat-add.on, .seat-add:focus-visible { opacity: 1; color: var(--accent-ink); background: var(--accent); border: 1px solid var(--accent); }
+.seat-form {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20; width: min(330px, 80%);
+  background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius); padding: 12px 14px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .6);
+}
+.sf-title { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.sf-row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; margin-top: 8px; }
+.sf-row .btn { min-height: 42px; }
+@media (min-width: 1000px) { .idle-list { display: none; } }

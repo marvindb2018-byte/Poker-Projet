@@ -338,6 +338,52 @@ test('ta main 10♣ 8♦ : plus de confusion possible (cas réel)', () => {
   assert.ok(E.buildPrompt(s).includes('♠ pique, ♥ cœur, ♦ carreau, ♣ trèfle'));
 });
 
+test('un joueur quitte la table : tout de suite, ou à la fin de la main', () => {
+  const s = game6();
+  // hors main : retiré tout de suite
+  ok(E.leavePlayer(s, id(s, 'E')));
+  assert.strictEqual(s.players.length, 5);
+  assert.ok(!E.leavePlayer(s, id(s, 'Moi')).ok);
+  E.startHand(s); E.chooseCards(s, ['Ac', 'Kk']); // 5 joueurs : moi BTN, A SB, B BB, C UTG, D CO
+  // arrivé pendant la main puis reparti : retiré tout de suite (il ne joue pas cette main)
+  ok(E.addPlayer(s, { name: 'Zoé', stack: 1000 }));
+  ok(E.leavePlayer(s, id(s, 'Zoé')));
+  assert.ok(!s.players.some((p) => p.name === 'Zoé'));
+  // D part alors que c'est à C de parler : D sera couché automatiquement quand ce sera à lui
+  assert.strictEqual(who(s), 'UTG');
+  const r = ok(E.leavePlayer(s, id(s, 'D')));
+  assert.ok(r.later);
+  act(s, 'r', 60); // C relance, D (CO) est couché tout seul, c'est à moi
+  assert.strictEqual(s.hand.toAct, s.hand.meId);
+  assert.ok(s.hand.folded[id(s, 'D')]);
+  assert.strictEqual(E.buildMessage(s).split('\n').pop(), 'BTN A♥ K♦ | UTG r60');
+  // C part au moment où c'est à lui de parler
+  act(s, 's'); act(s, 'f'); act(s, 's');
+  E.addStreet(s, ['2c', '3c', '4c']);
+  const before = s.players.reduce((a, p) => a + p.stack, 0);
+  assert.strictEqual(who(s), 'BB');
+  act(s, 'x');
+  assert.strictEqual(who(s), 'UTG');
+  ok(E.leavePlayer(s, id(s, 'C')));
+  // personne n'a misé : C checke automatiquement (comme un joueur qui dépasse son temps sur un site)
+  const last = s.hand.events[s.hand.events.length - 1];
+  assert.deepStrictEqual([last.id, last.a], [id(s, 'C'), 'x']);
+  assert.strictEqual(s.hand.toAct, s.hand.meId);
+  act(s, 'x'); // moi
+  assert.strictEqual(s.hand.phase, 'board');
+  ok(E.forceShowdown(s)); ok(E.declareWinners(s, [s.hand.meId]));
+  ok(E.endHand(s));
+  assert.deepStrictEqual(s.players.map((p) => p.name).sort(), ['A', 'B', 'Moi']);
+  assert.ok(s.players.reduce((a, p) => a + p.stack, 0) <= before);
+  // la main suivante annonce la nouvelle table
+  ok(E.startHand(s)); E.chooseCards(s, ['2c', '2k']);
+  assert.ok(E.buildMessage(s).startsWith('table 3 joueurs (BTN, SB, BB)\n'));
+  // départ pendant une main puis main effacée : retiré aussi
+  ok(E.leavePlayer(s, id(s, 'A')));
+  ok(E.abortHand(s));
+  assert.deepStrictEqual(s.players.map((p) => p.name).sort(), ['B', 'Moi']);
+});
+
 test('prompt de départ', () => {
   const s = game6();
   const p = E.buildPrompt(s);

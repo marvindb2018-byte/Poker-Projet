@@ -234,7 +234,7 @@
         </div>
       </div>`;
     }
-    if (!h) return `<div class="narrow">${out}${viewIdle()}</div>`;
+    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle()}</div><div class="col-b">${ptable(null)}</div></div>`;
     let a = handHead(h);
     if (h.phase === 'spectate') a += viewSpectate(h);
     else if (h.phase === 'cards') a += picker(2, `Tes cartes <span class="muted">(${h.pos[h.meId]})</span>`, [], null);
@@ -285,13 +285,19 @@
   }
 
   // Table de poker vue de dessus (affichée seulement sur PC). Je suis toujours en bas au centre,
-  // les autres joueurs suivent dans le sens des aiguilles d'une montre.
+  // les autres places suivent dans le sens des aiguilles d'une montre. Toutes les places sont dessinées :
+  // les joueurs qui ne jouent pas la main (en attente, en pause, sans jetons) apparaissent en grisé.
+  // « + » entre deux places pour ajouter un joueur, « − » au survol d'un joueur pour le retirer.
   function ptable(h) {
-    const n = h.order.length;
-    const m = Math.max(0, h.order.indexOf(h.meId));
-    const seats = h.order.slice(m).concat(h.order.slice(0, m));
-    const done = h.phase === 'done';
-    const cand = h.phase === 'showdown' ? E.showdownCandidates(h) : [];
+    const P = state.players;
+    const meIdx = Math.max(0, P.findIndex((p) => p.me));
+    const seats = P.slice(meIdx).concat(P.slice(0, meIdx));
+    const n = seats.length;
+    const plan = h ? null : E.planNextHand(state);
+    const posOf = (id) => (h ? h.pos[id] : plan && plan.ok ? plan.pos[id] : null);
+    const btnId = h ? h.btnId : plan && plan.ok ? plan.btnId : null;
+    const done = !!h && h.phase === 'done';
+    const cand = h && h.phase === 'showdown' ? E.showdownCandidates(h) : [];
     const RX = 44, RY = 43; // rayon de l'ellipse des places, en % de la zone
     const at = (r, deg) => {
       const a = (deg * Math.PI) / 180;
@@ -302,36 +308,70 @@
       const a = (deg * Math.PI) / 180;
       if (Math.abs(Math.cos(a)) < 0.2) return 'd-mr'; // place tout en haut ou tout en bas : sur le côté droit
       const v = Math.sin(a) < -0.2 ? 'b' : 't'; // places du haut : coin du bas ; sinon coin du haut
-      const h = Math.cos(a) > 0.2 ? 'l' : 'r'; // places de droite : coin gauche ; sinon coin droit
-      return 'd-' + v + h;
+      const hz = Math.cos(a) > 0.2 ? 'l' : 'r'; // places de droite : coin gauche ; sinon coin droit
+      return 'd-' + v + hz;
     };
     const back = '<span class="cb"></span><span class="cb"></span>';
     let html = '<div class="ptable" aria-label="Table"><div class="pt-felt"></div>';
-    seats.forEach((id, k) => {
+    seats.forEach((p, k) => {
+      const id = p.id;
       const deg = 90 + (k * 360) / n;
-      const me = id === h.meId;
-      const cls = ['seat', id === h.toAct ? 'cur' : '', h.folded[id] ? 'out' : '', me ? 'me' : '',
+      const me = !!p.me;
+      const inHand = !!h && h.order.includes(id);
+      const folded = inHand && h.folded[id];
+      const cls = ['seat', inHand && id === h.toAct ? 'cur' : '', folded ? 'out' : '', !inHand && h ? 'waiting' : '',
+        !h && !E.isActive(p) ? 'waiting' : '', me ? 'me' : '', p.leaving ? 'leaving' : '',
         cand.includes(id) ? 'pick' : '', ui.sel.includes(id) ? 'picked' : ''].join(' ');
       let cards = '';
-      if (!h.folded[id]) cards = me && h.cards.length === 2 ? h.cards.map((c) => cardHtml(c, 'xs')).join('') : back;
+      if (inHand && !folded) cards = me && h.cards.length === 2 ? h.cards.map((c) => cardHtml(c, 'xs')).join('') : back;
       let tag = '';
-      let stack = h.stack[id];
-      if (done) {
+      let stack = inHand ? h.stack[id] : p.stack;
+      if (p.leaving) tag = '<span class="seat-tag lose">part</span>';
+      else if (!inHand) {
+        if (p.paused) tag = '<span class="seat-tag fold">pause</span>';
+        else if (p.stack === 0) tag = '<span class="seat-tag fold">0 jeton</span>';
+        else if (h) tag = '<span class="seat-tag new">prochaine main</span>';
+      } else if (done) {
         stack = h.stack[id] + h.win[id];
         if (h.pots.some((pt) => !pt.refund && pt.won.includes(id))) tag = '<span class="seat-tag win">gagne</span>';
-      } else if (h.folded[id]) tag = '<span class="seat-tag fold">couché</span>';
+      } else if (folded) tag = '<span class="seat-tag fold">couché</span>';
       else if (h.allin[id]) tag = '<span class="seat-tag allin">tapis</span>';
       else if (id === h.toAct) tag = '<span class="seat-tag">parle</span>';
       const click = cand.includes(id) ? ` data-a="sel" data-id="${id}" title="Choisir comme gagnant"` : '';
+      const pos = posOf(id);
+      const remove = me || p.leaving ? '' : `<button type="button" class="seat-remove" data-a="seat-remove" data-id="${id}" title="${esc(p.name)} quitte la table" aria-label="Retirer ${esc(p.name)}">−</button>`;
       html += `<div class="${cls}" style="${at(1, deg)}"${click}>
         <div class="seat-cards">${cards}</div>
-        <div class="seat-box">${id === h.btnId ? `<span class="dealer-badge ${dealerCorner(deg)}" title="Jeton D (bouton)">D</span>` : ''}<span class="seat-pos">${h.pos[id]}</span><b class="seat-name">${esc(h.names[id])}</b><span class="seat-stack">${stack}</span></div>
+        <div class="seat-box">${remove}${id === btnId ? `<span class="dealer-badge ${dealerCorner(deg)}" title="Jeton D (bouton)">D</span>` : ''}<span class="seat-pos">${pos || '—'}</span><b class="seat-name">${esc(p.name)}</b><span class="seat-stack">${stack}</span></div>
         ${tag}
       </div>`;
-      if (!done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.58, deg)}"><i></i>${h.bet[id]}</div>`;
+      if (inHand && !done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.58, deg)}"><i></i>${h.bet[id]}</div>`;
+      // « + » entre cette place et la suivante (dans le sens du jeu)
+      if (P.length < E.MAX_PLAYERS) {
+        const mid = 90 + ((k + 0.5) * 360) / n;
+        html += `<button type="button" class="seat-add ${ui.addAfter === id ? 'on' : ''}" style="${at(1.02, mid)}" data-a="seat-add" data-id="${id}" title="Ajouter un joueur ici" aria-label="Ajouter un joueur ici">+</button>`;
+      }
     });
-    const board = Array.from({ length: 5 }, (_, i) => (h.board[i] ? cardHtml(h.board[i], 'sm') : '<span class="card empty sm"></span>')).join('');
-    html += `<div class="pt-center"><div class="pt-board">${board}</div><div class="pt-pot">Pot ${done ? E.contestedPot(h) : E.potOf(h)}</div></div>`;
+    const board = Array.from({ length: 5 }, (_, i) => (h && h.board[i] ? cardHtml(h.board[i], 'sm') : '<span class="card empty sm"></span>')).join('');
+    let center = `<div class="pt-board">${board}</div>`;
+    center += h ? `<div class="pt-pot">Pot ${done ? E.contestedPot(h) : E.potOf(h)}</div>` : `<div class="pt-pot muted-pot">Prochaine main #${state.handNo + 1}</div>`;
+    html += `<div class="pt-center">${center}</div>`;
+    if (ui.addAfter && P.some((x) => x.id === ui.addAfter)) {
+      const after = P.find((x) => x.id === ui.addAfter);
+      const nextIdx = (P.indexOf(after) + 1) % P.length;
+      html += `<div class="seat-form" role="dialog" aria-label="Ajouter un joueur">
+        <div class="sf-title">Nouveau joueur entre ${esc(after.name)} et ${esc(P[nextIdx].name)}</div>
+        <div class="sf-row">
+          <input class="in" id="sa-name" placeholder="Pseudo" maxlength="18" autocomplete="off">
+          <input class="in" id="sa-stack" type="number" inputmode="numeric" min="1" placeholder="Jetons">
+        </div>
+        <div class="sf-row">
+          <button class="btn primary" data-a="seat-add-ok">Ajouter</button>
+          <button class="btn ghost" data-a="seat-add-cancel">Annuler</button>
+        </div>
+        ${h ? '<p class="hint">Il jouera à partir de la main suivante.</p>' : ''}
+      </div>`;
+    }
     return html + '</div>';
   }
 
@@ -342,7 +382,7 @@
     let out = `<section class="panel"><h2>Prochaine main <span class="muted">#${n}</span></h2>`;
     if (!plan.ok) out += `<p class="warn">${esc(plan.err)}</p>`;
     else {
-      out += `<ol class="strip preview">${plan.pre.map((id) => {
+      out += `<ol class="strip preview idle-list">${plan.pre.map((id) => {
         const p = player(id);
         return `<li class="${p.me ? 'me' : ''}"><span class="pos">${plan.pos[id]}</span><span class="nm">${esc(p.name)}${p.me ? ' <em>moi</em>' : ''}</span><span class="stk">${p.stack}</span></li>`;
       }).join('')}</ol>`;
@@ -613,7 +653,7 @@
             <button class="btn" data-a="ed-btn" data-id="${p.id}" ${locked ? 'disabled' : ''}>Il a le jeton D à la prochaine main</button>
             <button class="btn" data-a="ed-pause" data-id="${p.id}" ${locked ? 'disabled' : ''}>${p.paused ? 'Revient en jeu' : 'Pause (ne joue pas)'}</button>
             <button class="btn" data-a="ed-me" data-id="${p.id}" ${locked || p.me ? 'disabled' : ''}>C'est moi</button>
-            <button class="btn danger" data-a="ed-remove" data-id="${p.id}" ${locked ? 'disabled' : ''}>Il quitte la table</button>
+            ${p.me ? '' : `<button class="btn danger" data-a="seat-remove" data-id="${p.id}">Il quitte la table</button>`}
           </div>
         </div>`;
       }
@@ -818,6 +858,34 @@
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
+    // table de poker (PC) : « + » et « − »
+    'seat-add'(d) {
+      ui.addAfter = ui.addAfter === d.id ? null : d.id;
+      render();
+      const el = $('sa-name');
+      if (el) el.focus();
+    },
+    'seat-add-cancel'() { ui.addAfter = null; render(); },
+    'seat-add-ok'() {
+      const name = $('sa-name').value;
+      const stack = $('sa-stack').value;
+      const afterId = ui.addAfter;
+      const r = cmd((s) => E.addPlayer(s, { name, stack, afterId }));
+      if (r && r.ok) {
+        ui.addAfter = null;
+        render();
+        toast(state.hand ? 'Joueur ajouté : il jouera à la main suivante' : 'Joueur ajouté');
+      } else {
+        const el = $('sa-name');
+        if (el) { el.value = name; $('sa-stack').value = stack; el.focus(); }
+      }
+    },
+    'seat-remove'(d) {
+      const p = player(d.id);
+      if (!p) return;
+      const r = cmd((s) => E.leavePlayer(s, d.id));
+      if (r && r.ok) toast(r.later ? `${p.name} part : couché quand c'est à lui, retiré à la fin de la main (Ctrl+Z pour annuler)` : `${p.name} a quitté la table (Ctrl+Z pour annuler)`);
+    },
     // table
     edit(d) { ui.edit = ui.edit === d.id ? null : d.id; render(); },
     'ed-save'(d) {
@@ -834,12 +902,6 @@
     },
     'ed-pause'(d) { cmd((s) => E.togglePause(s, d.id)); },
     'ed-me'(d) { cmd((s) => E.setMe(s, d.id)); },
-    'ed-remove'(d) {
-      const p = player(d.id);
-      if (!p || !window.confirm(`${p.name} quitte la table ?`)) return;
-      const r = cmd((s) => E.removePlayer(s, d.id));
-      if (r && r.ok) { ui.edit = null; render(); toast(`${p.name} a quitté la table`); }
-    },
     add() {
       const name = $('add-name').value;
       const stack = $('add-stack').value;
@@ -975,7 +1037,9 @@
       if (k === 'Enter') {
         if (t.id === 'amt') { ev.preventDefault(); handlers.act({ t: 'r' }); }
         else if (t.id === 'add-name' || t.id === 'add-stack') { ev.preventDefault(); handlers.add(); }
+        else if (t.id === 'sa-name' || t.id === 'sa-stack') { ev.preventDefault(); handlers['seat-add-ok'](); }
       } else if (k === 'Escape' && t.id === 'amt') { ui.sizing = false; render(); }
+      else if (k === 'Escape' && (t.id === 'sa-name' || t.id === 'sa-stack')) handlers['seat-add-cancel']();
       return;
     }
     if (ev.ctrlKey || ev.metaKey || ev.altKey || !state || ui.tab !== 'main') return;

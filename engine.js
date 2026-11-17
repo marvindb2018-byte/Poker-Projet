@@ -145,8 +145,7 @@
   }
 
   function removePlayer(state, id) {
-    const blocked = needNoHand(state);
-    if (blocked) return blocked;
+    if (state.hand && state.hand.order.includes(id)) return fail('Ce joueur est dans la main en cours : il partira à la fin de la main.');
     const P = state.players;
     const i = P.findIndex((p) => p.id === id);
     if (i < 0) return fail('Joueur introuvable.');
@@ -156,6 +155,37 @@
     P.splice(i, 1);
     if (state.btnId === id) state.btnId = null;
     return ok();
+  }
+
+  // Un joueur quitte la table. S'il ne joue pas la main en cours, il est retiré tout de suite.
+  // Sinon il est marqué « part » : couché automatiquement quand c'est à lui (s'il est encore dans le coup),
+  // puis retiré à la fin de la main.
+  function leavePlayer(state, id) {
+    const p = getPlayer(state, id);
+    if (!p) return fail('Joueur introuvable.');
+    if (p.me) return fail('Tu ne peux pas te retirer toi-même.');
+    const h = state.hand;
+    if (!h || !h.order.includes(id)) return removePlayer(state, id);
+    p.leaving = true;
+    autoLeave(state);
+    return ok({ later: true });
+  }
+
+  // Les joueurs qui partent passent leur tour : check si possible, sinon couché.
+  function autoLeave(state) {
+    const h = state.hand;
+    let guard = 0;
+    while (h && h.phase === 'action' && h.toAct && guard++ < 20) {
+      const p = getPlayer(state, h.toAct);
+      if (!p || !p.leaving) break;
+      const o = options(h, h.toAct);
+      applyAction(state, { type: o.canCheck ? 'x' : 'f' }, true);
+    }
+  }
+
+  // Retire les joueurs marqués « part » une fois la main finie.
+  function removeLeavers(state) {
+    state.players.filter((p) => p.leaving).map((p) => p.id).forEach((id) => removePlayer(state, id));
   }
 
   function updatePlayer(state, id, d) {
@@ -367,6 +397,7 @@
     h.events.push({ t: 'deal', pos: h.pos[h.meId], cards: cards.slice(), pot: h.ante ? potOf(h) : null });
     h.phase = 'action';
     if (!h.toAct) closeStreet(state);
+    autoLeave(state);
     return ok();
   }
 
@@ -412,7 +443,7 @@
   }
 
   // a = { type: 'f' | 'x' | 's' | 'r' | 'AI', to?: montant total sur le tour (mise ou relance « à ») }
-  function applyAction(state, a) {
+  function applyAction(state, a, auto) {
     const h = state.hand;
     if (!h || h.phase !== 'action' || !h.toAct) return fail('Aucune action attendue.');
     const id = h.toAct;
@@ -456,6 +487,7 @@
     }
     h.events.push(ev);
     advance(state, id);
+    if (!auto) autoLeave(state);
     return ok();
   }
 
@@ -530,6 +562,7 @@
     h.phase = 'action';
     h.toAct = findNext(h, null);
     if (!h.toAct) closeStreet(state);
+    autoLeave(state);
     return ok();
   }
 
@@ -698,6 +731,7 @@
     if (h.phase === 'done') state.last = handSummary(h);
     else if (h.phase !== 'spectate') return fail("La main n'est pas terminée.");
     state.hand = null;
+    removeLeavers(state);
     return ok();
   }
 
@@ -713,6 +747,7 @@
     state.handNo = h.prevMeta.handNo;
     state.told = h.prevMeta.told;
     state.hand = null;
+    removeLeavers(state);
     return ok();
   }
 
@@ -802,7 +837,7 @@
   const api = {
     RANKS, SUITS, STREET_NAMES, POSITIONS, MAX_PLAYERS,
     defaultSettings, newGame, markConversationStart, updateSettings,
-    addPlayer, removePlayer, updatePlayer, setButtonNext, setMe, togglePause,
+    addPlayer, removePlayer, leavePlayer, updatePlayer, setButtonNext, setMe, togglePause,
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots,
     endHand, abortHand, handSummary, handHistory, contestedPot,

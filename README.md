@@ -24,7 +24,7 @@ L'**historique de la main** (blindes, actions de chacun, cartes, pot, gagnant, m
 
 ## Sur PC (écran large)
 
-À partir de 1000 px de large, l'appli passe en affichage PC. La main en cours est sur deux colonnes : à gauche le message pour Claude et les boutons d'action, au milieu une **table de poker** vue de dessus (toi en bas, les autres joueurs autour avec leurs jetons et leurs mises, le jeton D, le joueur qui parle en surbrillance, le tableau et le pot au centre ; à l'abattage, on clique sur le gagnant). Une colonne à droite affiche :
+À partir de 1000 px de large, l'appli passe en affichage PC. La main en cours est sur deux colonnes : à gauche le message pour Claude et les boutons d'action, au milieu une **table de poker** vue de dessus (aussi entre deux mains ; un « + » discret entre deux places pour ajouter un joueur, un « − » au survol d'un joueur pour le retirer : tout de suite s'il ne joue pas la main, sinon il est couché quand c'est à lui puis retiré à la fin de la main) (toi en bas, les autres joueurs autour avec leurs jetons et leurs mises, le jeton D, le joueur qui parle en surbrillance, le tableau et le pot au centre ; à l'abattage, on clique sur le gagnant). Une colonne à droite affiche :
 - **Ta main** : les cartes qui forment ta combinaison (les tiennes marquées d'un point, les cartes d'appoint grisées) et son nom (ex. « Paire de Rois »), les tirages couleur et quinte, et un avertissement si la combinaison est entièrement sur le tableau ;
 - **Combinaisons** : de la plus forte à la plus faible, avec un exemple, ta combinaison surlignée ;
 - **Raccourcis clavier** : les mêmes lettres que dans les messages pour Claude.
