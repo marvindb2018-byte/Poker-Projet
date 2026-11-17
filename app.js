@@ -47,7 +47,7 @@
 
   function defaultSetup() {
     return {
-      n: 6, sb: 10, bb: 20, me: 0, btn: 0,
+      n: 6, sb: 10, bb: 20, ante: 0, anteType: 'chacun', me: 0, btn: 0,
       names: Array.from({ length: E.MAX_PLAYERS }, (_, i) => (i === 0 ? 'Moi' : 'Joueur ' + (i + 1))),
       stacks: Array.from({ length: E.MAX_PLAYERS }, () => ''),
     };
@@ -183,10 +183,16 @@
           <button data-a="setup-n" data-d="1" aria-label="Un joueur de plus">+</button>
         </div>
       </div>
-      <div class="grid2">
+      <div class="grid3">
         <label class="field">Petite blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="sb" value="${esc(s.sb)}"></label>
         <label class="field">Grosse blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="bb" value="${esc(s.bb)}"></label>
+        <label class="field">Ante<input class="in" type="number" inputmode="numeric" min="0" data-setup="ante" value="${esc(s.ante)}"></label>
       </div>
+      <label class="field">Qui paie l'ante ?<select class="in" data-setup-str="anteType">
+        <option value="chacun" ${s.anteType !== 'bb' ? 'selected' : ''}>Chaque joueur</option>
+        <option value="bb" ${s.anteType === 'bb' ? 'selected' : ''}>La grosse blinde, pour toute la table</option>
+      </select></label>
+      <p class="hint">Ante : petite mise obligatoire en plus des blindes, souvent en tournoi quand les blindes montent. Laisse 0 s'il n'y en a pas. Sur le site, soit chaque joueur pose l'ante avant les cartes, soit seule la grosse blinde la paie pour toute la table.</p>
       <h2>Les joueurs</h2>
       <p class="hint">Recopie ce que tu vois sur le site : le pseudo et les jetons de chaque joueur, en faisant le tour de la table dans le sens des aiguilles d'une montre.</p>
       <div class="seat-row head"><span></span><span>Pseudo</span><span>Jetons</span></div>
@@ -237,7 +243,7 @@
       <div class="hh-line">
         <span class="tag">Main #${h.no}</span>
         <span class="tag">${h.phase === 'board' ? '→ ' + E.STREET_NAMES[h.street + 1] : E.STREET_NAMES[h.street]}</span>
-        <span class="tag">${h.sb}/${h.bb}</span>
+        <span class="tag">${h.sb}/${h.bb}${h.ante ? (h.anteType === 'bb' ? ' · ante BB ' : ' · ante ') + h.ante : ''}</span>
         <span class="pot">Pot <b>${E.potOf(h)}</b></span>
       </div>
       <div class="hh-cards">
@@ -331,7 +337,7 @@
       if (!me) out += `<p class="warn">Aucun joueur n'est marqué « moi » (onglet Table).</p>`;
       else if (!plan.order.includes(me.id)) out += `<p class="warn">Tu ne joues pas cette main (pause ou 0 jeton).</p>`;
     }
-    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}) · <b>UTG</b> parle en premier. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
+    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
       <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n} ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="tab" data-tab="table">Un joueur arrive, part, ou recave ?</button>
     </section>`;
@@ -611,12 +617,17 @@
   function viewSettings() {
     const S = state.settings;
     return `<section class="panel">
-      <h2>Blindes</h2>
-      <div class="grid2">
+      <h2>Blindes et ante</h2>
+      <div class="grid3">
         <label class="field">Petite blinde<input class="in" type="number" inputmode="numeric" min="1" data-set="sb" value="${S.sb}"></label>
         <label class="field">Grosse blinde<input class="in" type="number" inputmode="numeric" min="1" data-set="bb" value="${S.bb}"></label>
+        <label class="field">Ante<input class="in" type="number" inputmode="numeric" min="0" data-set="ante" value="${S.ante || 0}"></label>
       </div>
-      <p class="hint">Quand les blindes montent : le changement s'applique à la main suivante et Claude en est prévenu tout seul.</p>
+      <label class="field">Qui paie l'ante ?<select class="in" data-set="anteType">
+        <option value="chacun" ${S.anteType !== 'bb' ? 'selected' : ''}>Chaque joueur</option>
+        <option value="bb" ${S.anteType === 'bb' ? 'selected' : ''}>La grosse blinde, pour toute la table</option>
+      </select></label>
+      <p class="hint">Quand les blindes ou l'ante changent : le changement s'applique à la main suivante et Claude en est prévenu tout seul. Ante : petite mise obligatoire en plus des blindes, souvent en tournoi quand les blindes montent. Laisse 0 s'il n'y en a pas. Sur le site, soit chaque joueur pose l'ante avant les cartes, soit seule la grosse blinde la paie pour toute la table.</p>
     </section>
     <section class="panel">
       <h2>Partie</h2>
@@ -667,13 +678,14 @@
     'setup-btn'(d) { ui.setup.btn = Number(d.i); render(); },
     'setup-go'() {
       const s = ui.setup;
-      const sb = Number(s.sb), bb = Number(s.bb);
+      const sb = Number(s.sb), bb = Number(s.bb), ante = Number(s.ante || 0);
       if (!(sb > 0 && bb > 0)) return toast('Les blindes doivent être positives.');
+      if (!(ante >= 0)) return toast("L'ante doit être 0 ou plus.");
       if (sb > bb) return toast('La petite blinde doit être ≤ à la grosse.');
       const stacks = s.stacks.slice(0, s.n).map(Number);
       const missing = stacks.findIndex((x) => !(x > 0));
       if (missing >= 0) return toast(`Indique les jetons de ${s.names[missing] || 'chaque joueur'}.`);
-      state = E.newGame({ names: s.names.slice(0, s.n), stacks, meIndex: s.me, btnIndex: s.btn, sb, bb });
+      state = E.newGame({ names: s.names.slice(0, s.n), stacks, meIndex: s.me, btnIndex: s.btn, sb, bb, ante, anteType: s.anteType });
       hist = [];
       ui.tab = 'main';
       save();
@@ -806,6 +818,8 @@
       state.players.forEach((p, i) => { s.names[i] = p.name; s.stacks[i] = p.stack; if (p.me) s.me = i; });
       s.sb = state.settings.sb;
       s.bb = state.settings.bb;
+      s.ante = state.settings.ante || 0;
+      s.anteType = state.settings.anteType || 'chacun';
       ui.setup = s;
       state = null;
       hist = [];
@@ -842,11 +856,12 @@
   document.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.dataset.setupSel) { ui.setup[t.dataset.setupSel] = Number(t.value); return; }
+    if (t.dataset.setupStr) { ui.setup[t.dataset.setupStr] = t.value; return; }
     const k = t.dataset.set;
     if (!k || !state) return;
     // sans redessiner l'écran, pour ne pas perdre le champ suivant que l'on vient de toucher
     const r = cmd((s) => E.updateSettings(s, { [k]: t.value }), { quiet: true });
-    if (r && r.ok) toast('Blindes enregistrées');
+    if (r && r.ok) toast('Enregistré pour la prochaine main');
   });
 
   /* ------------------------------------------------------------ clavier */

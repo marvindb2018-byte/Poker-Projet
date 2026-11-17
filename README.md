@@ -6,7 +6,7 @@ Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout
 ## Utilisation
 
 **Au départ (une fois)**
-1. « Nouvelle partie » : nombre de joueurs, blindes, puis le pseudo et les jetons de chaque joueur tels qu'affichés sur le site (dans l'ordre des places), lequel est toi, et qui a le jeton « D ».
+1. « Nouvelle partie » : nombre de joueurs, blindes, ante éventuelle (payée par chaque joueur ou par la grosse blinde pour toute la table), puis le pseudo et les jetons de chaque joueur tels qu'affichés sur le site (dans l'ordre des places), lequel est toi, et qui a le jeton « D ».
 2. « Copier le prompt », puis le coller dans une nouvelle conversation Claude.
 
 **À chaque main**
@@ -43,15 +43,22 @@ Sur téléphone, l'affichage ne change pas.
 
 ## Exemple de messages générés
 
+Début de main :
 ```
 tapis UTG 2000, MP 1500, CO 2400, BTN 1800, SB 2000, BB 900
 BTN AcKk | UTG r60, CO s
 ```
-puis, après ta décision :
+Avec une ante, le pot de départ est ajouté : `BTN AcKk pot 45 | UTG r60, CO s`.
+Si personne ne parle avant toi : `BTN AcKk | je parle en premier`.
+
+Après ta décision, ton coup est rappelé, puis les réactions :
 ```
+(moi r180)
 UTG s
 +Kc7t2k pot 450 | UTG x
 ```
+
+Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40, ante 5`.
 
 ## Mise en ligne sur Netlify
 

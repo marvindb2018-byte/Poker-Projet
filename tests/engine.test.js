@@ -41,20 +41,20 @@ test('réactions, flop, relance, abandon et tapis finaux', () => {
   ok(E.addStreet(s, ['Kc', '7t', '2k']));
   assert.strictEqual(who(s), 'UTG');
   act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), 'UTG s\n+Kc7t2k pot 450 | UTG x');
+  assert.strictEqual(E.buildMessage(s), '(moi r180)\nUTG s\n+Kc7t2k pot 450 | UTG x');
   act(s, 'r', 200); // moi : mise 200
   assert.strictEqual(s.hand.events[s.hand.events.length - 1].a, 'b');
   act(s, 'r', 600);
-  assert.strictEqual(E.buildMessage(s), 'UTG r600');
+  assert.strictEqual(E.buildMessage(s), '(moi b200)\nUTG r600');
   act(s, 's'); // moi
   assert.strictEqual(s.hand.phase, 'board');
   ok(E.addStreet(s, ['5c']));
   act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), '+5c pot 1650 | UTG x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\n+5c pot 1650 | UTG x');
   act(s, 'x');
   ok(E.addStreet(s, ['9p']));
   act(s, 'r', 500);
-  assert.strictEqual(E.buildMessage(s), '+9p pot 1650 | UTG b500');
+  assert.strictEqual(E.buildMessage(s), '(moi x)\n+9p pot 1650 | UTG b500');
   act(s, 'f');
   assert.strictEqual(s.hand.phase, 'done');
   assert.strictEqual(s.hand.sent.length, 5);
@@ -98,7 +98,7 @@ test('tapis multiples et pots annexes', () => {
   act(s, 'r', 60); // moi
   act(s, 'AI'); // A tapis 500
   act(s, 'AI'); // B tapis 1500
-  assert.strictEqual(E.buildMessage(s), 'SB AI500, BB AI1500');
+  assert.strictEqual(E.buildMessage(s), '(moi r60)\nSB AI500, BB AI1500');
   act(s, 's'); // moi suit 1500
   assert.strictEqual(s.hand.phase, 'showdown');
   assert.deepStrictEqual(s.hand.pots.map((p) => p.amount), [1500, 2000]);
@@ -156,7 +156,7 @@ test('tête-à-tête : le bouton paie la SB et parle en premier préflop', () =>
   E.addStreet(s, ['2p', '7c', 'Kk']);
   assert.strictEqual(who(s), 'BB'); // la BB parle en premier après le flop
   act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), 'BB x\n+2p7cKk pot 40 | BB x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\nBB x\n+2p7cKk pot 40 | BB x');
 });
 
 test('arrivée, départ, bouton et ligne « table »', () => {
@@ -253,13 +253,62 @@ test('je parle en premier : c\'est écrit explicitement', () => {
   act(s, 's'); act(s, 's'); act(s, 'x');
   E.addStreet(s, ['Kc', '7t', '2k']);
   act(s, 'x'); act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), 'SB s, BB x\n+Kc7t2k pot 60 | SB x, BB x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\nSB s, BB x\n+Kc7t2k pot 60 | SB x, BB x');
   act(s, 'x');
   E.addStreet(s, ['5c']);
   act(s, 'r', 40); // SB mise
   act(s, 'f');
-  assert.strictEqual(E.buildMessage(s), '+5c pot 60 | SB b40');
+  assert.strictEqual(E.buildMessage(s), '(moi x)\n+5c pot 60 | SB b40');
   assert.ok(E.buildPrompt(s).includes('je parle en premier'));
+});
+
+test('ante classique : chaque joueur paie, le pot de départ est donné', () => {
+  const s = E.newGame({ names: ['Moi', 'A', 'B', 'C', 'D', 'E'], stacks: [2000, 2000, 2000, 2000, 3, 2000], meIndex: 0, btnIndex: 0, sb: 10, bb: 20, ante: 5 });
+  ok(E.startHand(s)); E.chooseCards(s, ['Ac', 'Kk']);
+  const h = s.hand;
+  // D (MP) n'a que 3 jetons : il est à tapis avec son ante
+  assert.strictEqual(E.potOf(h), 30 + 5 * 5 + 3);
+  assert.ok(h.allin[id(s, 'D')]);
+  assert.strictEqual(h.cb, 20); // l'ante ne compte pas dans la mise à suivre
+  assert.strictEqual(E.options(h, h.toAct).toCall, 20);
+  act(s, 'f'); act(s, 's');
+  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 3, CO 2000, BTN 2000, SB 2000, BB 2000\nBTN AcKk pot 58 | CO s');
+  act(s, 's'); act(s, 'f'); act(s, 'x');
+  assert.strictEqual(h.phase, 'board');
+  E.addStreet(s, ['2c', '3c', '4c']);
+  assert.strictEqual(h.events[h.events.length - 1].pot, 58 + 20 + 20); // CO et moi suivons, la SB se couche
+  assert.ok(E.buildPrompt(s).includes('ante 5 (payée par chaque joueur)'));
+});
+
+test('ante grosse blinde : seule la BB paie, la blinde passe avant si tapis court', () => {
+  const s = E.newGame({ names: ['Moi', 'A', 'B'], stacks: [2000, 2000, 30], meIndex: 0, btnIndex: 0, sb: 10, bb: 20, ante: 20, anteType: 'bb' });
+  ok(E.startHand(s)); E.chooseCards(s, ['Ac', 'Kk']);
+  const h = s.hand; // moi BTN, A SB, B BB avec 30 jetons : 20 de blinde puis 10 d'ante
+  assert.strictEqual(h.bet[id(s, 'B')], 20);
+  assert.strictEqual(h.total[id(s, 'B')], 30);
+  assert.strictEqual(E.potOf(h), 10 + 30);
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, SB 2000, BB 30\nBTN AcKk pot 40 | je parle en premier');
+  assert.ok(E.buildPrompt(s).includes("ante BB 20 (la grosse blinde paie l'ante pour toute la table)"));
+  act(s, 's'); act(s, 's');
+  assert.strictEqual(h.phase, 'board'); // BB à tapis : plus d'enchère préflop
+});
+
+test('changement d\'ante signalé, et « sans ante » quand elle disparaît', () => {
+  const s = game6();
+  ok(E.updateSettings(s, { ante: 5 }));
+  E.startHand(s); E.chooseCards(s, ['Ac', 'Kk']);
+  assert.ok(E.buildMessage(s).startsWith('blindes 10/20, ante 5\n'));
+  ok(E.abortHand(s));
+  ok(E.updateSettings(s, { anteType: 'bb', ante: 20 }));
+  E.startHand(s); E.chooseCards(s, ['Ac', 'Kk']);
+  assert.ok(E.buildMessage(s).startsWith('blindes 10/20, ante BB 20\n'));
+  ok(E.checkFoldUntilMe(s)); act(s, 'f');
+  ok(E.forceShowdown(s)); ok(E.declareWinners(s, E.showdownCandidates(s.hand).slice(0, 1)));
+  ok(E.endHand(s));
+  ok(E.updateSettings(s, { ante: 0 }));
+  E.startHand(s); E.chooseCards(s, ['2c', '2k']);
+  assert.ok(E.buildMessage(s).startsWith('blindes 10/20, sans ante\n'));
+  assert.ok(!E.updateSettings(s, { anteType: 'autre' }).ok);
 });
 
 test('prompt de départ', () => {

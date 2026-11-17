@@ -17,11 +17,13 @@ const ACT = `${POS} (?:f|x|s|b\\d+|r\\d+|AI\\d+)`;
 const ACTS = `${ACT}(?:, ${ACT})*`;
 const CARD = '[AKQJT2-9][pckt]';
 const TAIL = `(?:${ACTS}|tous couchés|je parle en premier)`;
+const BLINDS = 'blindes \\d+/\\d+(?:, ante (?:BB )?\\d+|, sans ante)?';
 const LINE = [
-  new RegExp(`^table \\d+ joueurs \\(${POS}(?:, ${POS})*\\)(?: — le BTN est aussi SB)?(?:, blindes \\d+/\\d+)?$`),
-  new RegExp('^blindes \\d+/\\d+$'),
+  new RegExp(`^table \\d+ joueurs \\(${POS}(?:, ${POS})*\\)(?: — le BTN est aussi SB)?(?:, ${BLINDS})?$`),
+  new RegExp(`^${BLINDS}$`),
   new RegExp(`^tapis ${POS} \\d+(?:, ${POS} \\d+)*$`),
-  new RegExp(`^${POS} ${CARD}${CARD} \\| ${TAIL}$`),
+  new RegExp(`^${POS} ${CARD}${CARD}(?: pot \\d+)? \\| ${TAIL}$`),
+  new RegExp('^\\(moi (?:f|x|s|b\\d+|r\\d+|AI\\d+)\\)$'),
   new RegExp(`^\\+(?:${CARD}){1,3} pot \\d+ \\| ${TAIL}$`),
   new RegExp(`^${ACTS}$`),
 ];
@@ -37,7 +39,9 @@ for (let g = 0; g < 60; g++) {
     if (rnd() < 0.08 && s.players.length < 10) E.addPlayer(s, { name: 'N' + k, stack: 500 + Math.floor(rnd() * 3000), afterId: pick(s.players).id });
     if (rnd() < 0.05) { const o = s.players.filter((p) => !p.me); if (o.length > 1) E.removePlayer(s, pick(o).id); }
     if (rnd() < 0.05) E.updateSettings(s, { sb: s.settings.sb * 2, bb: s.settings.bb * 2 });
+    if (rnd() < 0.06) E.updateSettings(s, { ante: pick([0, 0, 2, 5, s.settings.bb]), anteType: pick(['chacun', 'bb']) });
     s.players.forEach((p) => { if (p.stack === 0) p.stack = 1000; });
+    const before = s.players.reduce((a, p) => a + p.stack, 0);
     if (!E.startHand(s).ok) break;
     hands++;
     const h = s.hand;
@@ -57,8 +61,13 @@ for (let g = 0; g < 60; g++) {
           assert.ok(m.length > 0, 'message vide');
           assert.ok(!/undefined|NaN|null/.test(m), m);
           for (const line of m.split('\n')) assert.ok(LINE.some((re) => re.test(line)), 'ligne inconnue : « ' + line + ' »\n' + m);
+          if (sent.length > 1) {
+            const prev = h.events.filter((e) => e.t === 'act' && e.mine).pop();
+            const fa = prev.a === 'b' || prev.a === 'r' || prev.a === 'AI' ? prev.a + prev.amt : prev.a;
+            assert.strictEqual(m.split('\n')[0], '(moi ' + fa + ')', 'mon coup n\'est pas rappelé :\n' + m);
+          }
           if (sent.length === 1) {
-            assert.ok(m.includes(h.pos[h.meId] + ' ' + h.cards.join('') + ' | '), 'pas de ligne « position + cartes » :\n' + m);
+            assert.ok(new RegExp('^' + h.pos[h.meId].replace('+', '\\+') + ' ' + h.cards.join('') + '(?: pot \\d+)? \\| ', 'm').test(m), 'pas de ligne « position + cartes » :\n' + m);
             assert.ok(/^tapis /m.test(m), 'pas de ligne tapis :\n' + m);
           }
         }
@@ -79,13 +88,14 @@ for (let g = 0; g < 60; g++) {
       }
     }
     assert.strictEqual(h.phase, 'done');
+    assert.strictEqual(s.players.reduce((a, p) => a + p.stack, 0), before, 'jetons perdus');
     // Rien n'est perdu : chaque action non « couché » des autres, faite avant ma dernière décision,
     // apparaît exactement une fois dans les messages envoyés.
     const lastMine = h.events.map((e, i) => (e.t === 'act' && e.mine ? i : -1)).filter((i) => i >= 0).pop();
     if (lastMine != null) {
       const expected = h.events.slice(0, lastMine).filter((e) => e.t === 'act' && !e.mine && e.a !== 'f').length;
       const text = h.sent.join('\n');
-      const found = (text.match(new RegExp(ACT, 'g')) || []).filter((t) => !/ f$/.test(t)).length;
+      const found = (text.replace(/^\(moi .*\)$/gm, '').match(new RegExp(ACT, 'g')) || []).filter((t) => !/ f$/.test(t)).length;
       assert.strictEqual(found, expected, 'actions perdues ou en double :\n' + text);
       assert.deepStrictEqual(h.sent, sent);
       checked++;

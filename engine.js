@@ -41,7 +41,12 @@
   /* ------------------------------------------------------------------ partie */
 
   function defaultSettings() {
-    return { sb: 10, bb: 20 };
+    return {
+      sb: 10,
+      bb: 20,
+      ante: 0, // 0 = pas d'ante
+      anteType: 'chacun', // 'chacun' : chaque joueur paie l'ante ; 'bb' : la grosse blinde paie l'ante pour toute la table
+    };
   }
 
   // cfg = { names: [...], stacks: [...] (jetons de chaque joueur), sb, bb, meIndex, btnIndex }
@@ -53,6 +58,8 @@
     const settings = defaultSettings();
     settings.sb = toInt(cfg.sb, 10) || 10;
     settings.bb = toInt(cfg.bb, 20) || 20;
+    settings.ante = toInt(cfg.ante, 0);
+    if (cfg.anteType === 'bb') settings.anteType = 'bb';
     const meIndex = cfg.meIndex | 0;
     const players = names.map((name, i) => ({
       id: uid(),
@@ -82,7 +89,7 @@
   // Appelé quand le prompt de départ est copié : Claude repart de la table telle qu'elle est décrite dans le prompt.
   function markConversationStart(state) {
     const n = state.players.filter(isActive).length;
-    state.told = { n, sb: state.settings.sb, bb: state.settings.bb };
+    state.told = { n, sb: state.settings.sb, bb: state.settings.bb, ante: state.settings.ante || 0, anteType: state.settings.anteType };
     state.promptCopied = true;
   }
 
@@ -97,6 +104,15 @@
       }
     }
     if (next.sb > next.bb) return fail('La petite blinde doit être inférieure ou égale à la grosse.');
+    if (patch.ante != null) {
+      const a = toInt(patch.ante, NaN);
+      if (!(a >= 0)) return fail("L'ante doit être 0 ou plus.");
+      next.ante = a;
+    }
+    if (patch.anteType != null) {
+      if (!['chacun', 'bb'].includes(patch.anteType)) return fail("Type d'ante inconnu.");
+      next.anteType = patch.anteType;
+    }
     state.settings = next;
     return ok();
   }
@@ -260,8 +276,13 @@
     const n = h.order.length;
     h.sbId = n === 2 ? h.order[1] : h.order[0];
     h.bbId = n === 2 ? h.order[0] : h.order[1];
+    const ante = S.ante || 0;
+    h.ante = ante;
+    h.anteType = S.anteType || 'chacun';
+    if (ante && h.anteType === 'chacun') h.order.forEach((id) => putDead(h, id, ante));
     put(h, h.sbId, S.sb);
     put(h, h.bbId, S.bb);
+    if (ante && h.anteType === 'bb') putDead(h, h.bbId, ante); // la blinde passe avant l'ante si le tapis est court
     h.toAct = findNext(h, null);
     state.hand = h;
     return ok();
@@ -276,10 +297,29 @@
     const n = h.order.length;
     const parts = [];
     if (t.n !== n) parts.push('table ' + n + ' joueurs (' + POSITIONS[n].join(', ') + ')' + (n === 2 ? ' — le BTN est aussi SB' : ''));
-    if (t.sb !== S.sb || t.bb !== S.bb) parts.push('blindes ' + S.sb + '/' + S.bb);
+    const ante = S.ante || 0;
+    if (t.sb !== S.sb || t.bb !== S.bb || (t.ante || 0) !== ante || (ante && t.anteType !== S.anteType)) parts.push(blindsText(S, (t.ante || 0) > 0));
     if (parts.length) h.events.push({ t: 'hdr', text: parts.join(', ') });
     h.events.push({ t: 'hdr', text: 'tapis ' + h.pre.map((id) => h.pos[id] + ' ' + h.stacks0[id]).join(', ') });
-    state.told = { n, sb: S.sb, bb: S.bb };
+    state.told = { n, sb: S.sb, bb: S.bb, ante, anteType: S.anteType };
+  }
+
+  // Ante : va au pot mais ne compte pas comme une mise du tour (« suivre » ne la prend pas en compte).
+  function putDead(h, id, amount) {
+    const a = Math.max(0, Math.min(amount, h.stack[id]));
+    h.stack[id] -= a;
+    h.total[id] += a;
+    if (h.stack[id] === 0) h.allin[id] = true;
+  }
+
+  // « blindes 10/20 », « blindes 10/20, ante 5 », « blindes 10/20, ante BB 20 »,
+  // ou « blindes 10/20, sans ante » quand il y avait une ante avant.
+  function blindsText(S, hadAnte) {
+    const ante = S.ante || 0;
+    let t = 'blindes ' + S.sb + '/' + S.bb;
+    if (ante) t += S.anteType === 'bb' ? ', ante BB ' + ante : ', ante ' + ante;
+    else if (hadAnte) t += ', sans ante';
+    return t;
   }
 
   function put(h, id, amount) {
@@ -313,7 +353,7 @@
     if (!h || h.phase !== 'cards') return fail('Pas de cartes attendues.');
     if (!Array.isArray(cards) || cards.length !== 2 || !cards.every(isCard) || cards[0] === cards[1]) return fail('Choisis 2 cartes différentes.');
     h.cards = cards.slice();
-    h.events.push({ t: 'deal', pos: h.pos[h.meId], cards: cards.slice() });
+    h.events.push({ t: 'deal', pos: h.pos[h.meId], cards: cards.slice(), pot: h.ante ? potOf(h) : null });
     h.phase = 'action';
     if (!h.toAct) closeStreet(state);
     return ok();
@@ -614,24 +654,27 @@
     return l.head + ' | je parle en premier'; // personne n'a parlé avant moi sur ce tour
   }
 
-  // Message à envoyer à Claude : tout ce qui s'est passé depuis ma dernière décision.
+  // Message à envoyer à Claude : mon dernier coup, puis tout ce qui s'est passé depuis.
   function buildMessage(state) {
     const h = state.hand;
     if (!h) return '';
     let start = 0;
+    let mine = null;
     for (let i = h.events.length - 1; i >= 0; i--) {
       const e = h.events[i];
-      if (e.t === 'act' && e.mine) { start = i + 1; break; }
+      if (e.t === 'act' && e.mine) { start = i + 1; mine = e; break; }
     }
     const lines = [];
     let cur = null;
+    // Je rappelle ce que j'ai vraiment joué : Claude reste juste même si je n'ai pas suivi son conseil.
+    if (mine) lines.push({ raw: '(moi ' + fmtAct(mine) + ')' });
     for (let i = start; i < h.events.length; i++) {
       const e = h.events[i];
       if (e.t === 'hdr') {
         lines.push({ raw: e.text });
         cur = null;
       } else if (e.t === 'deal') {
-        cur = { head: e.pos + ' ' + e.cards.join(''), acts: [] };
+        cur = { head: e.pos + ' ' + e.cards.join('') + (e.pot ? ' pot ' + e.pot : ''), acts: [] };
         lines.push(cur);
       } else if (e.t === 'street') {
         cur = { head: '+' + (e.cards.length ? e.cards.join('') : '??') + ' pot ' + e.pot, acts: [] };
@@ -649,20 +692,26 @@
     const n = Math.max(2, Math.min(MAX_PLAYERS, state.players.filter(isActive).length || 2));
     const L = [];
     L.push("On joue au Texas Hold'em No Limit entre amis, sans argent. Tu me conseilles en direct.");
-    L.push('Table : ' + n + ' joueurs, blindes ' + S.sb + '/' + S.bb + '.');
+    const ante = S.ante || 0;
+    L.push('Table : ' + n + ' joueurs, blindes ' + S.sb + '/' + S.bb + (ante ? (S.anteType === 'bb'
+      ? ', ante BB ' + ante + " (la grosse blinde paie l'ante pour toute la table)"
+      : ', ante ' + ante + ' (payée par chaque joueur)') : '') + '.');
     L.push('');
     L.push('Notation :');
     L.push('- Cartes : rang A K Q J T 9…2 + couleur p=pique, c=cœur, k=carreau, t=trèfle. Ex : AcTk. Sans couleur : AKs (assorties) / AKo (dépareillées).');
     L.push('- Positions : ' + POSITIONS[n].join(', ') + (n === 2 ? ' (à 2 joueurs, le BTN est aussi SB)' : '') + '.');
     L.push('- Actions : f=couché, x=check, s=suit, b40=mise 40, r120=relance à 120, AI350=tapis pour 350. Les montants sont le total misé par le joueur sur le tour en cours.');
-    L.push('- Nouvelle main : une ligne avec le tapis de chaque position (avant les blindes), puis ma position + mes cartes | actions avant moi. Ex :');
+    L.push('- Nouvelle main : une ligne avec le tapis de chaque position (avant blindes et antes), puis ma position + mes cartes | actions avant moi. Ex :');
     L.push('  tapis UTG 2000, MP 1500, CO 2400, BTN 1800, SB 2000, BB 900');
     L.push('  BTN AcKk | UTG r60, CO s');
     L.push('- Cartes du tableau : + les nouvelles cartes, le pot | les actions. Ex : +Kc7t2k pot 200 | BB b100');
     L.push('- Si personne ne parle avant moi, j\'écris « je parle en premier ». Ex : BTN AcKk | je parle en premier');
-    L.push("- Après ma décision, je t'envoie seulement les réactions. Ex : BB r300");
+    L.push("- Quand il y a une ante, j'ajoute le pot de départ (blindes + antes) après mes cartes. Ex : BTN AcKk pot 45 | UTG r60");
+    L.push("- Après ma décision, je te rappelle entre parenthèses ce que j'ai vraiment joué, puis les réactions. Ex :");
+    L.push('  (moi r180)');
+    L.push('  BB r300');
     L.push("- Un joueur qui a parlé sans être cité s'est couché.");
-    L.push('- Table : je te préviens quand le nombre de joueurs ou les blindes changent, avec les nouvelles positions. Ex : table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40');
+    L.push("- Table : je te préviens quand le nombre de joueurs, les blindes ou l'ante changent, avec les nouvelles positions. Ex : table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40, ante 5");
     L.push('');
     L.push("Réponds en une seule ligne : action + montant (ex : r180). Ajoute 3 à 5 mots d'explication seulement si la décision est serrée. Si j'écris « ? », explique en 2 phrases.");
     L.push("Si une information te manque, ne pose pas de question : fais l'hypothèse la plus probable et donne quand même ton action.");
@@ -676,7 +725,7 @@
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots,
     endHand, abortHand, handSummary,
-    buildMessage, buildPrompt,
+    buildMessage, buildPrompt, blindsText,
     isActive, isCard, potOf, live, meLive,
   };
 
