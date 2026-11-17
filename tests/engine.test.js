@@ -115,7 +115,7 @@ test('tapis multiples et pots annexes', () => {
   ok(E.startHand(s));
   assert.strictEqual(s.hand.order.length, 2);
   E.chooseCards(s, ['2c', '7k']);
-  assert.ok(E.buildMessage(s).startsWith('table 2 joueurs\n'));
+  assert.ok(E.buildMessage(s).startsWith('table 2 joueurs (BTN, BB) — le BTN est aussi SB\n'));
 });
 
 test('mise non suivie rendue + partage avec jeton impair', () => {
@@ -182,7 +182,7 @@ test('arrivée, départ, bouton et ligne « table »', () => {
   ok(E.addPlayer(s, { name: 'Léo', stack: 2000 }));
   ok(E.startHand(s));
   E.chooseCards(s, ['5c', '5k']);
-  assert.ok(E.buildMessage(s).startsWith('table 7 joueurs\n'));
+  assert.ok(E.buildMessage(s).startsWith('table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB)\n'));
   assert.ok(E.planNextHand(s).ok);
   // pas de modification de la table pendant une main
   assert.ok(!E.removePlayer(s, id(s, 'B')).ok);
@@ -212,7 +212,7 @@ test('un joueur arrive pendant une main : il joue à la suivante', () => {
   assert.strictEqual(s.hand.order.length, 7);
   assert.ok(s.hand.order.includes(id(s, 'Zoé')));
   const m = E.buildMessage(s).split('\n');
-  assert.strictEqual(m[0], 'table 7 joueurs');
+  assert.strictEqual(m[0], 'table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB)');
   assert.ok(m[1].includes(' 3000'), m[1]);
 });
 

@@ -275,7 +275,7 @@
     const t = state.told || {};
     const n = h.order.length;
     const parts = [];
-    if (t.n !== n) parts.push('table ' + n + ' joueurs');
+    if (t.n !== n) parts.push('table ' + n + ' joueurs (' + POSITIONS[n].join(', ') + ')' + (n === 2 ? ' — le BTN est aussi SB' : ''));
     if (t.sb !== S.sb || t.bb !== S.bb) parts.push('blindes ' + S.sb + '/' + S.bb);
     if (parts.length) h.events.push({ t: 'hdr', text: parts.join(', ') });
     h.events.push({ t: 'hdr', text: 'tapis ' + h.pre.map((id) => h.pos[id] + ' ' + h.stacks0[id]).join(', ') });
@@ -655,16 +655,17 @@
     L.push('- Cartes : rang A K Q J T 9…2 + couleur p=pique, c=cœur, k=carreau, t=trèfle. Ex : AcTk. Sans couleur : AKs (assorties) / AKo (dépareillées).');
     L.push('- Positions : ' + POSITIONS[n].join(', ') + (n === 2 ? ' (à 2 joueurs, le BTN est aussi SB)' : '') + '.');
     L.push('- Actions : f=couché, x=check, s=suit, b40=mise 40, r120=relance à 120, AI350=tapis pour 350. Les montants sont le total misé par le joueur sur le tour en cours.');
-    L.push('- Nouvelle main : une ligne avec le tapis de chaque position, puis ma position + mes cartes | actions avant moi. Ex :');
+    L.push('- Nouvelle main : une ligne avec le tapis de chaque position (avant les blindes), puis ma position + mes cartes | actions avant moi. Ex :');
     L.push('  tapis UTG 2000, MP 1500, CO 2400, BTN 1800, SB 2000, BB 900');
     L.push('  BTN AcKk | UTG r60, CO s');
     L.push('- Cartes du tableau : + les nouvelles cartes, le pot | les actions. Ex : +Kc7t2k pot 200 | BB b100');
     L.push('- Si personne ne parle avant moi, j\'écris « je parle en premier ». Ex : BTN AcKk | je parle en premier');
     L.push("- Après ma décision, je t'envoie seulement les réactions. Ex : BB r300");
     L.push("- Un joueur qui a parlé sans être cité s'est couché.");
-    L.push('- Table : je te préviens quand le nombre de joueurs ou les blindes changent. Ex : table 7 joueurs, blindes 20/40');
+    L.push('- Table : je te préviens quand le nombre de joueurs ou les blindes changent, avec les nouvelles positions. Ex : table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40');
     L.push('');
     L.push("Réponds en une seule ligne : action + montant (ex : r180). Ajoute 3 à 5 mots d'explication seulement si la décision est serrée. Si j'écris « ? », explique en 2 phrases.");
+    L.push("Si une information te manque, ne pose pas de question : fais l'hypothèse la plus probable et donne quand même ton action.");
     return L.join('\n');
   }
 

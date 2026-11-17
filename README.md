@@ -67,6 +67,6 @@ UTG s
 | `app.js` | Les écrans, les boutons et les raccourcis clavier |
 | `style.css` | L'apparence (couleurs en haut du fichier, affichage PC à la fin) |
 | `index.html` | La page qui charge le tout |
-| `tests/` | Tests : `node tests/engine.test.js` et `node tests/hands.test.js` |
+| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages) |
 
 Pour essayer en local : `python3 -m http.server` dans ce dossier, puis ouvrir http://localhost:8000.
