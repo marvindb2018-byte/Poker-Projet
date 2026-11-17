@@ -354,11 +354,11 @@
     const taken = new Set(used.concat(ui.pick));
     const ranks = E.RANKS.map((r) => {
       const avail = E.SUITS.some((s) => !taken.has(r + s));
-      return `<button class="rk ${ui.rank === r ? 'on' : ''}" data-a="rank" data-r="${r}" ${avail ? '' : 'disabled'}>${r === 'T' ? '10' : r}</button>`;
+      return `<button class="rk ${ui.rank === r ? 'on' : ''}" data-a="rank" data-r="${r}" ${avail ? '' : 'disabled'}>${r === 'T' ? '10' + K('T') : r}</button>`;
     }).join('');
     const suits = E.SUITS.map((s) => {
       const dis = !ui.rank || taken.has(ui.rank + s);
-      return `<button class="su s-${s}" data-a="suit" data-s="${s}" ${dis ? 'disabled' : ''}>${SUIT_SYM[s]}<small>${SUIT_NAME[s]}</small></button>`;
+      return `<button class="su s-${s}" data-a="suit" data-s="${s}" ${dis ? 'disabled' : ''}>${SUIT_SYM[s]}<small>${SUIT_NAME[s]}</small>${K(s.toUpperCase())}</button>`;
     }).join('');
     const slots = Array.from({ length: need }, (_, i) => (ui.pick[i]
       ? `<button class="slot" data-a="unpick" data-i="${i}" title="Retirer">${cardHtml(ui.pick[i])}</button>`

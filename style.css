@@ -455,3 +455,9 @@ kbd {
   display: flex; align-items: center; justify-content: center; font: 900 12px var(--sans);
   box-shadow: 0 2px 5px rgba(0, 0, 0, .55);
 }
+
+/* lettres de raccourci dans le choix des cartes (PC) */
+@media (min-width: 1000px) {
+  .su .k { margin: 2px 0 0; font-size: 11px; }
+  .rk .k { margin-left: 4px; vertical-align: 3px; }
+}
