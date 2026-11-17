@@ -21,7 +21,10 @@
     <button id="undo" class="undo" data-a="undo" title="Annuler la dernière action" disabled>↶ Annuler</button>
   </header>
 
-  <main id="view"></main>
+  <div class="layout">
+    <main id="view"></main>
+    <aside id="side" class="side" aria-label="Aide : combinaisons et raccourcis"></aside>
+  </div>
 
   <nav class="nav" hidden>
     <button data-a="tab" data-tab="main">Main</button>
@@ -33,6 +36,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="engine.js"></script>
+  <script src="hands.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -324,3 +324,66 @@ select.in { appearance: auto; }
 
 .panel h2 { margin-top: 18px; }
 .panel > h2:first-child, .panel > h1 + h2 { margin-top: 0; }
+
+/* ---------- touches de clavier */
+kbd {
+  display: inline-block; min-width: 1.6em; padding: 1px 5px; border-radius: 5px;
+  border: 1px solid var(--line); border-bottom-width: 2px; background: #0e1a15; color: var(--text);
+  font: 700 11.5px/1.4 var(--mono); text-align: center; vertical-align: 1px;
+}
+.k, .pc-only { display: none; }
+.warn.small { font-size: 13.5px; }
+
+/* ---------- colonne de droite (masquée sur téléphone) */
+.side { display: none; }
+.side-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.side-box h3 small { font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 4px; }
+.now { font-size: 22px; font-weight: 800; color: var(--gold); line-height: 1.25; }
+.draw { color: var(--accent); font-weight: 600; font-size: 14.5px; margin: 6px 0 0; }
+.combos { list-style: none; margin: 0; padding: 0; }
+.combos li { padding: 7px 8px; border-radius: 9px; border: 1px solid transparent; }
+.combos li + li { margin-top: 2px; }
+.combos li.on { background: rgba(241, 195, 95, .12); border-color: rgba(241, 195, 95, .5); }
+.combos li.on .cb-top > b { color: var(--gold); }
+.combos small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.35; margin-top: 2px; }
+.cb-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cb-top > b { font-size: 14.5px; }
+.cb-top .card.xs { width: 22px; height: 30px; margin-right: 2px; box-shadow: none; }
+.cb-top .card.xs b { font-size: 11px; }
+.cb-top .card.xs i { font-size: 9.5px; }
+.keys dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; margin: 8px 0 0; font-size: 14px; align-items: baseline; }
+.keys dt { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.keys dd { margin: 0; }
+
+/* ---------- affichage PC (écran large) */
+@media (min-width: 1000px) {
+  body { padding-bottom: 0; }
+  .top { padding: 12px 28px; }
+  .nav {
+    position: fixed; top: 0; bottom: auto; left: 50%; transform: translateX(-50%);
+    width: auto; display: flex; gap: 6px; padding: 9px 0 0; background: none; border: 0; z-index: 7;
+  }
+  .nav button { padding: 9px 18px; border-radius: 999px; }
+  .nav button.on { box-shadow: none; background: rgba(60, 196, 127, .14); }
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px;
+    max-width: 1500px; margin: 0 auto; padding: 22px 28px 40px;
+  }
+  main { max-width: none; margin: 0; padding: 0; }
+  .side { display: block; position: sticky; top: 84px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; }
+  .narrow { max-width: 720px; }
+  .hand-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .k, .pc-only { display: inline-block; }
+  .k { margin-left: 6px; opacity: .8; font-size: 11px; padding: 0 5px; }
+  .btn.primary .k { background: rgba(0, 0, 0, .18); color: inherit; border-color: rgba(0, 0, 0, .25); }
+  .act-btns .btn { font-size: 15px; }
+  .cand { position: relative; }
+  .cand .k.right { margin-left: auto; }
+  .toast { bottom: 28px; }
+}
+
+/* ---------- grand écran (2e écran 1920 px) : combinaisons et raccourcis côte à côte */
+@media (min-width: 1600px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 700px; max-width: 1880px; }
+  .side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; overflow: visible; max-height: none; }
+}

@@ -3,6 +3,7 @@
   'use strict';
 
   const E = window.PokerEngine;
+  const HANDS = window.PokerHands;
   const KEY = 'pokercode:v1';
   const HKEY = 'pokercode:hist:v1';
   const HIST_MAX = 60;
@@ -66,6 +67,7 @@
   const $ = (id) => document.getElementById(id);
   const player = (id) => state.players.find((p) => p.id === id);
   const fmtNet = (n) => (n > 0 ? '+' + n : '−' + Math.abs(n));
+  const K = (k) => `<kbd class="k">${k}</kbd>`; // lettre de raccourci, affichée seulement sur PC
 
   let toastTimer = null;
   function toast(msg) {
@@ -153,7 +155,9 @@
     else if (ui.tab === 'prompt') html = viewPrompt();
     else if (ui.tab === 'settings') html = viewSettings();
     else html = viewMain();
+    if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
     $('view').innerHTML = html;
+    $('side').innerHTML = viewSide();
   }
 
   /* ---- nouvelle partie */
@@ -209,19 +213,20 @@
         </div>
       </div>`;
     }
-    if (!h) return out + viewIdle();
-    out += handHead(h);
-    if (h.phase === 'spectate') out += viewSpectate(h);
-    else if (h.phase === 'cards') out += picker(2, `Tes cartes <span class="muted">(${h.pos[h.meId]})</span>`, [], null);
-    else if (h.phase === 'board') out += viewBoard(h);
-    else if (h.phase === 'action') out += viewAction(h);
-    else if (h.phase === 'showdown') out += viewShowdown(h);
-    else if (h.phase === 'done') out += viewDone(h);
-    if (h.sent.length) out += sentList(h.sent, 'hand');
+    if (!h) return `<div class="narrow">${out}${viewIdle()}</div>`;
+    let a = handHead(h);
+    if (h.phase === 'spectate') a += viewSpectate(h);
+    else if (h.phase === 'cards') a += picker(2, `Tes cartes <span class="muted">(${h.pos[h.meId]})</span>`, [], null);
+    else if (h.phase === 'board') a += viewBoard(h);
+    else if (h.phase === 'action') a += viewAction(h);
+    else if (h.phase === 'showdown') a += viewShowdown(h);
+    else if (h.phase === 'done') a += viewDone(h);
+    let b = h.phase === 'spectate' ? '' : strip(h);
+    if (h.sent.length) b += sentList(h.sent, 'hand');
     if (!['done', 'spectate'].includes(h.phase)) {
-      out += `<div class="row end"><button class="btn ghost danger small" data-a="abort">Abandonner la main</button></div>`;
+      b += `<div class="row end"><button class="btn ghost danger small" data-a="abort">Abandonner la main</button></div>`;
     }
-    return out;
+    return `${out}<div class="hand-grid"><div class="col-a">${a}</div><div class="col-b">${b}</div></div>`;
   }
 
   function handHead(h) {
@@ -275,7 +280,7 @@
       else if (!plan.order.includes(me.id)) out += `<p class="warn">Tu ne joues pas cette main (pause ou 0 jeton).</p>`;
     }
     out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}) · <b>UTG</b> parle en premier. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
-      <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n}</button>
+      <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n} ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="tab" data-tab="table">Un joueur arrive, part, ou recave ?</button>
     </section>`;
     if (state.last) out += lastHand(state.last);
@@ -295,7 +300,7 @@
   function viewSpectate() {
     return `<section class="panel">
       <p>Tu ne joues pas cette main (en pause ou sans jetons). Rien à envoyer à Claude.</p>
-      <button class="btn primary big" data-a="next-only">Main suivante</button>
+      <button class="btn primary big" data-a="next-only">Main suivante ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="abort">Annuler (le jeton D ne bouge pas)</button>
     </section>`;
   }
@@ -316,7 +321,7 @@
     return `<section class="panel picker">
       <div class="pk-title">${title}</div>
       <div class="slots">${slots}</div>
-      <p class="hint">${ui.rank ? 'Choisis la couleur.' : 'Touche la valeur, puis la couleur.'}</p>
+      <p class="hint">${ui.rank ? 'Choisis la couleur.' : 'Touche la valeur, puis la couleur.'} <span class="pc-only">Au clavier : <kbd>A</kbd> puis <kbd>C</kbd> = A♥.</span></p>
       <div class="ranks">${ranks}</div>
       <div class="suits">${suits}</div>
       ${skipLabel ? `<button class="btn ghost wide" data-a="skip-board">${skipLabel}</button>` : ''}
@@ -329,7 +334,7 @@
     const skip = E.meLive(h) ? null : 'Passer (cartes inconnues)';
     let out = picker(need, `${name} : ${need === 3 ? 'les 3 cartes' : 'la carte'}`, h.board.concat(h.cards), skip);
     if (!E.meLive(h)) out += foldedBanner();
-    return out + strip(h);
+    return out;
   }
 
   function foldedBanner() {
@@ -350,7 +355,7 @@
         <div class="mt-label">À toi · envoie ceci à Claude</div>
         <pre class="msg" id="msg">${esc(msg)}</pre>
         <div class="row">
-          <button class="btn primary" data-a="copy-msg">Copier</button>
+          <button class="btn primary" data-a="copy-msg">Copier ${K('C')}</button>
           ${canShare ? '<button class="btn" data-a="share-msg">Partager…</button>' : ''}
         </div>
         <p class="hint">Le message est déjà copié : colle-le dans Claude. Ensuite, touche plus bas ce que tu joues (l'appli en a besoin pour calculer le pot).</p>
@@ -359,7 +364,6 @@
       out += foldedBanner();
     }
     out += actionPanel(h, id, mine, meLive);
-    out += strip(h);
     return out;
   }
 
@@ -367,15 +371,15 @@
     const o = E.options(h, id);
     const head = mine ? '<b>Ce que tu joues</b>' : `À <b>${esc(h.names[id])}</b> <span class="pos-inline">${h.pos[id]}</span>`;
     const call = o.canCheck
-      ? '<button class="btn" data-a="act" data-t="x">Check</button>'
-      : `<button class="btn" data-a="act" data-t="s">${o.toCall >= o.st ? 'Suit (tapis)' : 'Suit ' + o.toCall}</button>`;
+      ? `<button class="btn" data-a="act" data-t="x">Check ${K('X')}</button>`
+      : `<button class="btn" data-a="act" data-t="s">${o.toCall >= o.st ? 'Suit (tapis)' : 'Suit ' + o.toCall} ${K('S')}</button>`;
     let out = `<section class="act ${mine ? 'mine' : ''}">
       <div class="act-head"><span>${head}</span><span class="muted">tapis ${o.st}${o.toCall ? ` · à suivre <b>${o.toCall}</b>` : ''}</span></div>
       <div class="act-btns">
-        <button class="btn fold" data-a="act" data-t="f">Couché</button>
+        <button class="btn fold" data-a="act" data-t="f">Couché ${K('F')}</button>
         ${call}
-        ${o.canRaise ? `<button class="btn ${ui.sizing ? 'on' : ''}" data-a="sizing">${o.isBet ? 'Mise…' : 'Relance…'}</button>` : '<span></span>'}
-        <button class="btn allin" data-a="act" data-t="AI">Tapis <small>${o.maxTo}</small></button>
+        ${o.canRaise ? `<button class="btn ${ui.sizing ? 'on' : ''}" data-a="sizing">${o.isBet ? 'Mise…' : 'Relance…'} ${K('R')}</button>` : '<span></span>'}
+        <button class="btn allin" data-a="act" data-t="AI">Tapis ${K('A')}<small>${o.maxTo}</small></button>
       </div>`;
     if (ui.sizing && o.canRaise) {
       const val = ui.amount || o.minTo;
@@ -390,7 +394,7 @@
         <p class="hint">${o.isBet ? 'Montant de la mise.' : 'Total misé sur ce tour (relance « à »).'} Minimum conseillé : ${o.minTo}.</p>
       </div>`;
     }
-    if (!mine && meLive) out += '<button class="btn ghost wide" data-a="skip-to-me">Check / couché jusqu\'à moi</button>';
+    if (!mine && meLive) out += `<button class="btn ghost wide" data-a="skip-to-me">Check / couché jusqu'à moi ${K('J')}</button>`;
     return out + '</section>';
   }
 
@@ -405,9 +409,9 @@
       <h2>Qui gagne ?</h2>
       <ul class="pots">${pots}</ul>
       <p class="hint">Touche la meilleure main. Plusieurs joueurs = partage du pot.</p>
-      <div class="cands">${cand.map((id) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}"><span class="pos">${h.pos[id]}</span>${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}</button>`).join('')}</div>
-      <button class="btn primary big" data-a="declare" ${ui.sel.length ? '' : 'disabled'}>Valider</button>
-    </section>${strip(h)}`;
+      <div class="cands">${cand.map((id, i) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}"><span class="pos">${h.pos[id]}</span>${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}${i < 9 ? `<kbd class="k right">${i + 1}</kbd>` : ''}</button>`).join('')}</div>
+      <button class="btn primary big" data-a="declare" ${ui.sel.length ? '' : 'disabled'}>Valider ${K('Entrée')}</button>
+    </section>`;
   }
 
   function viewDone(h) {
@@ -415,9 +419,9 @@
     return `<section class="panel done">
       <h2>Main #${h.no} terminée</h2>
       <ul class="res">${S.pots.map((p) => `<li>${p.label} <b>${p.amount}</b> → ${p.winners.map(esc).join(', ')}</li>`).join('')}</ul>
-      <button class="btn primary big" data-a="next">Main suivante</button>
+      <button class="btn primary big" data-a="next">Main suivante ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="end-only">Modifier la table d'abord</button>
-    </section>${strip(h)}`;
+    </section>`;
   }
 
   function sentList(list, src) {
@@ -425,6 +429,50 @@
       <summary>Messages envoyés à Claude (${list.length})</summary>
       ${list.map((t, i) => `<div class="sent-item"><pre>${esc(t)}</pre><button class="chip" data-a="copy-sent" data-src="${src}" data-i="${i}">Copier</button></div>`).join('')}
     </details>`;
+  }
+
+  /* ---- colonne de droite (PC) : ma main, combinaisons, raccourcis */
+
+  function viewSide() {
+    const h = state && state.hand;
+    const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
+    let out = '<div class="side-a"><section class="side-box"><h3>Ta main</h3>';
+    if (cur) {
+      out += `<div class="now">${esc(cur.best.name)}</div>`;
+      if (cur.note) out += `<p class="hint">${cur.note}</p>`;
+      if (cur.shared) out += '<p class="warn small">Cette combinaison est entièrement sur le tableau : tous les joueurs l\'ont aussi.</p>';
+      out += cur.draws.map((d) => `<p class="draw">${esc(d)}</p>`).join('');
+    } else {
+      out += '<p class="hint">Ta combinaison s\'affichera ici dès que tu auras choisi tes cartes.</p>';
+    }
+    out += '</section>';
+
+    out += `<section class="side-box"><h3>Combinaisons <small>de la plus forte à la plus faible</small></h3><ol class="combos">`;
+    out += HANDS.CATEGORIES.slice().reverse().map((c) => `<li class="${cur && cur.best.cat === c.id ? 'on' : ''}">
+        <div class="cb-top"><b>${c.name}</b><span>${c.ex.map((x) => cardHtml(x, 'xs')).join('')}</span></div>
+        <small>${c.desc}</small>
+      </li>`).join('');
+    out += '</ol></section></div>';
+
+    out += `<div class="side-b"><section class="side-box keys">
+      <h3>Raccourcis clavier</h3>
+      <p class="hint">Les mêmes lettres que dans les messages pour Claude.</p>
+      <dl>
+        <dt><kbd>F</kbd></dt><dd>Couché</dd>
+        <dt><kbd>X</kbd></dt><dd>Check</dd>
+        <dt><kbd>S</kbd></dt><dd>Suit</dd>
+        <dt><kbd>R</kbd></dt><dd>Mise ou relance : tape le montant, puis <kbd>Entrée</kbd></dd>
+        <dt><kbd>A</kbd></dt><dd>Tapis</dd>
+        <dt><kbd>J</kbd></dt><dd>Check / couché jusqu'à moi</dd>
+        <dt><kbd>C</kbd></dt><dd>Copier le message pour Claude</dd>
+        <dt>Cartes</dt><dd>La valeur puis la couleur : <kbd>A</kbd> puis <kbd>C</kbd> = A♥.<br>Valeurs A K Q J T 9…2 · couleurs <kbd>P</kbd> ♠ <kbd>C</kbd> ♥ <kbd>K</kbd> ♦ <kbd>T</kbd> ♣ · <kbd>⌫</kbd> efface</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd>…</dt><dd>Qui gagne : choisir le joueur</dd>
+        <dt><kbd>Entrée</kbd></dt><dd>Distribuer, valider, main suivante</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Annuler la dernière action</dd>
+        <dt><kbd>Échap</kbd></dt><dd>Fermer le montant ou la valeur choisie</dd>
+      </dl>
+    </section></div>`;
+    return out;
   }
 
   /* ---- onglet Table */
@@ -748,11 +796,76 @@
     if (r && r.ok) toast('Blindes enregistrées');
   });
 
-  document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Enter') return;
-    if (ev.target.id === 'amt') { ev.preventDefault(); handlers.act({ t: 'r' }); }
-    else if (ev.target.id === 'add-name' || ev.target.id === 'add-stack') { ev.preventDefault(); handlers.add(); }
-  });
+  /* ------------------------------------------------------------ clavier */
+
+  const RANK_KEYS = { a: 'A', k: 'K', q: 'Q', j: 'J', t: 'T', 1: 'T', 0: 'T', 9: '9', 8: '8', 7: '7', 6: '6', 5: '5', 4: '4', 3: '3', 2: '2' };
+  const SUIT_KEYS = { p: 'p', c: 'c', k: 'k', t: 't' };
+
+  function onKey(ev) {
+    const t = ev.target;
+    const k = ev.key;
+    const inField = /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName);
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && k.toLowerCase() === 'z' && !inField) {
+      ev.preventDefault();
+      return handlers.undo();
+    }
+    if (inField) {
+      if (k === 'Enter') {
+        if (t.id === 'amt') { ev.preventDefault(); handlers.act({ t: 'r' }); }
+        else if (t.id === 'add-name' || t.id === 'add-stack') { ev.preventDefault(); handlers.add(); }
+      } else if (k === 'Escape' && t.id === 'amt') { ui.sizing = false; render(); }
+      return;
+    }
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || !state || ui.tab !== 'main') return;
+    if (t.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return; // le bouton s'en charge
+    const h = state.hand;
+    const key = k.toLowerCase();
+    const run = (fn) => { ev.preventDefault(); fn(); };
+
+    if (!h) { if (k === 'Enter' && E.planNextHand(state).ok) run(handlers.deal); return; }
+
+    if (h.phase === 'cards' || h.phase === 'board') {
+      if (k === 'Backspace') return run(() => { if (ui.rank) ui.rank = null; else ui.pick.pop(); render(); });
+      if (k === 'Escape') return run(() => { ui.rank = null; render(); });
+      if (!ui.rank && RANK_KEYS[key]) return run(() => handlers.rank({ r: RANK_KEYS[key] }));
+      if (ui.rank && SUIT_KEYS[key]) {
+        const btn = document.querySelector(`[data-a="suit"][data-s="${SUIT_KEYS[key]}"]`);
+        if (btn && !btn.disabled) run(() => handlers.suit({ s: SUIT_KEYS[key] }));
+        else toast('Cette carte est déjà prise.');
+      }
+      return;
+    }
+
+    if (h.phase === 'action') {
+      const o = E.options(h, h.toAct);
+      const mine = h.toAct === h.meId;
+      if (key === 'f') return run(() => handlers.act({ t: 'f' }));
+      if (key === 'x') return run(() => (o.canCheck ? handlers.act({ t: 'x' }) : toast('Check impossible : il faut suivre ou se coucher.')));
+      if (key === 's') return run(() => handlers.act({ t: o.canCheck ? 'x' : 's' }));
+      if ((key === 'r' || key === 'b') && o.canRaise) return run(() => { if (!ui.sizing) handlers.sizing(); else { const el = $('amt'); if (el) { el.focus(); el.select(); } } });
+      if (key === 'a') return run(() => handlers.act({ t: 'AI' }));
+      if (key === 'j' && !mine && E.meLive(h)) return run(handlers['skip-to-me']);
+      if (key === 'c' && mine) return run(handlers['copy-msg']);
+      if (k === 'Escape' && ui.sizing) return run(() => { ui.sizing = false; render(); });
+      return;
+    }
+
+    if (h.phase === 'showdown') {
+      const n = Number(k);
+      if (n >= 1 && n <= 9) {
+        const id = E.showdownCandidates(h)[n - 1];
+        if (id) run(() => handlers.sel({ id }));
+        return;
+      }
+      if (k === 'Enter' && ui.sel.length) return run(handlers.declare);
+      return;
+    }
+
+    if (k === 'Enter' && h.phase === 'done') return run(handlers.next);
+    if (k === 'Enter' && h.phase === 'spectate') return run(handlers['next-only']);
+  }
+
+  document.addEventListener('keydown', onKey);
 
   render();
 })();

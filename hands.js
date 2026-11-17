@@ -1,0 +1,118 @@
+/*
+ * Poker → Claude : combinaisons du poker.
+ * - CATEGORIES : la liste des combinaisons (de la plus faible à la plus forte), avec un exemple.
+ * - evaluate(cartes) : la meilleure combinaison possible avec 2 à 7 cartes.
+ * - describe(mesCartes, tableau) : ma combinaison actuelle + les tirages (couleur, quinte).
+ * Cartes au format de l'appli : rang (A K Q J T 9…2) + couleur (p c k t). Ex : 'Ac' = As de cœur.
+ */
+(function (root) {
+  'use strict';
+
+  const VAL = { A: 14, K: 13, Q: 12, J: 11, T: 10, 9: 9, 8: 8, 7: 7, 6: 6, 5: 5, 4: 4, 3: 3, 2: 2 };
+  const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
+  const ONE = { 14: 'As', 13: 'Roi', 12: 'Dame', 11: 'Valet' };
+  const MANY = { 14: 'As', 13: 'Rois', 12: 'Dames', 11: 'Valets' };
+  const AT = { 14: "à l'As", 13: 'au Roi', 12: 'à la Dame', 11: 'au Valet' };
+
+  const one = (v) => ONE[v] || String(v);
+  const many = (v) => MANY[v] || String(v);
+  const of = (v) => (v === 14 ? "d'As" : 'de ' + many(v)); // « Paire de Rois », « Paire d'As »
+  const at = (v) => AT[v] || 'au ' + v; // « Quinte au 9 », « Couleur à la Dame »
+
+  const CATEGORIES = [
+    { id: 0, name: 'Carte haute', desc: "Aucune combinaison : c'est la plus haute carte qui compte.", ex: ['Ap', 'Jc', '8k', '5t', '3p'] },
+    { id: 1, name: 'Paire', desc: '2 cartes de même valeur.', ex: ['Ap', 'Ac'] },
+    { id: 2, name: 'Double paire', desc: '2 paires différentes.', ex: ['Jp', 'Jk', '4c', '4t'] },
+    { id: 3, name: 'Brelan', desc: '3 cartes de même valeur.', ex: ['7p', '7c', '7k'] },
+    { id: 4, name: 'Quinte (suite)', desc: '5 valeurs qui se suivent, couleurs mélangées. A-2-3-4-5 compte aussi.', ex: ['Tc', '9p', '8k', '7t', '6c'] },
+    { id: 5, name: 'Couleur', desc: '5 cartes de la même couleur.', ex: ['Ac', 'Jc', '8c', '4c', '2c'] },
+    { id: 6, name: 'Full', desc: 'Un brelan + une paire.', ex: ['Qp', 'Qc', 'Qk', '7t', '7p'] },
+    { id: 7, name: 'Carré', desc: '4 cartes de même valeur.', ex: ['Kp', 'Kc', 'Kk', 'Kt'] },
+    { id: 8, name: 'Quinte flush', desc: 'Une suite de 5 cartes de la même couleur.', ex: ['9p', '8p', '7p', '6p', '5p'] },
+    { id: 9, name: 'Quinte flush royale', desc: 'As, Roi, Dame, Valet, 10 de la même couleur.', ex: ['Ak', 'Kk', 'Qk', 'Jk', 'Tk'] },
+  ];
+
+  // Plus haute carte d'une suite de 5 dans un ensemble de valeurs (0 s'il n'y en a pas).
+  function straightTop(vals) {
+    const s = new Set(vals);
+    if (s.has(14)) s.add(1); // l'As compte aussi comme 1
+    for (let top = 14; top >= 5; top--) {
+      let ok = true;
+      for (let k = 0; k < 5 && ok; k++) ok = s.has(top - k);
+      if (ok) return top;
+    }
+    return 0;
+  }
+
+  function evaluate(cards) {
+    if (!cards || !cards.length) return null;
+    const vals = cards.map((c) => VAL[c[0]]);
+    const bySuit = {};
+    cards.forEach((c) => { (bySuit[c[1]] = bySuit[c[1]] || []).push(VAL[c[0]]); });
+    const cnt = {};
+    vals.forEach((v) => { cnt[v] = (cnt[v] || 0) + 1; });
+    const byValue = Object.keys(cnt).map(Number).sort((a, b) => b - a);
+    const quads = byValue.filter((v) => cnt[v] === 4);
+    const trips = byValue.filter((v) => cnt[v] === 3);
+    const pairs = byValue.filter((v) => cnt[v] === 2);
+    const flush = Object.keys(bySuit).find((s) => bySuit[s].length >= 5);
+
+    if (flush) {
+      const t = straightTop(bySuit[flush]);
+      if (t === 14) return { cat: 9, name: 'Quinte flush royale' };
+      if (t) return { cat: 8, name: 'Quinte flush ' + at(t) };
+    }
+    if (quads.length) return { cat: 7, name: 'Carré ' + of(quads[0]) };
+    if (trips.length && (trips.length > 1 || pairs.length)) {
+      const pair = Math.max(trips[1] || 0, pairs[0] || 0);
+      return { cat: 6, name: 'Full aux ' + many(trips[0]) + ' par les ' + many(pair) };
+    }
+    if (flush) return { cat: 5, name: 'Couleur ' + at(Math.max(...bySuit[flush])) + ' ' + SUIT_SYM[flush] };
+    const st = straightTop(vals);
+    if (st) return { cat: 4, name: 'Quinte ' + at(st) };
+    if (trips.length) return { cat: 3, name: 'Brelan ' + of(trips[0]) };
+    if (pairs.length >= 2) return { cat: 2, name: 'Double paire ' + many(pairs[0]) + ' et ' + many(pairs[1]) };
+    if (pairs.length) return { cat: 1, name: 'Paire ' + of(pairs[0]) };
+    return { cat: 0, name: 'Hauteur ' + one(byValue[0]) };
+  }
+
+  function describe(mine, board) {
+    if (!mine || mine.length < 2) return null;
+    board = board || [];
+    const all = mine.concat(board);
+    const best = evaluate(all);
+    const out = { best, note: null, shared: false, draws: [] };
+    if (board.length === 0) {
+      out.note = mine[0][1] === mine[1][1] ? 'Cartes assorties (même couleur)' : 'Cartes dépareillées';
+    }
+    if (board.length >= 3) {
+      const b = evaluate(board);
+      out.shared = !!b && b.name === best.name; // la combinaison est entièrement sur le tableau
+    }
+    if (board.length === 3 || board.length === 4) {
+      if (best.cat < 5) {
+        const bySuit = {};
+        all.forEach((c) => { bySuit[c[1]] = (bySuit[c[1]] || 0) + 1; });
+        Object.keys(bySuit).forEach((s) => {
+          if (bySuit[s] === 4) out.draws.push('Tirage couleur : encore un ' + SUIT_SYM[s] + ' et tu as la couleur.');
+        });
+      }
+      if (best.cat < 4) {
+        const have = new Set(all.map((c) => VAL[c[0]]));
+        const outs = [];
+        for (let v = 14; v >= 2; v--) {
+          if (have.has(v)) continue;
+          const s2 = new Set(have);
+          s2.add(v);
+          if (straightTop(s2)) outs.push(one(v));
+        }
+        if (outs.length) out.draws.push('Tirage quinte : un ' + outs.join(' ou un ') + ' te donne la quinte.');
+      }
+    }
+    return out;
+  }
+
+  const api = { CATEGORIES, evaluate, describe, straightTop };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.PokerHands = api;
+})(typeof window !== 'undefined' ? window : globalThis);

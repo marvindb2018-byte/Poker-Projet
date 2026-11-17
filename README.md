@@ -20,6 +20,27 @@ Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout
 **Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, pour corriger des jetons d'après le site, ou pour déplacer le jeton D.
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action.
 
+## Sur PC (écran large)
+
+À partir de 1000 px de large, l'appli passe en affichage PC. La main en cours est sur deux colonnes, et une colonne à droite affiche :
+- **Ta main** : ta combinaison actuelle (ex. « Paire de Rois »), les tirages couleur et quinte, et un avertissement si la combinaison est entièrement sur le tableau ;
+- **Combinaisons** : de la plus forte à la plus faible, avec un exemple, ta combinaison surlignée ;
+- **Raccourcis clavier** : les mêmes lettres que dans les messages pour Claude.
+
+| Touche | Action |
+|---|---|
+| `F` `X` `S` | Couché, check, suit |
+| `R` | Mise ou relance : taper le montant puis `Entrée` |
+| `A` | Tapis |
+| `J` | Check / couché jusqu'à moi |
+| `C` | Copier le message pour Claude |
+| Cartes | la valeur puis la couleur : `A` puis `C` = A♥ (couleurs `P` ♠ `C` ♥ `K` ♦ `T` ♣), `⌫` efface |
+| `1` `2`… | Qui gagne : choisir le joueur |
+| `Entrée` | Distribuer, valider, main suivante |
+| `Ctrl`+`Z` | Annuler la dernière action |
+
+Sur téléphone, l'affichage ne change pas.
+
 ## Exemple de messages générés
 
 ```
@@ -42,9 +63,10 @@ UTG s
 | Fichier | Contenu |
 |---|---|
 | `engine.js` | Règles de la partie : positions, ordre de parole, mises, pots annexes, texte des messages et du prompt (`buildPrompt`, `buildMessage`) |
-| `app.js` | Les écrans et les boutons |
-| `style.css` | L'apparence (couleurs en haut du fichier) |
+| `hands.js` | Les combinaisons du poker et le calcul de « ta main » |
+| `app.js` | Les écrans, les boutons et les raccourcis clavier |
+| `style.css` | L'apparence (couleurs en haut du fichier, affichage PC à la fin) |
 | `index.html` | La page qui charge le tout |
-| `tests/engine.test.js` | Tests du moteur : `node tests/engine.test.js` |
+| `tests/` | Tests : `node tests/engine.test.js` et `node tests/hands.test.js` |
 
 Pour essayer en local : `python3 -m http.server` dans ce dossier, puis ouvrir http://localhost:8000.
