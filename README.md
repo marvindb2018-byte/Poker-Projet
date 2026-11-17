@@ -15,7 +15,9 @@ Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout
 3. L'appli affiche qui doit parler : toucher ce qu'il fait (Couché, Suit, Relance…, Tapis). « Check / couché jusqu'à moi » fait gagner du temps.
 4. Quand c'est à toi, le message est déjà copié : le coller dans Claude, puis toucher ce que tu joues.
 5. Au flop, à la turn et à la river, choisir les cartes du tableau. Le pot et les tapis se calculent tout seuls.
-6. En fin de main, toucher le gagnant (plusieurs = partage), puis « Main suivante ».
+6. En fin de main, toucher le gagnant (plusieurs = partage). L'appli affiche les jetons de chacun avant → après, puis « Main suivante ».
+
+L'**historique de la main** (blindes, actions de chacun, cartes, pot, gagnant, mise non suivie rendue) s'affiche pendant et après la main.
 
 **Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, pour corriger des jetons d'après le site, ou pour déplacer le jeton D.
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action. « Effacer cette main » efface toute la saisie de la main en cours (ce n'est pas se coucher : pour ça, c'est « Couché »).
@@ -23,7 +25,7 @@ Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout
 ## Sur PC (écran large)
 
 À partir de 1000 px de large, l'appli passe en affichage PC. La main en cours est sur deux colonnes : à gauche le message pour Claude et les boutons d'action, au milieu une **table de poker** vue de dessus (toi en bas, les autres joueurs autour avec leurs jetons et leurs mises, le jeton D, le joueur qui parle en surbrillance, le tableau et le pot au centre ; à l'abattage, on clique sur le gagnant). Une colonne à droite affiche :
-- **Ta main** : ta combinaison actuelle (ex. « Paire de Rois »), les tirages couleur et quinte, et un avertissement si la combinaison est entièrement sur le tableau ;
+- **Ta main** : les cartes qui forment ta combinaison (les tiennes marquées d'un point, les cartes d'appoint grisées) et son nom (ex. « Paire de Rois »), les tirages couleur et quinte, et un avertissement si la combinaison est entièrement sur le tableau ;
 - **Combinaisons** : de la plus forte à la plus faible, avec un exemple, ta combinaison surlignée ;
 - **Raccourcis clavier** : les mêmes lettres que dans les messages pour Claude.
 

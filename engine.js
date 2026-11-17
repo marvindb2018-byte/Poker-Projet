@@ -279,10 +279,11 @@
     const ante = S.ante || 0;
     h.ante = ante;
     h.anteType = S.anteType || 'chacun';
-    if (ante && h.anteType === 'chacun') h.order.forEach((id) => putDead(h, id, ante));
-    put(h, h.sbId, S.sb);
-    put(h, h.bbId, S.bb);
-    if (ante && h.anteType === 'bb') putDead(h, h.bbId, ante); // la blinde passe avant l'ante si le tapis est court
+    h.posts = []; // blindes et antes, pour l'historique
+    if (ante && h.anteType === 'chacun') h.order.forEach((id) => h.posts.push({ id, kind: 'ante', amt: putDead(h, id, ante) }));
+    h.posts.push({ id: h.sbId, kind: 'sb', amt: put(h, h.sbId, S.sb) });
+    h.posts.push({ id: h.bbId, kind: 'bb', amt: put(h, h.bbId, S.bb) });
+    if (ante && h.anteType === 'bb') h.posts.push({ id: h.bbId, kind: 'bbante', amt: putDead(h, h.bbId, ante) }); // la blinde passe avant l'ante si le tapis est court
     h.toAct = findNext(h, null);
     state.hand = h;
     return ok();
@@ -310,6 +311,7 @@
     h.stack[id] -= a;
     h.total[id] += a;
     if (h.stack[id] === 0) h.allin[id] = true;
+    return a;
   }
 
   // « blindes 10/20 », « blindes 10/20, ante 5 », « blindes 10/20, ante BB 20 »,
@@ -328,6 +330,7 @@
     h.bet[id] += a;
     h.total[id] += a;
     if (h.stack[id] === 0) h.allin[id] = true;
+    return a;
   }
 
   const live = (h) => h.order.filter((id) => !h.folded[id]);
@@ -460,7 +463,11 @@
     const L = live(h);
     if (L.length === 1) {
       h.toAct = null;
-      h.pots = [{ amount: potOf(h), elig: L.slice(), won: L.slice() }];
+      const w = L[0];
+      const others = Math.max(0, ...h.order.filter((id) => id !== w).map((id) => h.bet[id]));
+      const uncalled = Math.max(0, h.bet[w] - others);
+      h.pots = [{ amount: potOf(h) - uncalled, elig: [w], won: [w] }];
+      if (uncalled) h.pots.push({ amount: uncalled, elig: [w], won: [w], refund: true });
       finishHand(state);
       return;
     }
@@ -541,7 +548,7 @@
     const h = state.hand;
     h.toAct = null;
     h.phase = 'showdown';
-    h.pots = computePots(h).map((p) => ({ amount: p.amount, elig: p.elig.slice(), won: null }));
+    h.pots = computePots(h).map((p, i) => ({ amount: p.amount, elig: p.elig.slice(), won: null, refund: i > 0 && p.elig.length === 1 }));
     autoAward(h);
     if (h.pots.every((p) => p.won)) finishHand(state);
   }
@@ -601,16 +608,76 @@
     });
   }
 
+  // Pot réellement disputé (sans les mises non suivies, qui sont rendues).
+  function contestedPot(h) {
+    if (!h.pots) return potOf(h);
+    return h.pots.filter((p) => !p.refund).reduce((a, p) => a + p.amount, 0);
+  }
+
+  function potLabel(h, p) {
+    if (p.refund) return 'Mise non suivie rendue';
+    const real = h.pots.filter((x) => !x.refund);
+    if (real.length < 2) return 'Pot';
+    return real.indexOf(p) === 0 ? 'Pot principal' : 'Pot annexe' + (real.length > 2 ? ' ' + real.indexOf(p) : '');
+  }
+
+  const ACT_TEXT = {
+    f: () => 'se couche',
+    x: () => 'check',
+    s: (e) => 'suit ' + e.amt,
+    b: (e) => 'mise ' + e.amt,
+    r: (e) => 'relance à ' + e.amt,
+    AI: (e) => 'tapis (' + e.amt + ')',
+  };
+
+  // Historique de la main, comme sur les sites : blindes, actions de chacun, cartes du tableau, résultat.
+  // Chaque ligne : { kind: 'street', label, cards, pot } ou { kind: 'line', id, name, pos, text, me } ou { kind: 'result', text, me }.
+  function handHistory(h) {
+    const out = [];
+    const who = (id) => ({ id, name: h.names[id], pos: h.pos[id], me: id === h.meId });
+    out.push({ kind: 'street', label: 'Préflop', cards: [], pot: null });
+    const posts = h.posts || [];
+    const antes = posts.filter((x) => x.kind === 'ante');
+    if (antes.length) out.push({ kind: 'line', name: 'Tous', text: 'ante ' + h.ante + ' chacun (' + antes.reduce((a, x) => a + x.amt, 0) + ')' });
+    posts.filter((x) => x.kind !== 'ante').forEach((x) => {
+      const text = x.kind === 'sb' ? 'petite blinde ' + x.amt : x.kind === 'bb' ? 'grosse blinde ' + x.amt : 'ante ' + x.amt + ' pour la table';
+      out.push(Object.assign({ kind: 'line', text }, who(x.id)));
+    });
+    h.events.forEach((e) => {
+      if (e.t === 'street') out.push({ kind: 'street', label: STREET_NAMES[e.street], cards: e.cards.slice(), pot: e.pot });
+      else if (e.t === 'act') out.push(Object.assign({ kind: 'line', text: ACT_TEXT[e.a](e) }, who(e.id)));
+    });
+    if (h.phase === 'done' && h.pots) {
+      out.push({ kind: 'street', label: 'Résultat', cards: [], pot: contestedPot(h) });
+      h.pots.forEach((p) => {
+        const names = p.won.map((id) => h.names[id]);
+        const me = p.won.includes(h.meId);
+        if (p.refund) out.push({ kind: 'result', me, text: names[0] + ' récupère ' + p.amount + ' (mise non suivie)' });
+        else {
+          const label = potLabel(h, p) === 'Pot' ? '' : ' (' + potLabel(h, p).toLowerCase() + ')';
+          out.push({ kind: 'result', me, text: names.length > 1 ? names.join(' et ') + ' se partagent ' + p.amount + label : names[0] + ' remporte ' + p.amount + label });
+        }
+      });
+    }
+    return out;
+  }
+
   function handSummary(h) {
-    const pots = (h.pots || []).map((p, i, all) => ({
-      label: all.length > 1 ? (i === 0 ? 'Pot principal' : 'Pot annexe' + (all.length > 2 ? ' ' + i : '')) : 'Pot',
+    const pots = (h.pots || []).map((p) => ({
+      label: potLabel(h, p),
       amount: p.amount,
+      refund: !!p.refund,
       winners: (p.won || []).map((id) => h.names[id]),
     }));
-    const nets = h.order
-      .map((id) => ({ id, name: h.names[id], pos: h.pos[id], net: h.stack[id] + ((h.win && h.win[id]) || 0) - h.stacks0[id], me: id === h.meId }))
-      .filter((x) => x.net !== 0);
-    return { no: h.no, pots, nets, board: h.board.slice(), cards: h.cards.slice(), sent: h.sent.slice() };
+    // Jetons de chaque joueur avant → après la main
+    const players = h.pre.map((id) => {
+      const after = h.stack[id] + ((h.win && h.win[id]) || 0);
+      return { id, name: h.names[id], pos: h.pos[id], before: h.stacks0[id], after, net: after - h.stacks0[id], me: id === h.meId };
+    });
+    return {
+      no: h.no, pots, players, nets: players.filter((x) => x.net !== 0),
+      board: h.board.slice(), cards: h.cards.slice(), sent: h.sent.slice(), history: handHistory(h),
+    };
   }
 
   function endHand(state) {
@@ -724,7 +791,7 @@
     addPlayer, removePlayer, updatePlayer, setButtonNext, setMe, togglePause,
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots,
-    endHand, abortHand, handSummary,
+    endHand, abortHand, handSummary, handHistory, contestedPot,
     buildMessage, buildPrompt, blindsText,
     isActive, isCard, potOf, live, meLive,
   };

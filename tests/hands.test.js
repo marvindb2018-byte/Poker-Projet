@@ -23,6 +23,26 @@ for (const [cards, cat, name] of cases) {
 }
 console.log('✓ évaluation des combinaisons');
 
+// les cartes qui forment la combinaison, puis les kickers
+const sortStr = (a) => a.slice().sort().join(' ');
+let e = H.evaluate(['Ac', 'Jc', '8c', '4c', '2c', 'Kp', '9c']);
+assert.deepStrictEqual(e.main, ['Ac', 'Jc', '9c', '8c', '4c']);
+assert.deepStrictEqual(e.kick, []);
+e = H.evaluate(['Ac', '2p', '3k', '4t', '5c', 'Kk', 'Kt']);
+assert.strictEqual(e.name, 'Quinte au 5');
+assert.strictEqual(sortStr(e.main), sortStr(['5c', '4t', '3k', '2p', 'Ac']));
+e = H.evaluate(['Kk', '3p', '7k', '7t', 'Kc', 'Ap', '2c']);
+assert.strictEqual(sortStr(e.main), sortStr(['Kk', 'Kc', '7k', '7t']));
+assert.deepStrictEqual(e.kick, ['Ap']);
+e = H.evaluate(['Ap', 'Ac']);
+assert.deepStrictEqual([e.main.length, e.kick.length], [2, 0]);
+e = H.evaluate(['Qp', 'Qc', 'Qk', '7t', '7p', '7c', '2k']);
+assert.strictEqual(e.main.length, 5);
+assert.strictEqual(e.kick.length, 0);
+e = H.evaluate(['9p', '8p', '7p', '6p', '5p', 'Tc', 'Ak']);
+assert.strictEqual(sortStr(e.main), sortStr(['9p', '8p', '7p', '6p', '5p']));
+console.log('✓ cartes de la combinaison');
+
 let d = H.describe(['Ac', 'Kc'], []);
 assert.strictEqual(d.best.name, 'Hauteur As');
 assert.strictEqual(d.note, 'Cartes assorties (même couleur)');

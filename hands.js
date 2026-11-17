@@ -44,36 +44,52 @@
     return 0;
   }
 
+  // Meilleure combinaison avec 2 à 7 cartes.
+  // Renvoie { cat, name, main, kick } : main = les cartes qui forment la combinaison, kick = les cartes
+  // d'appoint (« kickers ») qui complètent les 5 meilleures cartes.
   function evaluate(cards) {
     if (!cards || !cards.length) return null;
-    const vals = cards.map((c) => VAL[c[0]]);
+    const list = cards.map((c) => ({ c, v: VAL[c[0]], s: c[1] })).sort((a, b) => b.v - a.v);
+    const vals = list.map((x) => x.v);
+    const byV = {};
+    list.forEach((x) => { (byV[x.v] = byV[x.v] || []).push(x); });
     const bySuit = {};
-    cards.forEach((c) => { (bySuit[c[1]] = bySuit[c[1]] || []).push(VAL[c[0]]); });
-    const cnt = {};
-    vals.forEach((v) => { cnt[v] = (cnt[v] || 0) + 1; });
-    const byValue = Object.keys(cnt).map(Number).sort((a, b) => b - a);
-    const quads = byValue.filter((v) => cnt[v] === 4);
-    const trips = byValue.filter((v) => cnt[v] === 3);
-    const pairs = byValue.filter((v) => cnt[v] === 2);
+    list.forEach((x) => { (bySuit[x.s] = bySuit[x.s] || []).push(x); });
+    const byValue = Object.keys(byV).map(Number).sort((a, b) => b - a);
+    const quads = byValue.filter((v) => byV[v].length === 4);
+    const trips = byValue.filter((v) => byV[v].length === 3);
+    const pairs = byValue.filter((v) => byV[v].length === 2);
     const flush = Object.keys(bySuit).find((s) => bySuit[s].length >= 5);
+    const done = (cat, name, main) => {
+      const rest = list.filter((x) => !main.includes(x));
+      return { cat, name, main: main.map((x) => x.c), kick: rest.slice(0, Math.max(0, 5 - main.length)).map((x) => x.c) };
+    };
+    const straightCards = (pool, top) => {
+      const out = [];
+      for (let k = 0; k < 5; k++) {
+        const want = top - k === 1 ? 14 : top - k; // l'As compte comme 1 dans A-2-3-4-5
+        out.push(pool.find((x) => x.v === want && !out.includes(x)));
+      }
+      return out;
+    };
 
     if (flush) {
-      const t = straightTop(bySuit[flush]);
-      if (t === 14) return { cat: 9, name: 'Quinte flush royale' };
-      if (t) return { cat: 8, name: 'Quinte flush ' + at(t) };
+      const t = straightTop(bySuit[flush].map((x) => x.v));
+      if (t === 14) return done(9, 'Quinte flush royale', straightCards(bySuit[flush], t));
+      if (t) return done(8, 'Quinte flush ' + at(t), straightCards(bySuit[flush], t));
     }
-    if (quads.length) return { cat: 7, name: 'Carré ' + of(quads[0]) };
+    if (quads.length) return done(7, 'Carré ' + of(quads[0]), byV[quads[0]]);
     if (trips.length && (trips.length > 1 || pairs.length)) {
       const pair = Math.max(trips[1] || 0, pairs[0] || 0);
-      return { cat: 6, name: 'Full aux ' + many(trips[0]) + ' par les ' + many(pair) };
+      return done(6, 'Full aux ' + many(trips[0]) + ' par les ' + many(pair), byV[trips[0]].concat(byV[pair].slice(0, 2)));
     }
-    if (flush) return { cat: 5, name: 'Couleur ' + at(Math.max(...bySuit[flush])) + ' ' + SUIT_SYM[flush] };
+    if (flush) return done(5, 'Couleur ' + at(bySuit[flush][0].v) + ' ' + SUIT_SYM[flush], bySuit[flush].slice(0, 5));
     const st = straightTop(vals);
-    if (st) return { cat: 4, name: 'Quinte ' + at(st) };
-    if (trips.length) return { cat: 3, name: 'Brelan ' + of(trips[0]) };
-    if (pairs.length >= 2) return { cat: 2, name: 'Double paire ' + many(pairs[0]) + ' et ' + many(pairs[1]) };
-    if (pairs.length) return { cat: 1, name: 'Paire ' + of(pairs[0]) };
-    return { cat: 0, name: 'Hauteur ' + one(byValue[0]) };
+    if (st) return done(4, 'Quinte ' + at(st), straightCards(list, st));
+    if (trips.length) return done(3, 'Brelan ' + of(trips[0]), byV[trips[0]]);
+    if (pairs.length >= 2) return done(2, 'Double paire ' + many(pairs[0]) + ' et ' + many(pairs[1]), byV[pairs[0]].concat(byV[pairs[1]]));
+    if (pairs.length) return done(1, 'Paire ' + of(pairs[0]), byV[pairs[0]]);
+    return done(0, 'Hauteur ' + one(byValue[0]), [list[0]]);
   }
 
   function describe(mine, board) {

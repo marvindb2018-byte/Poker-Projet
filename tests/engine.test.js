@@ -63,7 +63,18 @@ test('réactions, flop, relance, abandon et tapis finaux', () => {
   assert.strictEqual(s.players[0].stack, 2000 - 180 - 600);
   assert.strictEqual(chips(s), 12000);
   ok(E.endHand(s));
-  assert.ok(s.last && s.last.pots[0].amount === 2150);
+  // UTG mise 500 à la river et je me couche : il gagne 1650 et récupère ses 500 non suivis
+  assert.deepStrictEqual(s.last.pots.map((p) => [p.amount, p.refund]), [[1650, false], [500, true]]);
+  const utgName = 'C';
+  const hist = s.last.history;
+  const lines = hist.filter((x) => x.kind === 'line').map((x) => x.name + ' ' + x.text);
+  assert.deepStrictEqual(lines.slice(0, 5), ['A petite blinde 10', 'B grosse blinde 20', utgName + ' relance à 60', 'D se couche', 'E suit 60']);
+  assert.ok(lines.includes('Moi relance à 180'));
+  assert.deepStrictEqual(hist.filter((x) => x.kind === 'street').map((x) => x.label + (x.pot != null ? ' ' + x.pot : '')),
+    ['Préflop', 'Flop 450', 'Turn 1650', 'River 1650', 'Résultat 1650']);
+  assert.deepStrictEqual(hist.filter((x) => x.kind === 'result').map((x) => x.text), ['C remporte 1650', 'C récupère 500 (mise non suivie)']);
+  const me = s.last.players.find((x) => x.me);
+  assert.deepStrictEqual([me.before, me.after, me.net], [2000, 1220, -780]);
 
   // main suivante : le bouton avance, je suis CO, tapis signalés
   ok(E.startHand(s));

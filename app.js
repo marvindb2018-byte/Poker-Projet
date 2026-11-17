@@ -243,7 +243,7 @@
     else if (h.phase === 'showdown') a += viewShowdown(h);
     else if (h.phase === 'done') a += viewDone(h);
     let b = h.phase === 'spectate' ? '' : ptable(h) + strip(h);
-    if (h.sent.length) b += sentList(h.sent, 'hand');
+    if (h.phase !== 'spectate') b += historyView(E.handHistory(h), true);
     if (!['done', 'spectate'].includes(h.phase)) {
       b += `<div class="row end"><button class="btn ghost danger small" data-a="abort" title="Efface la saisie de cette main : jetons et jeton D reviennent comme avant. Ce n'est pas se coucher.">Effacer cette main (erreur de saisie)</button></div>`;
     }
@@ -259,7 +259,7 @@
         <span class="tag">Main #${h.no}</span>
         <span class="tag">${h.phase === 'board' ? '→ ' + E.STREET_NAMES[h.street + 1] : E.STREET_NAMES[h.street]}</span>
         <span class="tag">${h.sb}/${h.bb}${h.ante ? (h.anteType === 'bb' ? ' · ante BB ' : ' · ante ') + h.ante : ''}</span>
-        <span class="pot">Pot <b>${E.potOf(h)}</b></span>
+        <span class="pot">Pot <b>${h.phase === 'done' ? E.contestedPot(h) : E.potOf(h)}</b></span>
       </div>
       <div class="hh-cards">
         <div class="hh-mine">${mine}${h.meIn ? `<span class="hh-pos">${h.pos[h.meId]}</span>` : '<span class="muted">hors main</span>'}</div>
@@ -275,8 +275,7 @@
       const cls = [id === h.toAct ? 'cur' : '', h.folded[id] ? 'out' : '', id === h.meId ? 'me' : ''].join(' ');
       let right;
       if (done) {
-        const net = h.stack[id] + h.win[id] - h.stacks0[id];
-        right = `<span class="stk">${h.stack[id] + h.win[id]}</span><span class="bet ${net < 0 ? 'neg' : ''}">${net ? fmtNet(net) : ''}</span><span class="st"></span>`;
+        right = `<span class="stk">${h.stack[id] + h.win[id]}</span><span class="bet"></span><span class="st"></span>`;
       } else {
         const st = h.folded[id] ? 'couché' : h.allin[id] ? 'tapis' : id === h.toAct ? 'parle' : '';
         right = `<span class="stk">${h.stack[id]}</span><span class="bet">${h.bet[id] || ''}</span><span class="st">${st}</span>`;
@@ -318,9 +317,8 @@
       let tag = '';
       let stack = h.stack[id];
       if (done) {
-        const net = h.stack[id] + h.win[id] - h.stacks0[id];
         stack = h.stack[id] + h.win[id];
-        if (net) tag = `<span class="seat-tag ${net > 0 ? 'win' : 'lose'}">${fmtNet(net)}</span>`;
+        if (h.pots.some((pt) => !pt.refund && pt.won.includes(id))) tag = '<span class="seat-tag win">gagne</span>';
       } else if (h.folded[id]) tag = '<span class="seat-tag fold">couché</span>';
       else if (h.allin[id]) tag = '<span class="seat-tag allin">tapis</span>';
       else if (id === h.toAct) tag = '<span class="seat-tag">parle</span>';
@@ -333,7 +331,7 @@
       if (!done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.58, deg)}"><i></i>${h.bet[id]}</div>`;
     });
     const board = Array.from({ length: 5 }, (_, i) => (h.board[i] ? cardHtml(h.board[i], 'sm') : '<span class="card empty sm"></span>')).join('');
-    html += `<div class="pt-center"><div class="pt-board">${board}</div><div class="pt-pot">Pot ${E.potOf(h)}</div></div>`;
+    html += `<div class="pt-center"><div class="pt-board">${board}</div><div class="pt-pot">Pot ${done ? E.contestedPot(h) : E.potOf(h)}</div></div>`;
     return html + '</div>';
   }
 
@@ -361,12 +359,13 @@
   }
 
   function lastHand(L) {
+    // les parties enregistrées avec une ancienne version n'ont pas « players » ni « history »
+    const old = !L.players;
     return `<section class="panel soft">
       <h3>Main #${L.no}</h3>
       ${L.board.length ? `<div class="mini-board">${L.board.map((c) => cardHtml(c, 'xs')).join('')}</div>` : ''}
-      <ul class="res">${L.pots.map((p) => `<li>${p.label} <b>${p.amount}</b> → ${p.winners.map(esc).join(', ')}</li>`).join('')}</ul>
-      <p class="nets">${L.nets.map((x) => `<span class="${x.net < 0 ? 'neg' : 'pos'}">${esc(x.name)} ${fmtNet(x.net)}</span>`).join('')}</p>
-      ${L.sent.length ? sentList(L.sent, 'last') : ''}
+      ${old ? `<ul class="res">${L.pots.map((p) => `<li>${p.label} <b>${p.amount}</b> → ${p.winners.map(esc).join(', ')}</li>`).join('')}</ul>` : resultList(L)}
+      ${old ? '' : historyView(L.history, false)}
     </section>`;
   }
 
@@ -474,14 +473,15 @@
   function viewShowdown(h) {
     const cand = E.showdownCandidates(h);
     const pots = h.pots.map((p, i) => {
-      const label = h.pots.length > 1 ? (i === 0 ? 'Pot principal' : 'Pot annexe') : 'Pot';
+      const real = h.pots.filter((x) => !x.refund);
+      const label = p.refund ? 'Mise non suivie rendue' : real.length > 1 ? (real.indexOf(p) === 0 ? 'Pot principal' : 'Pot annexe') : 'Pot';
       const who = p.won ? '→ ' + p.won.map((id) => esc(h.names[id])).join(', ') : p.elig.map((id) => esc(h.names[id])).join(', ');
       return `<li class="${p.won ? 'won' : ''}"><span>${label} <b>${p.amount}</b></span><span class="muted">${who}</span></li>`;
     }).join('');
     return `<section class="panel">
       <h2>Qui gagne ?</h2>
       <ul class="pots">${pots}</ul>
-      ${h.pots.length > 1 ? `<p class="hint">Il y a un pot annexe ${tip('sidepot')}</p>` : ''}
+      ${h.pots.filter((x) => !x.refund).length > 1 ? `<p class="hint">Il y a un pot annexe ${tip('sidepot')}</p>` : ''}
       <p class="hint">Touche la meilleure main. Plusieurs joueurs = partage du pot.</p>
       <div class="cands">${cand.map((id, i) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}"><span class="pos">${h.pos[id]}</span>${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}${i < 9 ? `<kbd class="k right">${i + 1}</kbd>` : ''}</button>`).join('')}</div>
       <button class="btn primary big" data-a="declare" ${ui.sel.length ? '' : 'disabled'}>Valider ${K('Entrée')}</button>
@@ -492,16 +492,38 @@
     const S = E.handSummary(h);
     return `<section class="panel done">
       <h2>Main #${h.no} terminée</h2>
-      <ul class="res">${S.pots.map((p) => `<li>${p.label} <b>${p.amount}</b> → ${p.winners.map(esc).join(', ')}</li>`).join('')}</ul>
+      ${resultList(S)}
       <button class="btn primary big" data-a="next">Main suivante ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="end-only">Modifier la table d'abord</button>
     </section>`;
   }
 
-  function sentList(list, src) {
-    return `<details class="sent">
-      <summary>Messages envoyés à Claude (${list.length})</summary>
-      ${list.map((t, i) => `<div class="sent-item"><pre>${esc(t)}</pre><button class="chip" data-a="copy-sent" data-src="${src}" data-i="${i}">Copier</button></div>`).join('')}
+  // Gagnants + jetons de chaque joueur avant → après la main
+  function resultList(S) {
+    const pots = S.pots.filter((p) => !p.refund)
+      .map((p) => `<li>${p.label} <b>${p.amount}</b> → ${p.winners.map(esc).join(', ')}</li>`).join('');
+    const refunds = S.pots.filter((p) => p.refund)
+      .map((p) => `<li class="muted">${p.winners.map(esc).join(', ')} récupère ${p.amount} (mise non suivie)</li>`).join('');
+    const rows = (S.players || []).map((x) => `<li class="${x.me ? 'me' : ''} ${x.net < 0 ? 'down' : x.net > 0 ? 'up' : 'same'}">
+        <span class="pos">${x.pos}</span><span class="nm">${esc(x.name)}${x.me ? ' <em>moi</em>' : ''}</span>
+        <span class="ba">${x.before} → <b>${x.after}</b></span>
+      </li>`).join('');
+    return `<ul class="res">${pots}${refunds}</ul>${rows ? `<ul class="before-after">${rows}</ul>` : ''}`;
+  }
+
+  // Historique des coups (comme sur les sites de poker)
+  function historyView(entries, open) {
+    if (!entries || !entries.length) return '';
+    const body = entries.map((x) => {
+      if (x.kind === 'street') {
+        return `<li class="h-street"><b>${x.label}</b>${x.cards && x.cards.length ? ' ' + x.cards.map((c) => cardHtml(c, 'xs')).join('') : ''}${x.pot != null ? ` <span class="muted">pot ${x.pot}</span>` : ''}</li>`;
+      }
+      if (x.kind === 'result') return `<li class="h-result ${x.me ? 'me' : ''}">${esc(x.text)}</li>`;
+      return `<li class="h-line ${x.me ? 'me' : ''}"><span class="h-who">${esc(x.name)}${x.pos ? ` <span class="h-pos">${x.pos}</span>` : ''}</span> ${esc(x.text)}</li>`;
+    }).join('');
+    return `<details class="history" ${open && ui.histOpen !== false ? 'open' : ''}>
+      <summary>Historique de la main</summary>
+      <ol>${body}</ol>
     </details>`;
   }
 
@@ -512,7 +534,11 @@
     const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
     let out = `<div class="side-a"><section class="side-box"><h3>Ta main ${tip('hand')}</h3>`;
     if (cur) {
+      const mineSet = new Set(h.cards);
+      const show = (c, cls) => `<span class="${cls}${mineSet.has(c) ? ' from-me' : ''}">${cardHtml(c, 'sm')}</span>`;
+      out += `<div class="now-cards">${cur.best.main.map((c) => show(c, 'nc')).join('')}${cur.best.kick.map((c) => show(c, 'nc kick')).join('')}</div>`;
       out += `<div class="now">${esc(cur.best.name)}</div>`;
+      out += '<p class="hint small-legend"><span class="dot"></span> carte de ta main · grisée = carte d\'appoint (kicker)</p>';
       if (cur.note) out += `<p class="hint">${cur.note}</p>`;
       if (cur.shared) out += '<p class="warn small">Cette combinaison est entièrement sur le tableau : tous les joueurs l\'ont aussi.</p>';
       out += cur.draws.map((d) => `<p class="draw">${esc(d)}</p>`).join('');
@@ -792,10 +818,6 @@
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
-    'copy-sent'(d) {
-      const list = d.src === 'last' ? state.last && state.last.sent : state.hand && state.hand.sent;
-      if (list && list[Number(d.i)] != null) copy(list[Number(d.i)]);
-    },
     // table
     edit(d) { ui.edit = ui.edit === d.id ? null : d.id; render(); },
     'ed-save'(d) {
@@ -888,6 +910,9 @@
   document.addEventListener('focusin', (ev) => { if (ev.target.classList && ev.target.classList.contains('help-q')) showTip(ev.target, false); });
   document.addEventListener('focusout', (ev) => { if (ev.target.classList && ev.target.classList.contains('help-q') && !bubble.pinned) hideTip(); });
   window.addEventListener('scroll', () => { if (bubble.for) hideTip(); }, { passive: true });
+  document.addEventListener('toggle', (ev) => {
+    if (ev.target.classList && ev.target.classList.contains('history') && ev.target.closest('.col-b')) ui.histOpen = ev.target.open;
+  }, true);
   window.addEventListener('resize', () => { if (bubble.for) hideTip(); });
 
   document.addEventListener('click', (ev) => {

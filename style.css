@@ -280,10 +280,6 @@ select.in { appearance: auto; }
 .mini-board { margin-bottom: 8px; }
 
 /* ---------- messages envoyés */
-.sent { margin: 6px 0 12px; }
-.sent summary { color: var(--muted); font-size: 14px; padding: 8px 0; cursor: pointer; }
-.sent-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; margin-top: 8px; }
-.sent-item pre { margin: 0; padding: 10px 12px; background: #0e1a15; border: 1px solid var(--line); border-radius: 10px; font: 13.5px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; }
 
 /* ---------- onglet table */
 .players { list-style: none; margin: 0; padding: 0; }
@@ -490,3 +486,41 @@ h2 .help-q, h3 .help-q { vertical-align: 3px; }
 .tip-bubble.below::after { bottom: auto; top: -6px; }
 /* champs côte à côte : les cases restent alignées même si un libellé (avec « ? ») passe sur 2 lignes */
 .grid2 > .field, .grid3 > .field { display: flex; flex-direction: column; justify-content: flex-end; }
+
+/* ---------- fin de main : jetons avant → après */
+.before-after { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.before-after li { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.before-after .pos { font: 800 11px var(--mono); color: var(--muted); background: var(--panel2); border-radius: 6px; padding: 3px 0; text-align: center; }
+.before-after .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.before-after .ba { font-variant-numeric: tabular-nums; color: var(--muted); }
+.before-after .ba b { color: var(--text); }
+.before-after li.up .ba b { color: var(--accent); }
+.before-after li.down .ba b { color: var(--danger); }
+.before-after li.me .nm { color: var(--gold); }
+.seat.won .seat-box, .seat:has(.seat-tag.win) .seat-box { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(241, 195, 95, .3); }
+
+/* ---------- historique de la main */
+.history { margin: 6px 0 12px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 14px; }
+.history summary { cursor: pointer; padding: 9px 0; font-weight: 650; color: var(--text); }
+.history ol { list-style: none; margin: 0 0 10px; padding: 0; font-size: 14px; }
+.history li { padding: 3px 0; }
+.history .h-street { margin-top: 8px; padding: 6px 0 4px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.history li:first-child.h-street { border-top: 0; margin-top: 0; }
+.history .h-street .card.xs { margin-right: 0; }
+.history .h-who { font-weight: 650; }
+.history .h-pos { font: 800 10px var(--mono); color: var(--muted); }
+.history .h-line.me .h-who { color: var(--gold); }
+.history .h-result { color: var(--accent); font-weight: 650; }
+.history .h-result.me { color: var(--gold); }
+
+/* ---------- « Ta main » : les cartes de la combinaison */
+.now-cards { display: flex; gap: 4px; margin: 2px 0 8px; flex-wrap: wrap; }
+.now-cards .nc { position: relative; display: inline-block; }
+.now-cards .card { margin: 0; }
+.now-cards .kick { opacity: .4; }
+.now-cards .from-me::after {
+  content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+}
+.small-legend { font-size: 12px; margin-top: 6px; }
+.small-legend .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); vertical-align: 2px; }
