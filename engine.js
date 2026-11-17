@@ -107,9 +107,8 @@
     return state.hand ? fail('Termine (ou abandonne) la main en cours avant de modifier la table.') : null;
   }
 
+  // Possible même pendant une main : le joueur n'entre pas dans la main en cours, il joue à la suivante.
   function addPlayer(state, d) {
-    const blocked = needNoHand(state);
-    if (blocked) return blocked;
     const P = state.players;
     if (P.length >= MAX_PLAYERS) return fail(MAX_PLAYERS + ' joueurs maximum.');
     const stack = toInt(d.stack, NaN);

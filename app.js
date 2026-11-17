@@ -529,7 +529,7 @@
     const btnId = h ? h.btnId : plan.ok ? plan.btnId : null;
     let out = `<section class="panel">
       <h2>Joueurs <span class="muted">${state.players.length}/${E.MAX_PLAYERS}</span></h2>
-      <p class="hint">${locked ? 'Main en cours : termine-la pour modifier la table (les noms restent modifiables).' : 'Les joueurs dans l\'ordre des places. Touche un joueur pour corriger ses jetons (comme affichés sur le site), le mettre en pause, le faire partir ou lui donner le jeton D.'}</p>
+      <p class="hint">${locked ? 'Main en cours : tu peux ajouter un joueur qui arrive (il jouera à la main suivante) et changer les pseudos. Le reste se modifie entre deux mains.' : 'Les joueurs dans l\'ordre des places. Touche un joueur pour corriger ses jetons (comme affichés sur le site), le mettre en pause, le faire partir ou lui donner le jeton D.'}</p>
       <ul class="players">`;
     state.players.forEach((p) => {
       const pos = h ? h.pos[p.id] : plan.ok ? plan.pos[p.id] : null;
@@ -538,6 +538,7 @@
         p.id === btnId ? '<span class="badge dealer">D</span>' : '',
         p.paused ? '<span class="badge">pause</span>' : '',
         !p.paused && p.stack === 0 ? '<span class="badge out">0 jeton</span>' : '',
+        h && E.isActive(p) && !h.order.includes(p.id) ? '<span class="badge new">prochaine main</span>' : '',
       ].join('');
       const open = ui.edit === p.id;
       out += `<li class="${open ? 'open' : ''} ${E.isActive(p) ? '' : 'inactive'}">
@@ -569,16 +570,16 @@
     out += `<section class="panel">
       <h2>Un joueur arrive</h2>
       <div class="grid2">
-        <label class="field">Nom<input class="in" id="add-name" placeholder="Pseudo" maxlength="18" ${locked || full ? 'disabled' : ''}></label>
-        <label class="field">Jetons<input class="in" id="add-stack" type="number" inputmode="numeric" min="1" placeholder="ex : 2550" ${locked || full ? 'disabled' : ''}></label>
+        <label class="field">Pseudo<input class="in" id="add-name" placeholder="Pseudo" maxlength="18" ${full ? 'disabled' : ''}></label>
+        <label class="field">Jetons<input class="in" id="add-stack" type="number" inputmode="numeric" min="1" placeholder="ex : 2550" ${full ? 'disabled' : ''}></label>
       </div>
       <label class="field">S'assoit après
-        <select class="in" id="add-after" ${locked || full ? 'disabled' : ''}>
+        <select class="in" id="add-after" ${full ? 'disabled' : ''}>
           ${state.players.map((p, i) => `<option value="${p.id}" ${i === state.players.length - 1 ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
         </select>
       </label>
-      <button class="btn primary wide" data-a="add" ${locked || full ? 'disabled' : ''}>Ajouter à la table</button>
-      ${full ? `<p class="hint">${E.MAX_PLAYERS} joueurs maximum.</p>` : ''}
+      <button class="btn primary wide" data-a="add" ${full ? 'disabled' : ''}>Ajouter à la table</button>
+      ${full ? `<p class="hint">${E.MAX_PLAYERS} joueurs maximum.</p>` : `<p class="hint">${locked ? 'Une main est en cours : il jouera à partir de la main suivante.' : 'Il jouera dès la prochaine main.'}</p>`}
     </section>`;
     return out;
   }

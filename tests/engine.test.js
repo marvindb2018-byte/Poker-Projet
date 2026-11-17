@@ -197,6 +197,25 @@ test('arrivée, départ, bouton et ligne « table »', () => {
   assert.strictEqual(s.hand.pos[s.hand.meId], 'BTN');
 });
 
+test('un joueur arrive pendant une main : il joue à la suivante', () => {
+  const s = game6();
+  E.startHand(s); E.chooseCards(s, ['Ac', 'Kk']);
+  act(s, 'r', 60);
+  ok(E.addPlayer(s, { name: 'Zoé', stack: 3000, afterId: id(s, 'C') }));
+  assert.strictEqual(s.hand.order.length, 6); // pas dans la main en cours
+  assert.ok(!s.hand.order.includes(id(s, 'Zoé')));
+  ok(E.checkFoldUntilMe(s)); act(s, 'f');
+  ok(E.forceShowdown(s)); ok(E.declareWinners(s, E.showdownCandidates(s.hand).slice(0, 1)));
+  assert.strictEqual(chips(s), 12000 + 3000);
+  ok(E.endHand(s));
+  ok(E.startHand(s)); E.chooseCards(s, ['2c', '2k']);
+  assert.strictEqual(s.hand.order.length, 7);
+  assert.ok(s.hand.order.includes(id(s, 'Zoé')));
+  const m = E.buildMessage(s).split('\n');
+  assert.strictEqual(m[0], 'table 7 joueurs');
+  assert.ok(m[1].includes(' 3000'), m[1]);
+});
+
 test('changement de blindes signalé une seule fois', () => {
   const s = game6();
   ok(E.updateSettings(s, { sb: 20, bb: 40 }));

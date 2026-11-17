@@ -299,6 +299,7 @@ select.in { appearance: auto; }
 .badge.me { color: var(--gold); }
 .badge.dealer { background: var(--paper); color: var(--ink); }
 .badge.out { color: var(--danger); }
+.badge.new { color: var(--accent); }
 .edit { padding: 0 0 14px; }
 
 .help { margin-top: 14px; color: var(--muted); font-size: 14.5px; }
