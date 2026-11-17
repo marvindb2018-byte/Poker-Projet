@@ -18,7 +18,13 @@
 <body>
   <header class="top">
     <div class="brand"><span class="suit">♠</span> Poker <span class="arrow">→</span> Claude</div>
-    <button id="undo" class="undo" data-a="undo" title="Annuler la dernière action" disabled>↶ Annuler</button>
+    <div class="top-right">
+      <div class="mode-switch" role="group" aria-label="Mode">
+        <button data-a="mode" data-v="manuel" title="Tu saisis la partie dans l'appli (parties en vrai)">Manuel</button>
+        <button data-a="mode" data-v="auto" title="Claude lit tes captures d'écran (parties en ligne)">Auto</button>
+      </div>
+      <button id="undo" class="undo" data-a="undo" title="Annuler la dernière action" disabled>↶ Annuler</button>
+    </div>
   </header>
 
   <div class="layout">

@@ -3,7 +3,17 @@
 Petite appli web pour suivre une partie de Texas Hold'em No Limit entre amis et générer, à chaque décision, le message à envoyer à Claude.
 Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout est enregistré dans le navigateur du téléphone : rien n'est envoyé sur Internet.
 
-## Utilisation
+## Deux modes
+
+L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode à tout moment, sans rien perdre.
+
+- **Manuel** (parties en vrai, autour d'une table) : tu saisis la partie dans l'appli, qui écrit les messages pour Claude. Voir « Utilisation » ci-dessous.
+- **Auto** (parties en ligne) : rien à saisir. Tu envoies à Claude une capture d'écran de la table quand tu reçois tes cartes, puis à chaque nouvelle carte du tableau. Claude lit la table, déduit ce qui s'est passé depuis la capture précédente, et répond avec les probabilités et un plan (« si on checke → mise 300 ; si on relance → couche-toi »).
+  - **Copier le prompt Auto** : à coller une fois dans une conversation Claude, ou dans les instructions d'un Projet Claude.
+  - **Capture depuis l'appli (PC, Edge/Chrome)** : « Choisir la fenêtre du jeu » une seule fois, éventuellement « Recadrer sur la table », puis un clic sur « Capturer la table » (ou **Espace**) copie l'image ; **Ctrl+V** dans Claude. L'image reste sur ton ordinateur (presse-papiers).
+  - Sur téléphone : capture d'écran classique, partagée à Claude.
+
+## Utilisation (mode Manuel)
 
 **Au départ (une fois)**
 1. « Nouvelle partie » : nombre de joueurs, blindes, ante éventuelle (payée par chaque joueur ou par la grosse blinde pour toute la table), puis le pseudo et les jetons de chaque joueur tels qu'affichés sur le site (dans l'ordre des places), lequel est toi, et qui a le jeton « D ».

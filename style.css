@@ -553,3 +553,29 @@ h2 .help-q, h3 .help-q { vertical-align: 3px; }
 .sf-row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; margin-top: 8px; }
 .sf-row .btn { min-height: 42px; }
 @media (min-width: 1000px) { .idle-list { display: none; } }
+
+/* ---------- interrupteur Manuel | Auto */
+.top-right { display: flex; align-items: center; gap: 10px; }
+.mode-switch { display: flex; background: #0e1a15; border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.mode-switch button { border: 0; background: none; color: var(--muted); font: 700 13px var(--sans); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.mode-switch button.on { background: var(--accent); color: var(--accent-ink); }
+@media (min-width: 1000px) { .top-right { gap: 14px; } }
+
+/* ---------- mode Auto */
+.steps { padding-left: 20px; margin: 10px 0 14px; }
+.steps li { margin: 7px 0; }
+.ok-dot { font: 700 11px var(--sans); color: var(--accent); background: rgba(60, 196, 127, .14); border-radius: 999px; padding: 3px 9px; margin-left: 6px; vertical-align: 3px; text-transform: uppercase; letter-spacing: .05em; }
+.cap-stage { position: relative; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid var(--line); margin-top: 6px; user-select: none; }
+.cap-stage video { display: block; width: 100%; height: auto; }
+.cap-stage.cropping { cursor: crosshair; outline: 2px dashed var(--gold); }
+.cap-rect { position: absolute; border: 2px solid var(--gold); box-shadow: 0 0 0 9999px rgba(0, 0, 0, .45); pointer-events: none; }
+.cap-tools { margin-top: 10px; }
+.cap-last { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+.cap-last img { width: 120px; height: auto; border-radius: 6px; border: 1px solid var(--line); }
+body.auto .layout { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1000px) {
+  body.auto .layout { grid-template-columns: minmax(0, 1fr) 360px; }
+  body.auto .auto-grid { grid-template-columns: minmax(320px, 440px) minmax(0, 1fr); }
+}
+@media (min-width: 1600px) { body.auto .layout { grid-template-columns: minmax(0, 1fr) 700px; } }
+@media (max-width: 520px) { .mode-switch button { padding: 5px 9px; } .undo { padding: 6px 10px; font-size: 13px; } .brand { font-size: 15px; } }

@@ -6,6 +6,8 @@
   const HANDS = window.PokerHands;
   const KEY = 'pokercode:v1';
   const HKEY = 'pokercode:hist:v1';
+  const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
+  const CKEY = 'pokercode:crop'; // recadrage de la capture (fractions de l'image)
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
   const SUIT_NAME = { p: 'pique', c: 'cœur', k: 'carreau', t: 'trèfle' };
@@ -24,6 +26,9 @@
   if (state && state.v !== 1) state = null;
   let hist = parse(store.get(HKEY));
   if (!Array.isArray(hist)) hist = [];
+
+  let mode = store.get(MKEY) === 'auto' ? 'auto' : 'manuel';
+  let crop = parse(store.get(CKEY));
 
   function save() {
     if (state) store.set(KEY, JSON.stringify(state));
@@ -161,9 +166,19 @@
 
   function render() {
     hideTip();
+    const auto = mode === 'auto';
+    document.body.classList.toggle('auto', auto);
+    document.querySelectorAll('.mode-switch button').forEach((b) => b.classList.toggle('on', b.dataset.v === mode));
     $('undo').disabled = !state || !hist.length;
+    $('undo').hidden = auto;
     const nav = document.querySelector('.nav');
-    nav.hidden = !state;
+    nav.hidden = !state || auto;
+    if (auto) {
+      $('view').innerHTML = viewAuto();
+      $('side').innerHTML = viewSide();
+      attachPreview();
+      return;
+    }
     nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
     let html;
     if (!state) html = viewSetup();
@@ -570,6 +585,7 @@
   /* ---- colonne de droite (PC) : ma main, combinaisons, raccourcis */
 
   function viewSide() {
+    if (mode === 'auto') return viewSideAuto();
     const h = state && state.hand;
     const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
     let out = `<div class="side-a"><section class="side-box"><h3>Ta main ${tip('hand')}</h3>`;
@@ -614,6 +630,200 @@
     </section></div>`;
     return out;
   }
+
+  /* ---- mode Auto : captures d'écran lues par Claude */
+
+  const cap = { stream: null, track: null, video: null, lastUrl: null, lastAt: null, busy: false };
+  const canCapture = () => !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
+  const capLive = () => !!cap.track && cap.track.readyState === 'live';
+
+  function viewAuto() {
+    const steps = `<section class="panel">
+      <h2>Mode Auto</h2>
+      <p class="hint">Claude lit la table sur tes captures d'écran et te donne les probabilités et un plan pour chaque situation. Rien à saisir dans l'appli.</p>
+      <ol class="steps">
+        <li><b>Une fois :</b> copie le prompt Auto dans une nouvelle conversation Claude, ou mieux, dans les instructions d'un Projet Claude « Poker Auto ».</li>
+        <li><b>Tu reçois tes cartes :</b> capture, puis <kbd>Ctrl</kbd>+<kbd>V</kbd> et Entrée dans Claude.</li>
+        <li><b>Flop, turn, river :</b> une capture à chaque nouvelle carte, sans attendre ton tour.</li>
+        <li><b>Ton tour :</b> applique la ligne du plan qui correspond. Situation imprévue ? Une nouvelle capture.</li>
+      </ol>
+      <div class="row">
+        <button class="btn primary" data-a="copy-auto-prompt">Copier le prompt Auto</button>
+        <button class="btn ghost" data-a="toggle-auto-prompt">${ui.showAutoPrompt ? 'Masquer' : 'Voir'} le prompt</button>
+      </div>
+      ${ui.showAutoPrompt ? `<pre class="msg prompt">${esc(E.buildAutoPrompt())}</pre>` : ''}
+      <p class="hint">Les probabilités de gagner sont des estimations de Claude (il ne voit pas les cartes des autres) ; les calculs de tirages sont fiables.</p>
+    </section>`;
+    let capture;
+    if (!canCapture()) {
+      capture = `<section class="panel">
+        <h2>Capture de la table</h2>
+        <p>La capture depuis l'appli n'est pas disponible ici (téléphone ou navigateur non compatible).</p>
+        <p class="hint">Fais une capture d'écran classique et partage-la à Claude. Sur PC Windows : <kbd>Win</kbd>+<kbd>Maj</kbd>+<kbd>S</kbd>.</p>
+      </section>`;
+    } else if (!capLive()) {
+      capture = `<section class="panel">
+        <h2>Capture de la table</h2>
+        <p>Choisis une seule fois la fenêtre (ou l'onglet) du jeu. Ensuite, un clic ou la touche <kbd>Espace</kbd> copie une image de la table, prête à coller dans Claude.</p>
+        <button class="btn primary big" data-a="cap-start">Choisir la fenêtre du jeu</button>
+        <p class="hint">Edge affiche un bandeau « partage en cours » : c'est normal, l'image ne sort pas de ton ordinateur, elle va seulement dans ton presse-papiers.</p>
+      </section>`;
+    } else {
+      capture = `<section class="panel">
+        <h2>Capture de la table <span class="ok-dot">fenêtre partagée</span></h2>
+        <div id="cap-stage" class="cap-stage ${ui.cropping ? 'cropping' : ''}">
+          <div id="cap-slot"></div>
+          <div id="cap-rect" class="cap-rect" ${crop && !ui.cropping ? '' : 'hidden'}></div>
+        </div>
+        <p class="hint">${ui.cropping ? 'Trace un rectangle autour de la table avec la souris.' : crop ? 'Seule la zone encadrée sera copiée.' : "Toute la fenêtre sera copiée. Tu peux recadrer sur la table pour une image plus nette."}</p>
+        <button class="btn primary big" data-a="cap-shot" id="cap-shot">Capturer la table <kbd class="k">Espace</kbd></button>
+        <div class="row cap-tools">
+          <button class="btn small ${ui.cropping ? 'on' : ''}" data-a="cap-crop">${ui.cropping ? 'Annuler le recadrage' : 'Recadrer sur la table'}</button>
+          ${crop ? '<button class="btn small" data-a="cap-uncrop">Toute la fenêtre</button>' : ''}
+          <button class="btn small ghost" data-a="cap-start">Changer de fenêtre</button>
+          <button class="btn small ghost" data-a="cap-stop">Arrêter</button>
+        </div>
+        ${cap.lastUrl ? `<div class="cap-last"><img src="${cap.lastUrl}" alt="Dernière capture"><span>Copiée à ${cap.lastAt} : colle-la dans Claude avec <kbd>Ctrl</kbd>+<kbd>V</kbd></span></div>` : ''}
+      </section>`;
+    }
+    return `<div class="hand-grid auto-grid"><div class="col-a">${steps}</div><div class="col-b">${capture}</div></div>`;
+  }
+
+  function viewSideAuto() {
+    let out = `<div class="side-a"><section class="side-box"><h3>Combinaisons <small>de la plus forte à la plus faible</small></h3><ol class="combos">`;
+    out += HANDS.CATEGORIES.slice().reverse().map((c) => `<li>
+        <div class="cb-top"><b>${c.name}</b><span>${c.ex.map((x) => cardHtml(x, 'xs')).join('')}</span></div>
+        <small>${c.desc}</small>
+      </li>`).join('');
+    out += '</ol></section></div>';
+    out += `<div class="side-b"><section class="side-box keys">
+      <h3>Raccourcis clavier</h3>
+      <dl>
+        <dt><kbd>Espace</kbd></dt><dd>Capturer la table (dans l'appli)</dd>
+        <dt><kbd>C</kbd></dt><dd>Capturer la table (aussi)</dd>
+        <dt><kbd>Ctrl</kbd>+<kbd>V</kbd></dt><dd>Coller la capture dans Claude, puis Entrée</dd>
+      </dl>
+      <p class="hint">Astuce : garde l'appli et Claude côte à côte sur ton 2e écran, le jeu sur le 1er.</p>
+    </section></div>`;
+    return out;
+  }
+
+  // La vidéo du partage d'écran reste la même entre deux affichages : on la replace dans l'écran.
+  function attachPreview() {
+    const slot = $('cap-slot');
+    if (slot && cap.video) slot.appendChild(cap.video);
+    const rect = $('cap-rect');
+    if (rect && crop) Object.assign(rect.style, { left: crop.x * 100 + '%', top: crop.y * 100 + '%', width: crop.w * 100 + '%', height: crop.h * 100 + '%' });
+  }
+
+  async function startCapture() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false, selfBrowserSurface: 'exclude' });
+      stopCapture(true);
+      cap.stream = stream;
+      cap.track = stream.getVideoTracks()[0];
+      cap.track.addEventListener('ended', () => { stopCapture(true); render(); toast('Partage de la fenêtre arrêté'); });
+      cap.video = document.createElement('video');
+      cap.video.muted = true;
+      cap.video.playsInline = true;
+      cap.video.autoplay = true;
+      cap.video.srcObject = stream;
+      await cap.video.play().catch(() => {});
+      render();
+      toast('Fenêtre partagée : clique sur « Capturer la table » ou appuie sur Espace');
+    } catch (e) {
+      toast('Partage annulé');
+    }
+  }
+
+  function stopCapture(silent) {
+    if (cap.stream) cap.stream.getTracks().forEach((t) => t.stop());
+    cap.stream = cap.track = null;
+    if (cap.video) { cap.video.srcObject = null; cap.video.remove(); }
+    cap.video = null;
+    if (!silent) render();
+  }
+
+  // Image actuelle de la fenêtre partagée, recadrée, en PNG.
+  async function grabPng() {
+    let src = null;
+    let w = 0;
+    let hgt = 0;
+    try {
+      if (window.ImageCapture) {
+        src = await new ImageCapture(cap.track).grabFrame();
+        w = src.width;
+        hgt = src.height;
+      }
+    } catch (e) { src = null; }
+    if (!src) {
+      src = cap.video;
+      w = cap.video.videoWidth;
+      hgt = cap.video.videoHeight;
+    }
+    if (!w || !hgt) throw new Error('image vide');
+    const c = crop || { x: 0, y: 0, w: 1, h: 1 };
+    const sx = Math.round(c.x * w), sy = Math.round(c.y * hgt);
+    const sw = Math.max(1, Math.round(c.w * w)), sh = Math.max(1, Math.round(c.h * hgt));
+    const canvas = document.createElement('canvas');
+    canvas.width = sw;
+    canvas.height = sh;
+    canvas.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+    return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('image'))), 'image/png'));
+  }
+
+  function shoot() {
+    if (!capLive()) return toast("Choisis d'abord la fenêtre du jeu");
+    if (cap.busy) return;
+    cap.busy = true;
+    const blobP = grabPng();
+    // L'écriture dans le presse-papiers est lancée tout de suite (pendant le clic), avec l'image à venir.
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
+      .then(() => blobP)
+      .then((blob) => {
+        if (cap.lastUrl) URL.revokeObjectURL(cap.lastUrl);
+        cap.lastUrl = URL.createObjectURL(blob);
+        cap.lastAt = new Date().toLocaleTimeString('fr-FR');
+        render();
+        toast('Capture copiée : Ctrl+V dans Claude');
+      })
+      .catch(() => toast('Copie impossible : clique dans l\'appli puis réessaie'))
+      .finally(() => { cap.busy = false; });
+  }
+
+  // Recadrage : tracer un rectangle sur l'aperçu
+  let dragFrom = null;
+  document.addEventListener('mousedown', (ev) => {
+    const stage = ev.target.closest && ev.target.closest('#cap-stage');
+    if (!stage || !ui.cropping) return;
+    ev.preventDefault();
+    const r = stage.getBoundingClientRect();
+    dragFrom = { r, x: (ev.clientX - r.left) / r.width, y: (ev.clientY - r.top) / r.height };
+    const rect = $('cap-rect');
+    rect.hidden = false;
+    Object.assign(rect.style, { left: dragFrom.x * 100 + '%', top: dragFrom.y * 100 + '%', width: '0%', height: '0%' });
+  });
+  document.addEventListener('mousemove', (ev) => {
+    if (!dragFrom) return;
+    const { r } = dragFrom;
+    const x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+    const y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+    const box = { x: Math.min(x, dragFrom.x), y: Math.min(y, dragFrom.y), w: Math.abs(x - dragFrom.x), h: Math.abs(y - dragFrom.y) };
+    dragFrom.box = box;
+    Object.assign($('cap-rect').style, { left: box.x * 100 + '%', top: box.y * 100 + '%', width: box.w * 100 + '%', height: box.h * 100 + '%' });
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragFrom) return;
+    const box = dragFrom.box;
+    dragFrom = null;
+    ui.cropping = false;
+    if (box && box.w > 0.03 && box.h > 0.03) {
+      crop = box;
+      store.set(CKEY, JSON.stringify(crop));
+      toast('Recadrage enregistré');
+    }
+    render();
+  });
 
   /* ---- onglet Table */
 
@@ -731,6 +941,20 @@
   /* ------------------------------------------------------------ actions */
 
   const handlers = {
+    mode(d) {
+      mode = d.v === 'auto' ? 'auto' : 'manuel';
+      store.set(MKEY, mode);
+      ui.cropping = false;
+      render();
+      window.scrollTo(0, 0);
+    },
+    'copy-auto-prompt'() { copy(E.buildAutoPrompt(), 'Prompt Auto copié : colle-le dans une nouvelle conversation Claude'); },
+    'toggle-auto-prompt'() { ui.showAutoPrompt = !ui.showAutoPrompt; render(); },
+    'cap-start'() { startCapture(); },
+    'cap-stop'() { stopCapture(); toast('Partage arrêté'); },
+    'cap-shot'() { shoot(); },
+    'cap-crop'() { ui.cropping = !ui.cropping; render(); },
+    'cap-uncrop'() { crop = null; store.del(CKEY); render(); },
     tab(d) {
       ui.tab = d.tab;
       ui.edit = null;
@@ -1040,6 +1264,13 @@
         else if (t.id === 'sa-name' || t.id === 'sa-stack') { ev.preventDefault(); handlers['seat-add-ok'](); }
       } else if (k === 'Escape' && t.id === 'amt') { ui.sizing = false; render(); }
       else if (k === 'Escape' && (t.id === 'sa-name' || t.id === 'sa-stack')) handlers['seat-add-cancel']();
+      return;
+    }
+    if (mode === 'auto') {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (t.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return; // le bouton s'en charge
+      if (k === ' ' || k.toLowerCase() === 'c') { ev.preventDefault(); shoot(); }
+      else if (k === 'Escape' && ui.cropping) { ui.cropping = false; render(); }
       return;
     }
     if (ev.ctrlKey || ev.metaKey || ev.altKey || !state || ui.tab !== 'main') return;

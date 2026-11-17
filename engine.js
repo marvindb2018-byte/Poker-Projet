@@ -834,6 +834,40 @@
     return L.join('\n');
   }
 
+  // Prompt du mode Auto : Claude lit les captures d'écran de la table et donne probabilités + plan.
+  function buildAutoPrompt() {
+    return [
+      "On joue au Texas Hold'em No Limit en ligne, sans argent. Tu me conseilles en direct.",
+      '',
+      "Je t'envoie des captures d'écran de la table : une quand je reçois mes cartes, puis une à chaque nouvelle carte du tableau (flop, turn, river), sans attendre que ce soit à moi. Je suis toujours le joueur en bas au centre. Parfois j'ajoute quelques mots (ex : « UTG a relancé »).",
+      '',
+      'À chaque capture :',
+      "- Lis mes 2 cartes, le tableau, ma position par rapport au jeton D, les blindes (et l'ante s'il y en a), le pot, les jetons et les mises de chacun, et qui est encore en jeu.",
+      '- Si mes cartes sont les mêmes que sur la capture précédente, c\'est la même main : déduis ce qui s\'est passé entre les deux captures (qui a misé, suivi, relancé ou s\'est couché) en comparant les jetons, les mises et le pot. Si mes cartes ont changé, c\'est une nouvelle main.',
+      '',
+      'Réponds exactement dans ce format, rien d\'autre :',
+      'Lu : [position] [mes cartes] · [tableau et ma combinaison] · pot [x] · [n] adversaires',
+      'Depuis la capture précédente : [ce qui s\'est passé, très court] (pas de cette ligne pour une nouvelle main)',
+      'Proba : ≈ [x] % de gagner contre les mains probables des adversaires · [tirages : n cartes, ≈ y % d\'ici la river] · [cote : il faut z % pour suivre, s\'il y a une mise à suivre]',
+      '• [situation la plus probable] → [action et montant en jetons]',
+      '• [autre situation] → [action et montant]',
+      'De 2 à 5 lignes « • », de la plus probable à la moins probable.',
+      '',
+      'Exemple au flop :',
+      'Lu : BTN A♥ K♦ · flop K♥ 7♣ 2♦ (paire de Rois) · pot 450 · 2 adversaires',
+      'Depuis la capture précédente : UTG a relancé à 60, CO a suivi',
+      'Proba : ≈ 75 % de gagner · il faut 18 % pour suivre',
+      '• On checke jusqu\'à toi → Mise 300',
+      '• Une mise jusqu\'à 300 → Suis',
+      '• On relance ta mise → Couche-toi',
+      '',
+      'Si ma main est à jeter quoi qu\'il arrive : la ligne « Lu », puis « → Couche-toi (check si personne ne mise) ».',
+      'Écris les cartes avec les symboles ♠ ♥ ♦ ♣ et 10 pour le dix. Vérifie deux fois mes cartes : une erreur de lecture fausse tout.',
+      'Si un élément est illisible, fais l\'hypothèse la plus probable et signale-le en 2 mots.',
+      'Si j\'écris « ? », explique ton plan en 2 phrases.',
+    ].join('\n');
+  }
+
   const api = {
     RANKS, SUITS, STREET_NAMES, POSITIONS, MAX_PLAYERS,
     defaultSettings, newGame, markConversationStart, updateSettings,
@@ -841,7 +875,7 @@
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots,
     endHand, abortHand, handSummary, handHistory, contestedPot,
-    buildMessage, buildPrompt, blindsText, cardText,
+    buildMessage, buildPrompt, buildAutoPrompt, blindsText, cardText,
     isActive, isCard, potOf, live, meLive,
   };
 
