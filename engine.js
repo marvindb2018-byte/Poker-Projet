@@ -713,7 +713,7 @@
     L.push("- Un joueur qui a parlé sans être cité s'est couché.");
     L.push("- Table : je te préviens quand le nombre de joueurs, les blindes ou l'ante changent, avec les nouvelles positions. Ex : table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40, ante 5");
     L.push('');
-    L.push("Réponds en une seule ligne : action + montant (ex : r180). Ajoute 3 à 5 mots d'explication seulement si la décision est serrée. Si j'écris « ? », explique en 2 phrases.");
+    L.push("Réponds en une seule ligne : le code de l'action, puis sa traduction en clair. Ex : « r180 → relance à 180 », « b60 → mise 60 », « s → suis 40 », « x → check », « f → couche-toi », « AI → tapis (1820) ». Ajoute 3 à 5 mots d'explication seulement si la décision est serrée. Si j'écris « ? », explique en 2 phrases.");
     L.push("Si une information te manque, ne pose pas de question : fais l'hypothèse la plus probable et donne quand même ton action.");
     return L.join('\n');
   }

@@ -69,6 +69,21 @@
   const fmtNet = (n) => (n > 0 ? '+' + n : '−' + Math.abs(n));
   const K = (k) => `<kbd class="k">${k}</kbd>`; // lettre de raccourci, affichée seulement sur PC
 
+  // Bulles d'aide : un « ? » à côté d'un mot ; survol (PC) ou toucher (téléphone) pour lire l'explication.
+  const TIPS = {
+    sb: "Petite blinde (SB) : mise obligatoire payée avant de voir ses cartes par le joueur juste à gauche du jeton D. Elle vaut en général la moitié de la grosse blinde.",
+    bb: "Grosse blinde (BB) : mise obligatoire du 2e joueur à gauche du jeton D. C'est le prix minimum pour jouer la main : les autres doivent au moins la suivre pour rester dans le coup. En tournoi, les blindes augmentent régulièrement.",
+    ante: "Ante : petite mise obligatoire posée avant la distribution, en plus des blindes. Elle grossit le pot dès le départ, ce qui pousse à jouer plus de mains. On la trouve surtout en tournoi, une fois que les blindes ont bien monté (souvent à partir du milieu du tournoi), et rarement en partie classique. Mets 0 s'il n'y en a pas.",
+    anteType: "Ante classique : chaque joueur paie l'ante avant les cartes. Ante grosse blinde (« BB ante ») : seul le joueur en grosse blinde la paie, pour toute la table, en général du montant de la grosse blinde. Cette 2e version est fréquente dans les tournois en ligne récents. Sur le site : si chaque joueur pose un petit jeton avant les cartes, c'est l'ante classique.",
+    stack: "Les jetons que le joueur a devant lui (son « tapis »), tels qu'affichés sur le site à côté de son pseudo. Ils comptent beaucoup : on ne joue pas pareil contre quelqu'un qui peut tout miser que contre un joueur qui n'a presque plus rien.",
+    dealer: "Le jeton « D » (dealer, ou « bouton ») marque le joueur qui distribue, même si en ligne c'est le logiciel qui le fait. Les deux joueurs à sa gauche paient les blindes. C'est la meilleure place : il parle en dernier après le flop. Il avance d'une place à chaque main.",
+    positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
+    actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
+    sidepot: "Pot annexe : un joueur à tapis ne peut gagner, chez chaque adversaire, que ce qu'il a lui-même misé. Le reste forme un pot annexe, disputé seulement entre les joueurs qui avaient plus de jetons. L'appli fait le calcul : désigne juste la meilleure main.",
+    hand: "Ta meilleure combinaison avec tes 2 cartes et les cartes du tableau. Un « tirage », c'est quand il te manque une seule carte pour faire une couleur ou une quinte : elle peut encore tomber à la turn ou à la river.",
+  };
+  const tip = (key) => `<button type="button" class="help-q" data-tip="${key}" aria-label="Explication">?</button>`;
+
   let toastTimer = null;
   function toast(msg) {
     const el = $('toast');
@@ -145,6 +160,7 @@
   }
 
   function render() {
+    hideTip();
     $('undo').disabled = !state || !hist.length;
     const nav = document.querySelector('.nav');
     nav.hidden = !state;
@@ -184,23 +200,22 @@
         </div>
       </div>
       <div class="grid3">
-        <label class="field">Petite blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="sb" value="${esc(s.sb)}"></label>
-        <label class="field">Grosse blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="bb" value="${esc(s.bb)}"></label>
-        <label class="field">Ante<input class="in" type="number" inputmode="numeric" min="0" data-setup="ante" value="${esc(s.ante)}"></label>
+        <label class="field">Petite blinde ${tip('sb')}<input class="in" type="number" inputmode="numeric" min="1" data-setup="sb" value="${esc(s.sb)}"></label>
+        <label class="field">Grosse blinde ${tip('bb')}<input class="in" type="number" inputmode="numeric" min="1" data-setup="bb" value="${esc(s.bb)}"></label>
+        <label class="field">Ante ${tip('ante')}<input class="in" type="number" inputmode="numeric" min="0" data-setup="ante" value="${esc(s.ante)}"></label>
       </div>
-      <label class="field">Qui paie l'ante ?<select class="in" data-setup-str="anteType">
+      <label class="field">Qui paie l'ante ? ${tip('anteType')}<select class="in" data-setup-str="anteType">
         <option value="chacun" ${s.anteType !== 'bb' ? 'selected' : ''}>Chaque joueur</option>
         <option value="bb" ${s.anteType === 'bb' ? 'selected' : ''}>La grosse blinde, pour toute la table</option>
       </select></label>
-      <p class="hint">Ante : petite mise obligatoire en plus des blindes, souvent en tournoi quand les blindes montent. Laisse 0 s'il n'y en a pas. Sur le site, soit chaque joueur pose l'ante avant les cartes, soit seule la grosse blinde la paie pour toute la table.</p>
+      <p class="hint">Pas d'ante sur ta table ? Laisse 0.</p>
       <h2>Les joueurs</h2>
       <p class="hint">Recopie ce que tu vois sur le site : le pseudo et les jetons de chaque joueur, en faisant le tour de la table dans le sens des aiguilles d'une montre.</p>
-      <div class="seat-row head"><span></span><span>Pseudo</span><span>Jetons</span></div>
+      <div class="seat-row head"><span></span><span>Pseudo</span><span>Jetons ${tip('stack')}</span></div>
       ${rows}
 
       <label class="field">Lequel de ces joueurs est toi ?<select class="in" data-setup-sel="me">${opts(s.me)}</select></label>
-      <label class="field">Qui a le jeton « D » à côté de lui ?<select class="in" data-setup-sel="btn">${opts(s.btn)}</select></label>
-      <p class="hint">Sur le site, un petit jeton marqué « D » est posé devant un des joueurs : c'est le « bouton » (BTN). Il sert à savoir qui paie les blindes et qui parle en premier. Il avance d'une place à chaque main : l'appli le suit toute seule.</p>
+      <label class="field">Qui a le jeton « D » à côté de lui ? ${tip('dealer')}<select class="in" data-setup-sel="btn">${opts(s.btn)}</select></label>
       <button class="btn primary big" data-a="setup-go">Commencer la partie</button>
     </section>`;
   }
@@ -337,7 +352,7 @@
       if (!me) out += `<p class="warn">Aucun joueur n'est marqué « moi » (onglet Table).</p>`;
       else if (!plan.order.includes(me.id)) out += `<p class="warn">Tu ne joues pas cette main (pause ou 0 jeton).</p>`;
     }
-    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
+    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier ${tip('positions')}. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
       <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n} ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="tab" data-tab="table">Un joueur arrive, part, ou recave ?</button>
     </section>`;
@@ -427,7 +442,7 @@
 
   function actionPanel(h, id, mine, meLive) {
     const o = E.options(h, id);
-    const head = mine ? '<b>Ce que tu joues</b>' : `À <b>${esc(h.names[id])}</b> <span class="pos-inline">${h.pos[id]}</span>`;
+    const head = (mine ? '<b>Ce que tu joues</b>' : `À <b>${esc(h.names[id])}</b> <span class="pos-inline">${h.pos[id]}</span>`) + ' ' + tip('actions');
     const call = o.canCheck
       ? `<button class="btn" data-a="act" data-t="x">Check ${K('X')}</button>`
       : `<button class="btn" data-a="act" data-t="s">${o.toCall >= o.st ? 'Suit (tapis)' : 'Suit ' + o.toCall} ${K('S')}</button>`;
@@ -466,6 +481,7 @@
     return `<section class="panel">
       <h2>Qui gagne ?</h2>
       <ul class="pots">${pots}</ul>
+      ${h.pots.length > 1 ? `<p class="hint">Il y a un pot annexe ${tip('sidepot')}</p>` : ''}
       <p class="hint">Touche la meilleure main. Plusieurs joueurs = partage du pot.</p>
       <div class="cands">${cand.map((id, i) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}"><span class="pos">${h.pos[id]}</span>${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}${i < 9 ? `<kbd class="k right">${i + 1}</kbd>` : ''}</button>`).join('')}</div>
       <button class="btn primary big" data-a="declare" ${ui.sel.length ? '' : 'disabled'}>Valider ${K('Entrée')}</button>
@@ -494,7 +510,7 @@
   function viewSide() {
     const h = state && state.hand;
     const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
-    let out = '<div class="side-a"><section class="side-box"><h3>Ta main</h3>';
+    let out = `<div class="side-a"><section class="side-box"><h3>Ta main ${tip('hand')}</h3>`;
     if (cur) {
       out += `<div class="now">${esc(cur.best.name)}</div>`;
       if (cur.note) out += `<p class="hint">${cur.note}</p>`;
@@ -619,15 +635,15 @@
     return `<section class="panel">
       <h2>Blindes et ante</h2>
       <div class="grid3">
-        <label class="field">Petite blinde<input class="in" type="number" inputmode="numeric" min="1" data-set="sb" value="${S.sb}"></label>
-        <label class="field">Grosse blinde<input class="in" type="number" inputmode="numeric" min="1" data-set="bb" value="${S.bb}"></label>
-        <label class="field">Ante<input class="in" type="number" inputmode="numeric" min="0" data-set="ante" value="${S.ante || 0}"></label>
+        <label class="field">Petite blinde ${tip('sb')}<input class="in" type="number" inputmode="numeric" min="1" data-set="sb" value="${S.sb}"></label>
+        <label class="field">Grosse blinde ${tip('bb')}<input class="in" type="number" inputmode="numeric" min="1" data-set="bb" value="${S.bb}"></label>
+        <label class="field">Ante ${tip('ante')}<input class="in" type="number" inputmode="numeric" min="0" data-set="ante" value="${S.ante || 0}"></label>
       </div>
-      <label class="field">Qui paie l'ante ?<select class="in" data-set="anteType">
+      <label class="field">Qui paie l'ante ? ${tip('anteType')}<select class="in" data-set="anteType">
         <option value="chacun" ${S.anteType !== 'bb' ? 'selected' : ''}>Chaque joueur</option>
         <option value="bb" ${S.anteType === 'bb' ? 'selected' : ''}>La grosse blinde, pour toute la table</option>
       </select></label>
-      <p class="hint">Quand les blindes ou l'ante changent : le changement s'applique à la main suivante et Claude en est prévenu tout seul. Ante : petite mise obligatoire en plus des blindes, souvent en tournoi quand les blindes montent. Laisse 0 s'il n'y en a pas. Sur le site, soit chaque joueur pose l'ante avant les cartes, soit seule la grosse blinde la paie pour toute la table.</p>
+      <p class="hint">Quand les blindes ou l'ante changent : le changement s'applique à la main suivante et Claude en est prévenu tout seul. Pas d'ante ? Laisse 0.</p>
     </section>
     <section class="panel">
       <h2>Partie</h2>
@@ -829,7 +845,60 @@
     },
   };
 
+  /* ------------------------------------------------------------ bulles d'aide */
+
+  const bubble = { for: null, pinned: false };
+
+  function showTip(btn, pinned) {
+    const el = $('tip');
+    el.textContent = TIPS[btn.dataset.tip] || '';
+    el.hidden = false;
+    el.classList.remove('below');
+    const r = btn.getBoundingClientRect();
+    const w = el.offsetWidth;
+    const hgt = el.offsetHeight;
+    const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+    let top = r.top - hgt - 10;
+    if (top < 8) { top = r.bottom + 10; el.classList.add('below'); }
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.setProperty('--ax', (r.left + r.width / 2 - left) + 'px');
+    document.querySelectorAll('.help-q.on').forEach((b) => b.classList.remove('on'));
+    btn.classList.add('on');
+    bubble.for = btn;
+    bubble.pinned = !!pinned;
+  }
+
+  function hideTip() {
+    const el = $('tip');
+    if (el) el.hidden = true;
+    if (bubble.for) bubble.for.classList.remove('on');
+    bubble.for = null;
+    bubble.pinned = false;
+  }
+
+  document.addEventListener('mouseover', (ev) => {
+    const q = ev.target.closest && ev.target.closest('.help-q');
+    if (q && !bubble.pinned) showTip(q, false);
+  });
+  document.addEventListener('mouseout', (ev) => {
+    const q = ev.target.closest && ev.target.closest('.help-q');
+    if (q && !bubble.pinned && !(ev.relatedTarget && q.contains(ev.relatedTarget))) hideTip();
+  });
+  document.addEventListener('focusin', (ev) => { if (ev.target.classList && ev.target.classList.contains('help-q')) showTip(ev.target, false); });
+  document.addEventListener('focusout', (ev) => { if (ev.target.classList && ev.target.classList.contains('help-q') && !bubble.pinned) hideTip(); });
+  window.addEventListener('scroll', () => { if (bubble.for) hideTip(); }, { passive: true });
+  window.addEventListener('resize', () => { if (bubble.for) hideTip(); });
+
   document.addEventListener('click', (ev) => {
+    const q = ev.target.closest('.help-q');
+    if (q) {
+      ev.preventDefault();
+      if (bubble.for === q && bubble.pinned) hideTip();
+      else showTip(q, true); // au toucher (téléphone), la bulle reste ouverte jusqu'au prochain toucher
+      return;
+    }
+    if (bubble.for) hideTip();
     const el = ev.target.closest('[data-a]');
     if (!el || el.disabled) return;
     const fn = handlers[el.dataset.a];

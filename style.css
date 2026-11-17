@@ -467,3 +467,26 @@ kbd {
   .su .k { margin: 2px 0 0; font-size: 11px; }
   .rk .k { margin-left: 4px; vertical-align: 3px; }
 }
+
+/* ---------- bulles d'aide « ? » */
+.help-q {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; margin-left: 4px; padding: 0; vertical-align: 1px;
+  border: 1px solid currentColor; border-radius: 50%; background: transparent; color: var(--muted);
+  font: 800 11px/1 var(--sans); cursor: help; text-transform: none; letter-spacing: 0;
+}
+.help-q::before { content: ''; position: absolute; inset: -10px; } /* zone de toucher plus grande */
+.help-q:hover, .help-q.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+h2 .help-q, h3 .help-q { vertical-align: 3px; }
+.tip-bubble {
+  position: fixed; z-index: 30; max-width: min(320px, calc(100vw - 16px));
+  padding: 11px 13px; border-radius: 11px; background: var(--paper); color: var(--ink);
+  font: 500 14px/1.45 var(--sans); box-shadow: 0 12px 32px rgba(0, 0, 0, .55); pointer-events: none;
+}
+.tip-bubble::after {
+  content: ''; position: absolute; left: var(--ax, 50%); bottom: -6px; width: 12px; height: 12px;
+  background: var(--paper); transform: translateX(-50%) rotate(45deg);
+}
+.tip-bubble.below::after { bottom: auto; top: -6px; }
+/* champs côte à côte : les cases restent alignées même si un libellé (avec « ? ») passe sur 2 lignes */
+.grid2 > .field, .grid3 > .field { display: flex; flex-direction: column; justify-content: flex-end; }

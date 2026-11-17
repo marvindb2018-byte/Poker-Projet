@@ -316,6 +316,7 @@ test('prompt de départ', () => {
   const p = E.buildPrompt(s);
   assert.ok(p.includes('Table : 6 joueurs, blindes 10/20.'));
   assert.ok(p.includes('Positions : UTG, MP, CO, BTN, SB, BB.'));
+  assert.ok(p.includes('« r180 → relance à 180 »'));
 });
 
 test('main simulée au hasard : jetons conservés sur 300 mains', () => {
