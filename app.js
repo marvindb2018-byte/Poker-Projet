@@ -221,10 +221,10 @@
     else if (h.phase === 'action') a += viewAction(h);
     else if (h.phase === 'showdown') a += viewShowdown(h);
     else if (h.phase === 'done') a += viewDone(h);
-    let b = h.phase === 'spectate' ? '' : strip(h);
+    let b = h.phase === 'spectate' ? '' : ptable(h) + strip(h);
     if (h.sent.length) b += sentList(h.sent, 'hand');
     if (!['done', 'spectate'].includes(h.phase)) {
-      b += `<div class="row end"><button class="btn ghost danger small" data-a="abort">Abandonner la main</button></div>`;
+      b += `<div class="row end"><button class="btn ghost danger small" data-a="abort" title="Efface la saisie de cette main : jetons et jeton D reviennent comme avant. Ce n'est pas se coucher.">Effacer cette main (erreur de saisie)</button></div>`;
     }
     return `${out}<div class="hand-grid"><div class="col-a">${a}</div><div class="col-b">${b}</div></div>`;
   }
@@ -264,6 +264,51 @@
     }).join('')}</ol>`;
   }
 
+  // Table de poker vue de dessus (affichée seulement sur PC). Je suis toujours en bas au centre,
+  // les autres joueurs suivent dans le sens des aiguilles d'une montre.
+  function ptable(h) {
+    const n = h.order.length;
+    const m = Math.max(0, h.order.indexOf(h.meId));
+    const seats = h.order.slice(m).concat(h.order.slice(0, m));
+    const done = h.phase === 'done';
+    const cand = h.phase === 'showdown' ? E.showdownCandidates(h) : [];
+    const RX = 44, RY = 43; // rayon de l'ellipse des places, en % de la zone
+    const at = (r, deg) => {
+      const a = (deg * Math.PI) / 180;
+      return `left:${(50 + RX * r * Math.cos(a)).toFixed(2)}%;top:${(50 + RY * r * Math.sin(a)).toFixed(2)}%`;
+    };
+    const back = '<span class="cb"></span><span class="cb"></span>';
+    let html = '<div class="ptable" aria-label="Table"><div class="pt-felt"></div>';
+    seats.forEach((id, k) => {
+      const deg = 90 + (k * 360) / n;
+      const me = id === h.meId;
+      const cls = ['seat', id === h.toAct ? 'cur' : '', h.folded[id] ? 'out' : '', me ? 'me' : '',
+        cand.includes(id) ? 'pick' : '', ui.sel.includes(id) ? 'picked' : ''].join(' ');
+      let cards = '';
+      if (!h.folded[id]) cards = me && h.cards.length === 2 ? h.cards.map((c) => cardHtml(c, 'xs')).join('') : back;
+      let tag = '';
+      let stack = h.stack[id];
+      if (done) {
+        const net = h.stack[id] + h.win[id] - h.stacks0[id];
+        stack = h.stack[id] + h.win[id];
+        if (net) tag = `<span class="seat-tag ${net > 0 ? 'win' : 'lose'}">${fmtNet(net)}</span>`;
+      } else if (h.folded[id]) tag = '<span class="seat-tag fold">couché</span>';
+      else if (h.allin[id]) tag = '<span class="seat-tag allin">tapis</span>';
+      else if (id === h.toAct) tag = '<span class="seat-tag">parle</span>';
+      const click = cand.includes(id) ? ` data-a="sel" data-id="${id}" title="Choisir comme gagnant"` : '';
+      html += `<div class="${cls}" style="${at(1, deg)}"${click}>
+        <div class="seat-cards">${cards}</div>
+        <div class="seat-box"><span class="seat-pos">${h.pos[id]}</span><b class="seat-name">${esc(h.names[id])}</b><span class="seat-stack">${stack}</span></div>
+        ${tag}
+      </div>`;
+      if (!done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.6, deg)}"><i></i>${h.bet[id]}</div>`;
+      if (id === h.btnId) html += `<div class="pt-dealer" style="${at(0.76, deg + 360 / n / 3)}">D</div>`;
+    });
+    const board = Array.from({ length: 5 }, (_, i) => (h.board[i] ? cardHtml(h.board[i], 'sm') : '<span class="card empty sm"></span>')).join('');
+    html += `<div class="pt-center"><div class="pt-board">${board}</div><div class="pt-pot">Pot ${E.potOf(h)}</div></div>`;
+    return html + '</div>';
+  }
+
   function viewIdle() {
     const S = state.settings;
     const plan = E.planNextHand(state);
@@ -301,7 +346,7 @@
     return `<section class="panel">
       <p>Tu ne joues pas cette main (en pause ou sans jetons). Rien à envoyer à Claude.</p>
       <button class="btn primary big" data-a="next-only">Main suivante ${K('Entrée')}</button>
-      <button class="btn ghost wide" data-a="abort">Annuler (le jeton D ne bouge pas)</button>
+      <button class="btn ghost wide" data-a="abort">Effacer cette main (le jeton D ne bouge pas)</button>
     </section>`;
   }
 
@@ -706,7 +751,7 @@
       render();
     },
     abort() {
-      if (!window.confirm('Abandonner cette main ? Les jetons et le jeton D reviennent à leur état d\'avant la main.')) return;
+      if (!window.confirm('Effacer la saisie de cette main ? Les jetons et le jeton D reviennent à leur état d\'avant la main. (Pour te coucher, utilise plutôt « Couché ».)')) return;
       cmd((s) => E.abortHand(s));
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },

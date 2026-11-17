@@ -387,3 +387,70 @@ kbd {
   .layout { grid-template-columns: minmax(0, 1fr) 700px; max-width: 1880px; }
   .side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; overflow: visible; max-height: none; }
 }
+
+/* ---------- table de poker (PC uniquement) */
+.ptable { display: none; }
+@media (min-width: 1000px) {
+  .col-b .strip { display: none; }
+  .ptable { display: block; position: relative; width: 100%; aspect-ratio: 4 / 3.2; margin: 30px 0 18px; }
+}
+.pt-felt {
+  position: absolute; inset: 16% 10%; border-radius: 9999px;
+  background: radial-gradient(ellipse at 50% 38%, #23774f 0%, #165a3b 55%, #0f4430 100%);
+  border: 12px solid #3b2a1d;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .07), inset 0 8px 30px rgba(0, 0, 0, .35), 0 14px 34px rgba(0, 0, 0, .55);
+}
+.pt-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; }
+.pt-board .card.sm { margin: 0 2px; }
+.pt-board .card.empty { border-color: rgba(255, 255, 255, .18); }
+.pt-pot {
+  display: inline-block; margin-top: 8px; padding: 3px 14px; border-radius: 999px;
+  background: rgba(0, 0, 0, .38); color: var(--gold); font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
+}
+.seat { position: absolute; transform: translate(-50%, -50%); width: 116px; text-align: center; z-index: 2; }
+.seat-cards { display: flex; justify-content: center; gap: 3px; height: 34px; margin-bottom: -12px; position: relative; z-index: 0; }
+.seat-cards .card.xs { width: 25px; height: 34px; margin: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
+.seat-cards .card.xs b { font-size: 12px; }
+.seat-cards .card.xs i { font-size: 10px; }
+.cb {
+  display: inline-block; width: 25px; height: 34px; border-radius: 5px; border: 2px solid var(--paper);
+  background: repeating-linear-gradient(45deg, #9b3131 0 4px, #b54141 4px 8px); box-shadow: 0 2px 4px rgba(0, 0, 0, .4);
+}
+.seat-box {
+  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center;
+  background: #0f1a15; border: 1px solid var(--line); border-radius: 12px; padding: 5px 6px 6px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .45);
+}
+.seat-pos { font: 800 10px var(--mono); color: var(--muted); letter-spacing: .04em; }
+.seat-name { max-width: 100%; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat-stack { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seat.me .seat-name { color: var(--gold); }
+.seat.me .seat-cards { height: 42px; margin-bottom: -4px; }
+.seat.me .seat-cards .card.xs { width: 31px; height: 42px; }
+.seat.me .seat-cards .card.xs b { font-size: 14px; }
+.seat.me .seat-cards .card.xs i { font-size: 12px; }
+.seat.out { opacity: .42; }
+.seat.cur .seat-box { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(60, 196, 127, .35), 0 0 22px rgba(60, 196, 127, .5); }
+.seat.pick { cursor: pointer; }
+.seat.pick .seat-box { border: 1px dashed var(--gold); }
+.seat.picked .seat-box { border: 2px solid var(--accent); box-shadow: 0 0 0 3px rgba(60, 196, 127, .35); }
+.seat-tag {
+  position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); z-index: 3;
+  padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font: 800 10px var(--sans); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+}
+.seat-tag.fold { background: #34443c; color: #a9b9b0; }
+.seat-tag.allin, .seat-tag.win { background: var(--gold); color: #1b1a17; }
+.seat-tag.lose { background: var(--danger); color: #fff; }
+.pt-bet {
+  position: absolute; transform: translate(-50%, -50%); z-index: 1;
+  display: flex; align-items: center; gap: 5px; padding: 2px 9px 2px 3px; border-radius: 999px;
+  background: rgba(0, 0, 0, .45); color: #fff; font: 800 13px var(--sans); font-variant-numeric: tabular-nums;
+}
+.pt-bet i { width: 15px; height: 15px; border-radius: 50%; background: radial-gradient(circle, #f1c35f 0 38%, #fff 39% 48%, #c8952e 49%); }
+.pt-dealer {
+  position: absolute; transform: translate(-50%, -50%); z-index: 1;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--paper); color: #111;
+  display: flex; align-items: center; justify-content: center; font: 900 12px var(--sans);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .55);
+}
