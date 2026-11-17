@@ -611,7 +611,7 @@
     if (l.head == null) return s;
     if (s) return l.head + ' | ' + s;
     if (l.acts.length) return l.head + ' | tous couchés';
-    return l.head;
+    return l.head + ' | je parle en premier'; // personne n'a parlé avant moi sur ce tour
   }
 
   // Message à envoyer à Claude : tout ce qui s'est passé depuis ma dernière décision.
@@ -659,6 +659,7 @@
     L.push('  tapis UTG 2000, MP 1500, CO 2400, BTN 1800, SB 2000, BB 900');
     L.push('  BTN AcKk | UTG r60, CO s');
     L.push('- Cartes du tableau : + les nouvelles cartes, le pot | les actions. Ex : +Kc7t2k pot 200 | BB b100');
+    L.push('- Si personne ne parle avant moi, j\'écris « je parle en premier ». Ex : BTN AcKk | je parle en premier');
     L.push("- Après ma décision, je t'envoie seulement les réactions. Ex : BB r300");
     L.push("- Un joueur qui a parlé sans être cité s'est couché.");
     L.push('- Table : je te préviens quand le nombre de joueurs ou les blindes changent. Ex : table 7 joueurs, blindes 20/40');

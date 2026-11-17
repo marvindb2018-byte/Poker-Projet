@@ -373,7 +373,7 @@ kbd {
   main { max-width: none; margin: 0; padding: 0; }
   .side { display: block; position: sticky; top: 84px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; }
   .narrow { max-width: 720px; }
-  .hand-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .hand-grid { display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
   .k, .pc-only { display: inline-block; }
   .k { margin-left: 6px; opacity: .8; font-size: 11px; padding: 0 5px; }
   .btn.primary .k { background: rgba(0, 0, 0, .18); color: inherit; border-color: rgba(0, 0, 0, .25); }
@@ -393,7 +393,7 @@ kbd {
 .ptable { display: none; }
 @media (min-width: 1000px) {
   .col-b .strip { display: none; }
-  .ptable { display: block; position: relative; width: 100%; aspect-ratio: 4 / 3.2; margin: 30px 0 18px; }
+  .ptable { display: block; position: relative; width: 100%; aspect-ratio: 4 / 3.2; margin: 34px 0 44px; container-type: inline-size; }
 }
 .pt-felt {
   position: absolute; inset: 16% 10%; border-radius: 9999px;
@@ -402,13 +402,15 @@ kbd {
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .07), inset 0 8px 30px rgba(0, 0, 0, .35), 0 14px 34px rgba(0, 0, 0, .55);
 }
 .pt-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; }
-.pt-board .card.sm { margin: 0 2px; }
+.pt-board .card.sm { margin: 0 2px; width: clamp(26px, 6cqw, 34px); height: clamp(36px, 8.2cqw, 46px); }
+.pt-board .card.sm b { font-size: clamp(12px, 2.8cqw, 15px); }
+.pt-board .card.sm i { font-size: clamp(11px, 2.6cqw, 14px); }
 .pt-board .card.empty { border-color: rgba(255, 255, 255, .18); }
 .pt-pot {
   display: inline-block; margin-top: 8px; padding: 3px 14px; border-radius: 999px;
   background: rgba(0, 0, 0, .38); color: var(--gold); font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums;
 }
-.seat { position: absolute; transform: translate(-50%, -50%); width: 116px; text-align: center; z-index: 2; }
+.seat { position: absolute; transform: translate(-50%, -50%); width: clamp(78px, 20.5cqw, 116px); text-align: center; z-index: 2; }
 .seat-cards { display: flex; justify-content: center; gap: 3px; height: 34px; margin-bottom: -12px; position: relative; z-index: 0; }
 .seat-cards .card.xs { width: 25px; height: 34px; margin: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
 .seat-cards .card.xs b { font-size: 12px; }
@@ -423,8 +425,8 @@ kbd {
   box-shadow: 0 6px 14px rgba(0, 0, 0, .45);
 }
 .seat-pos { font: 800 10px var(--mono); color: var(--muted); letter-spacing: .04em; }
-.seat-name { max-width: 100%; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.seat-stack { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seat-name { max-width: 100%; font-size: clamp(11.5px, 2.4cqw, 13.5px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat-stack { font-size: clamp(11px, 2.3cqw, 13px); color: var(--muted); font-variant-numeric: tabular-nums; }
 .seat.me .seat-name { color: var(--gold); }
 .seat.me .seat-cards { height: 42px; margin-bottom: -4px; }
 .seat.me .seat-cards .card.xs { width: 31px; height: 42px; }
@@ -449,12 +451,16 @@ kbd {
   background: rgba(0, 0, 0, .45); color: #fff; font: 800 13px var(--sans); font-variant-numeric: tabular-nums;
 }
 .pt-bet i { width: 15px; height: 15px; border-radius: 50%; background: radial-gradient(circle, #f1c35f 0 38%, #fff 39% 48%, #c8952e 49%); }
-.pt-dealer {
-  position: absolute; transform: translate(-50%, -50%); z-index: 1;
-  width: 24px; height: 24px; border-radius: 50%; background: var(--paper); color: #111;
-  display: flex; align-items: center; justify-content: center; font: 900 12px var(--sans);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, .55);
+.dealer-badge {
+  position: absolute; z-index: 4; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--paper); color: #111; display: flex; align-items: center; justify-content: center;
+  font: 900 12px var(--sans); box-shadow: 0 2px 5px rgba(0, 0, 0, .6), 0 0 0 2px #0f1a15;
 }
+.dealer-badge.d-tr { top: -10px; right: -10px; }
+.dealer-badge.d-tl { top: -10px; left: -10px; }
+.dealer-badge.d-br { bottom: -10px; right: -10px; }
+.dealer-badge.d-bl { bottom: -10px; left: -10px; }
+.dealer-badge.d-mr { top: 50%; right: -14px; transform: translateY(-50%); }
 
 /* lettres de raccourci dans le choix des cartes (PC) */
 @media (min-width: 1000px) {

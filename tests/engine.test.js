@@ -94,7 +94,7 @@ test('tapis multiples et pots annexes', () => {
   const h = s.hand;
   assert.deepStrictEqual(h.pre.map((x) => h.pos[x]), ['BTN', 'SB', 'BB']);
   E.chooseCards(s, ['Qc', 'Qk']);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 3000, SB 500, BB 1500\nBTN QcQk');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 3000, SB 500, BB 1500\nBTN QcQk | je parle en premier');
   act(s, 'r', 60); // moi
   act(s, 'AI'); // A tapis 500
   act(s, 'AI'); // B tapis 1500
@@ -149,7 +149,7 @@ test('tête-à-tête : le bouton paie la SB et parle en premier préflop', () =>
   assert.strictEqual(h.bet[h.meId], 10);
   E.chooseCards(s, ['Tc', '9c']);
   assert.strictEqual(h.toAct, h.meId);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, BB 2000\nBTN Tc9c');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, BB 2000\nBTN Tc9c | je parle en premier');
   act(s, 's');
   assert.strictEqual(who(s), 'BB');
   act(s, 'x');
@@ -243,7 +243,23 @@ test('tapis différents dès la création', () => {
   const s = E.newGame({ names: ['Moi', 'A', 'B'], stacks: [1500, 2500, '3000'], meIndex: 0, btnIndex: 0, sb: 10, bb: 20, stack: 2000 });
   assert.deepStrictEqual(s.players.map((p) => p.stack), [1500, 2500, 3000]);
   E.startHand(s); E.chooseCards(s, ['Ac', 'Ad'.replace('d', 'k')]);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 1500, SB 2500, BB 3000\nBTN AcAk');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 1500, SB 2500, BB 3000\nBTN AcAk | je parle en premier');
+});
+
+test('je parle en premier : c\'est écrit explicitement', () => {
+  const s = E.newGame({ names: ['Moi', 'A', 'B'], stacks: [201, 2161, 91], meIndex: 0, btnIndex: 0, sb: 10, bb: 20 });
+  E.startHand(s); E.chooseCards(s, ['Qc', '3k']);
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 201, SB 2161, BB 91\nBTN Qc3k | je parle en premier');
+  act(s, 's'); act(s, 's'); act(s, 'x');
+  E.addStreet(s, ['Kc', '7t', '2k']);
+  act(s, 'x'); act(s, 'x');
+  assert.strictEqual(E.buildMessage(s), 'SB s, BB x\n+Kc7t2k pot 60 | SB x, BB x');
+  act(s, 'x');
+  E.addStreet(s, ['5c']);
+  act(s, 'r', 40); // SB mise
+  act(s, 'f');
+  assert.strictEqual(E.buildMessage(s), '+5c pot 60 | SB b40');
+  assert.ok(E.buildPrompt(s).includes('je parle en premier'));
 });
 
 test('prompt de départ', () => {

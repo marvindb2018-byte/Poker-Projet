@@ -277,6 +277,14 @@
       const a = (deg * Math.PI) / 180;
       return `left:${(50 + RX * r * Math.cos(a)).toFixed(2)}%;top:${(50 + RY * r * Math.sin(a)).toFixed(2)}%`;
     };
+    // Jeton D : accroché au cadre du joueur qui a le bouton, sur le coin tourné vers le centre de la table.
+    const dealerCorner = (deg) => {
+      const a = (deg * Math.PI) / 180;
+      if (Math.abs(Math.cos(a)) < 0.2) return 'd-mr'; // place tout en haut ou tout en bas : sur le côté droit
+      const v = Math.sin(a) < -0.2 ? 'b' : 't'; // places du haut : coin du bas ; sinon coin du haut
+      const h = Math.cos(a) > 0.2 ? 'l' : 'r'; // places de droite : coin gauche ; sinon coin droit
+      return 'd-' + v + h;
+    };
     const back = '<span class="cb"></span><span class="cb"></span>';
     let html = '<div class="ptable" aria-label="Table"><div class="pt-felt"></div>';
     seats.forEach((id, k) => {
@@ -298,11 +306,10 @@
       const click = cand.includes(id) ? ` data-a="sel" data-id="${id}" title="Choisir comme gagnant"` : '';
       html += `<div class="${cls}" style="${at(1, deg)}"${click}>
         <div class="seat-cards">${cards}</div>
-        <div class="seat-box"><span class="seat-pos">${h.pos[id]}</span><b class="seat-name">${esc(h.names[id])}</b><span class="seat-stack">${stack}</span></div>
+        <div class="seat-box">${id === h.btnId ? `<span class="dealer-badge ${dealerCorner(deg)}" title="Jeton D (bouton)">D</span>` : ''}<span class="seat-pos">${h.pos[id]}</span><b class="seat-name">${esc(h.names[id])}</b><span class="seat-stack">${stack}</span></div>
         ${tag}
       </div>`;
-      if (!done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.6, deg)}"><i></i>${h.bet[id]}</div>`;
-      if (id === h.btnId) html += `<div class="pt-dealer" style="${at(0.76, deg + 360 / n / 3)}">D</div>`;
+      if (!done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.58, deg)}"><i></i>${h.bet[id]}</div>`;
     });
     const board = Array.from({ length: 5 }, (_, i) => (h.board[i] ? cardHtml(h.board[i], 'sm') : '<span class="card empty sm"></span>')).join('');
     html += `<div class="pt-center"><div class="pt-board">${board}</div><div class="pt-pot">Pot ${E.potOf(h)}</div></div>`;
