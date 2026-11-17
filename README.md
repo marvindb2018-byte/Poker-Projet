@@ -6,18 +6,18 @@ Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout
 ## Utilisation
 
 **Au départ (une fois)**
-1. « Nouvelle partie » : nombre de joueurs, blindes, prénoms dans l'ordre des places, jetons de chacun, ta place et le bouton de la première main.
+1. « Nouvelle partie » : nombre de joueurs, blindes, puis le pseudo et les jetons de chaque joueur tels qu'affichés sur le site (dans l'ordre des places), lequel est toi, et qui a le jeton « D ».
 2. « Copier le prompt », puis le coller dans une nouvelle conversation Claude.
 
 **À chaque main**
-1. « Distribuer la main » : le bouton et les positions sont calculés tout seuls.
+1. « Distribuer la main » : le jeton D (le « bouton ») avance d'une place et les positions sont calculées toutes seules.
 2. Choisir tes 2 cartes (la valeur, puis la couleur).
 3. L'appli affiche qui doit parler : toucher ce qu'il fait (Couché, Suit, Relance…, Tapis). « Check / couché jusqu'à moi » fait gagner du temps.
 4. Quand c'est à toi, le message est déjà copié : le coller dans Claude, puis toucher ce que tu joues.
 5. Au flop, à la turn et à la river, choisir les cartes du tableau. Le pot et les tapis se calculent tout seuls.
 6. En fin de main, toucher le gagnant (plusieurs = partage), puis « Main suivante ».
 
-**Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, ou pour déplacer le bouton.
+**Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, pour corriger des jetons d'après le site, ou pour déplacer le jeton D.
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action.
 
 ## Exemple de messages générés

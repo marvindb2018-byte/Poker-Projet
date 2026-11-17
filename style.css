@@ -146,7 +146,6 @@ select.in { appearance: auto; }
 
 .seat-row { display: grid; grid-template-columns: 26px 1fr 96px; gap: 8px; align-items: center; margin-top: 8px; }
 .seat-row.head { font-size: 12.5px; color: var(--muted); margin-top: 12px; }
-.seat-row.no-stack { grid-template-columns: 26px 1fr; }
 .seat-row .in.stack { text-align: right; font-variant-numeric: tabular-nums; }
 .seat-no { color: var(--muted); font: 700 13px var(--mono); text-align: center; }
 

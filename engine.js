@@ -41,26 +41,23 @@
   /* ------------------------------------------------------------------ partie */
 
   function defaultSettings() {
-    return {
-      sb: 10,
-      bb: 20,
-      startStack: 2000, // jetons proposés par défaut à un joueur qui arrive
-    };
+    return { sb: 10, bb: 20 };
   }
 
-  // cfg = { names: [...], stacks: [...] (facultatif, un tapis par joueur), stack, sb, bb, meIndex, btnIndex }
+  // cfg = { names: [...], stacks: [...] (jetons de chaque joueur), sb, bb, meIndex, btnIndex }
+  // cfg.stack sert de valeur par défaut si un tapis manque (utile pour les tests).
   function newGame(cfg) {
     const names = (cfg.names || []).slice(0, MAX_PLAYERS);
     if (names.length < 2) return null;
+    const fallback = toInt(cfg.stack, 0);
     const settings = defaultSettings();
     settings.sb = toInt(cfg.sb, 10) || 10;
     settings.bb = toInt(cfg.bb, 20) || 20;
-    settings.startStack = toInt(cfg.stack, 2000) || 2000;
     const meIndex = cfg.meIndex | 0;
     const players = names.map((name, i) => ({
       id: uid(),
       name: String(name || '').trim() || 'Joueur ' + (i + 1),
-      stack: toInt(cfg.stacks && cfg.stacks[i], settings.startStack) || settings.startStack,
+      stack: toInt(cfg.stacks && cfg.stacks[i], fallback) || fallback,
       me: i === meIndex,
       paused: false,
     }));
@@ -92,7 +89,7 @@
   function updateSettings(state, patch) {
     const S = state.settings;
     const next = Object.assign({}, S);
-    for (const k of ['sb', 'bb', 'startStack']) {
+    for (const k of ['sb', 'bb']) {
       if (patch[k] != null) {
         const v = toInt(patch[k], NaN);
         if (!(v > 0)) return fail('Valeur invalide pour ' + k + '.');

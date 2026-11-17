@@ -46,10 +46,9 @@
 
   function defaultSetup() {
     return {
-      n: 6, sb: 10, bb: 20, stack: 2000, me: 0, btn: 0,
+      n: 6, sb: 10, bb: 20, me: 0, btn: 0,
       names: Array.from({ length: E.MAX_PLAYERS }, (_, i) => (i === 0 ? 'Moi' : 'Joueur ' + (i + 1))),
-      stacks: Array.from({ length: E.MAX_PLAYERS }, () => 2000),
-      diffStacks: false, // true : un nombre de jetons différent pour chaque joueur
+      stacks: Array.from({ length: E.MAX_PLAYERS }, () => ''),
     };
   }
 
@@ -163,10 +162,10 @@
     const s = ui.setup;
     let rows = '';
     for (let i = 0; i < s.n; i++) {
-      rows += `<div class="seat-row ${s.diffStacks ? '' : 'no-stack'}">
+      rows += `<div class="seat-row">
         <span class="seat-no">${i + 1}</span>
-        <input class="in" data-setup-name="${i}" value="${esc(s.names[i])}" maxlength="18" aria-label="Prénom du joueur ${i + 1}">
-        ${s.diffStacks ? `<input class="in stack" type="number" inputmode="numeric" min="1" data-setup-stack="${i}" value="${esc(s.stacks[i])}" aria-label="Jetons du joueur ${i + 1}">` : ''}
+        <input class="in" data-setup-name="${i}" value="${esc(s.names[i])}" maxlength="18" aria-label="Pseudo du joueur ${i + 1}">
+        <input class="in stack" type="number" inputmode="numeric" min="1" data-setup-stack="${i}" value="${esc(s.stacks[i])}" placeholder="jetons" aria-label="Jetons du joueur ${i + 1}">
       </div>`;
     }
     const opts = (sel) => Array.from({ length: s.n }, (_, i) => `<option value="${i}" ${sel === i ? 'selected' : ''}>${i + 1}. ${esc(s.names[i])}</option>`).join('');
@@ -184,18 +183,14 @@
         <label class="field">Petite blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="sb" value="${esc(s.sb)}"></label>
         <label class="field">Grosse blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="bb" value="${esc(s.bb)}"></label>
       </div>
-      <label class="field">Jetons reçus par chaque joueur au début<input class="in" type="number" inputmode="numeric" min="1" data-setup="stack" value="${esc(s.stack)}"></label>
-      <p class="hint">C'est le « tapis de départ » : ce que chacun aura devant lui avant la première main. Les jetons ne sont pas encore distribués ? Laisse 2000 : tout le monde part à égalité, et tu pourras corriger plus tard dans l'onglet Table.</p>
-
       <h2>Les joueurs</h2>
-      <p class="hint">Écris les prénoms en faisant le tour de la table, dans le sens des aiguilles d'une montre.</p>
-      ${s.diffStacks ? '<div class="seat-row head"><span></span><span>Prénom</span><span>Jetons</span></div>' : ''}
+      <p class="hint">Recopie ce que tu vois sur le site : le pseudo et les jetons de chaque joueur, en faisant le tour de la table dans le sens des aiguilles d'une montre.</p>
+      <div class="seat-row head"><span></span><span>Pseudo</span><span>Jetons</span></div>
       ${rows}
-      <button class="btn ghost wide small" data-a="setup-diff">${s.diffStacks ? 'Tout le monde a le même nombre de jetons' : 'Les joueurs n\'ont pas tous le même nombre de jetons'}</button>
 
       <label class="field">Lequel de ces joueurs est toi ?<select class="in" data-setup-sel="me">${opts(s.me)}</select></label>
-      <label class="field">Qui distribue les cartes à la première main ?<select class="in" data-setup-sel="btn">${opts(s.btn)}</select></label>
-      <p class="hint">Au poker, le joueur qui distribue s'appelle le « bouton » (BTN). Après chaque main, c'est son voisin de gauche qui distribue : l'appli s'en occupe toute seule.</p>
+      <label class="field">Qui a le jeton « D » à côté de lui ?<select class="in" data-setup-sel="btn">${opts(s.btn)}</select></label>
+      <p class="hint">Sur le site, un petit jeton marqué « D » est posé devant un des joueurs : c'est le « bouton » (BTN). Il sert à savoir qui paie les blindes et qui parle en premier. Il avance d'une place à chaque main : l'appli le suit toute seule.</p>
       <button class="btn primary big" data-a="setup-go">Commencer la partie</button>
     </section>`;
   }
@@ -279,7 +274,7 @@
       if (!me) out += `<p class="warn">Aucun joueur n'est marqué « moi » (onglet Table).</p>`;
       else if (!plan.order.includes(me.id)) out += `<p class="warn">Tu ne joues pas cette main (pause ou 0 jeton).</p>`;
     }
-    out += `<p class="hint"><b>BTN</b> = donneur · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}), posées tout de suite · <b>UTG</b> parle en premier.</p>
+    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}) · <b>UTG</b> parle en premier. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
       <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n}</button>
       <button class="btn ghost wide" data-a="tab" data-tab="table">Un joueur arrive, part, ou recave ?</button>
     </section>`;
@@ -301,7 +296,7 @@
     return `<section class="panel">
       <p>Tu ne joues pas cette main (en pause ou sans jetons). Rien à envoyer à Claude.</p>
       <button class="btn primary big" data-a="next-only">Main suivante</button>
-      <button class="btn ghost wide" data-a="abort">Annuler (le donneur ne change pas)</button>
+      <button class="btn ghost wide" data-a="abort">Annuler (le jeton D ne bouge pas)</button>
     </section>`;
   }
 
@@ -441,13 +436,13 @@
     const btnId = h ? h.btnId : plan.ok ? plan.btnId : null;
     let out = `<section class="panel">
       <h2>Joueurs <span class="muted">${state.players.length}/${E.MAX_PLAYERS}</span></h2>
-      <p class="hint">${locked ? 'Main en cours : termine-la pour modifier la table (les noms restent modifiables).' : 'Les joueurs dans l\'ordre des places. Touche un joueur pour changer ses jetons, le mettre en pause, le faire partir ou dire qu\'il distribue.'}</p>
+      <p class="hint">${locked ? 'Main en cours : termine-la pour modifier la table (les noms restent modifiables).' : 'Les joueurs dans l\'ordre des places. Touche un joueur pour corriger ses jetons (comme affichés sur le site), le mettre en pause, le faire partir ou lui donner le jeton D.'}</p>
       <ul class="players">`;
     state.players.forEach((p) => {
       const pos = h ? h.pos[p.id] : plan.ok ? plan.pos[p.id] : null;
       const badges = [
         p.me ? '<span class="badge me">moi</span>' : '',
-        p.id === btnId ? '<span class="badge dealer">donneur</span>' : '',
+        p.id === btnId ? '<span class="badge dealer">D</span>' : '',
         p.paused ? '<span class="badge">pause</span>' : '',
         !p.paused && p.stack === 0 ? '<span class="badge out">0 jeton</span>' : '',
       ].join('');
@@ -461,12 +456,12 @@
       if (open) {
         out += `<div class="edit">
           <div class="grid2">
-            <label class="field">Nom<input class="in" id="ed-name" value="${esc(p.name)}" maxlength="18"></label>
+            <label class="field">Pseudo<input class="in" id="ed-name" value="${esc(p.name)}" maxlength="18"></label>
             <label class="field">Tapis<input class="in" id="ed-stack" type="number" inputmode="numeric" min="0" value="${p.stack}" ${locked ? 'disabled' : ''}></label>
           </div>
           <div class="btn-grid">
             <button class="btn primary" data-a="ed-save" data-id="${p.id}">Enregistrer</button>
-            <button class="btn" data-a="ed-btn" data-id="${p.id}" ${locked ? 'disabled' : ''}>C'est lui qui distribue la prochaine main</button>
+            <button class="btn" data-a="ed-btn" data-id="${p.id}" ${locked ? 'disabled' : ''}>Il a le jeton D à la prochaine main</button>
             <button class="btn" data-a="ed-pause" data-id="${p.id}" ${locked ? 'disabled' : ''}>${p.paused ? 'Revient en jeu' : 'Pause (ne joue pas)'}</button>
             <button class="btn" data-a="ed-me" data-id="${p.id}" ${locked || p.me ? 'disabled' : ''}>C'est moi</button>
             <button class="btn danger" data-a="ed-remove" data-id="${p.id}" ${locked ? 'disabled' : ''}>Il quitte la table</button>
@@ -481,8 +476,8 @@
     out += `<section class="panel">
       <h2>Un joueur arrive</h2>
       <div class="grid2">
-        <label class="field">Nom<input class="in" id="add-name" placeholder="Prénom" maxlength="18" ${locked || full ? 'disabled' : ''}></label>
-        <label class="field">Jetons<input class="in" id="add-stack" type="number" inputmode="numeric" min="1" value="${state.settings.startStack}" ${locked || full ? 'disabled' : ''}></label>
+        <label class="field">Nom<input class="in" id="add-name" placeholder="Pseudo" maxlength="18" ${locked || full ? 'disabled' : ''}></label>
+        <label class="field">Jetons<input class="in" id="add-stack" type="number" inputmode="numeric" min="1" placeholder="ex : 2550" ${locked || full ? 'disabled' : ''}></label>
       </div>
       <label class="field">S'assoit après
         <select class="in" id="add-after" ${locked || full ? 'disabled' : ''}>
@@ -567,21 +562,17 @@
       render();
     },
     'setup-me'(d) { ui.setup.me = Number(d.i); render(); },
-    'setup-diff'() {
-      const s = ui.setup;
-      s.diffStacks = !s.diffStacks;
-      if (s.diffStacks) s.stacks = s.stacks.map(() => s.stack);
-      render();
-    },
+
     'setup-btn'(d) { ui.setup.btn = Number(d.i); render(); },
     'setup-go'() {
       const s = ui.setup;
-      const sb = Number(s.sb), bb = Number(s.bb), stack = Number(s.stack);
-      if (!(sb > 0 && bb > 0 && stack > 0)) return toast('Blindes et tapis doivent être positifs.');
+      const sb = Number(s.sb), bb = Number(s.bb);
+      if (!(sb > 0 && bb > 0)) return toast('Les blindes doivent être positives.');
       if (sb > bb) return toast('La petite blinde doit être ≤ à la grosse.');
-      const stacks = s.diffStacks ? s.stacks.slice(0, s.n).map(Number) : Array.from({ length: s.n }, () => stack);
-      if (stacks.some((x) => !(x > 0))) return toast('Chaque joueur doit avoir des jetons.');
-      state = E.newGame({ names: s.names.slice(0, s.n), stacks, meIndex: s.me, btnIndex: s.btn, sb, bb, stack });
+      const stacks = s.stacks.slice(0, s.n).map(Number);
+      const missing = stacks.findIndex((x) => !(x > 0));
+      if (missing >= 0) return toast(`Indique les jetons de ${s.names[missing] || 'chaque joueur'}.`);
+      state = E.newGame({ names: s.names.slice(0, s.n), stacks, meIndex: s.me, btnIndex: s.btn, sb, bb });
       hist = [];
       ui.tab = 'main';
       save();
@@ -667,7 +658,7 @@
       render();
     },
     abort() {
-      if (!window.confirm('Abandonner cette main ? Les jetons et le donneur reviennent à leur état d\'avant la main.')) return;
+      if (!window.confirm('Abandonner cette main ? Les jetons et le jeton D reviennent à leur état d\'avant la main.')) return;
       cmd((s) => E.abortHand(s));
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
@@ -688,7 +679,7 @@
     },
     'ed-btn'(d) {
       const r = cmd((s) => E.setButtonNext(s, d.id));
-      if (r && r.ok) toast('Il distribuera la prochaine main');
+      if (r && r.ok) toast('Jeton D placé pour la prochaine main');
     },
     'ed-pause'(d) { cmd((s) => E.togglePause(s, d.id)); },
     'ed-me'(d) { cmd((s) => E.setMe(s, d.id)); },
@@ -711,10 +702,9 @@
       if (!window.confirm('Effacer la partie en cours et en commencer une nouvelle ?')) return;
       const s = defaultSetup();
       s.n = Math.max(2, Math.min(E.MAX_PLAYERS, state.players.length));
-      state.players.forEach((p, i) => { s.names[i] = p.name; s.stacks[i] = state.settings.startStack; if (p.me) s.me = i; });
+      state.players.forEach((p, i) => { s.names[i] = p.name; s.stacks[i] = p.stack; if (p.me) s.me = i; });
       s.sb = state.settings.sb;
       s.bb = state.settings.bb;
-      s.stack = state.settings.startStack;
       ui.setup = s;
       state = null;
       hist = [];
@@ -740,11 +730,7 @@
       ui.setup.names[i] = t.value;
       document.querySelectorAll(`[data-setup-sel] option[value="${i}"]`).forEach((o) => { o.textContent = (i + 1) + '. ' + t.value; });
     } else if (t.dataset.setupStack != null) ui.setup.stacks[Number(t.dataset.setupStack)] = t.value;
-    else if (t.dataset.setup === 'stack') {
-      ui.setup.stack = t.value;
-      ui.setup.stacks = ui.setup.stacks.map(() => t.value);
-      document.querySelectorAll('[data-setup-stack]').forEach((el) => { el.value = t.value; });
-    } else if (t.dataset.setup) ui.setup[t.dataset.setup] = t.value;
+    else if (t.dataset.setup) ui.setup[t.dataset.setup] = t.value;
     else if (t.id === 'amt') {
       ui.amount = t.value;
       const b = $('amt-go');
