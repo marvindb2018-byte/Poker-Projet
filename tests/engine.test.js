@@ -25,7 +25,7 @@ test('positions 6 joueurs et premier message', () => {
   assert.strictEqual(who(s), 'UTG');
   act(s, 'r', 60); act(s, 'f'); act(s, 's');
   assert.strictEqual(s.hand.toAct, s.hand.meId);
-  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 2000, CO 2000, BTN 2000, SB 2000, BB 2000\nBTN AcKk | UTG r60, CO s');
+  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 2000, CO 2000, BTN 2000, SB 2000, BB 2000\nBTN A♥ K♦ | UTG r60, CO s');
 });
 
 test('réactions, flop, relance, abandon et tapis finaux', () => {
@@ -41,7 +41,7 @@ test('réactions, flop, relance, abandon et tapis finaux', () => {
   ok(E.addStreet(s, ['Kc', '7t', '2k']));
   assert.strictEqual(who(s), 'UTG');
   act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), '(moi r180)\nUTG s\n+Kc7t2k pot 450 | UTG x');
+  assert.strictEqual(E.buildMessage(s), '(moi r180)\nUTG s\n+K♥ 7♣ 2♦ pot 450 | UTG x\n(ma main : paire de Rois)');
   act(s, 'r', 200); // moi : mise 200
   assert.strictEqual(s.hand.events[s.hand.events.length - 1].a, 'b');
   act(s, 'r', 600);
@@ -50,11 +50,11 @@ test('réactions, flop, relance, abandon et tapis finaux', () => {
   assert.strictEqual(s.hand.phase, 'board');
   ok(E.addStreet(s, ['5c']));
   act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), '(moi s)\n+5c pot 1650 | UTG x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\n+5♥ pot 1650 | UTG x\n(ma main : paire de Rois)');
   act(s, 'x');
   ok(E.addStreet(s, ['9p']));
   act(s, 'r', 500);
-  assert.strictEqual(E.buildMessage(s), '(moi x)\n+9p pot 1650 | UTG b500');
+  assert.strictEqual(E.buildMessage(s), '(moi x)\n+9♠ pot 1650 | UTG b500\n(ma main : paire de Rois)');
   act(s, 'f');
   assert.strictEqual(s.hand.phase, 'done');
   assert.strictEqual(s.hand.sent.length, 5);
@@ -82,7 +82,7 @@ test('réactions, flop, relance, abandon et tapis finaux', () => {
   assert.strictEqual(h.pos[h.meId], 'CO');
   E.chooseCards(s, ['9c', '9t']);
   ok(E.checkFoldUntilMe(s));
-  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 1940, CO 1220, BTN 1990, SB 1980, BB 2870\nCO 9c9t | tous couchés');
+  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 1940, CO 1220, BTN 1990, SB 1980, BB 2870\nCO 9♥ 9♣ | tous couchés');
 });
 
 test('tout le monde se couche après ma relance : je gagne les blindes', () => {
@@ -105,7 +105,7 @@ test('tapis multiples et pots annexes', () => {
   const h = s.hand;
   assert.deepStrictEqual(h.pre.map((x) => h.pos[x]), ['BTN', 'SB', 'BB']);
   E.chooseCards(s, ['Qc', 'Qk']);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 3000, SB 500, BB 1500\nBTN QcQk | je parle en premier');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 3000, SB 500, BB 1500\nBTN Q♥ Q♦ | je parle en premier');
   act(s, 'r', 60); // moi
   act(s, 'AI'); // A tapis 500
   act(s, 'AI'); // B tapis 1500
@@ -160,14 +160,14 @@ test('tête-à-tête : le bouton paie la SB et parle en premier préflop', () =>
   assert.strictEqual(h.bet[h.meId], 10);
   E.chooseCards(s, ['Tc', '9c']);
   assert.strictEqual(h.toAct, h.meId);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, BB 2000\nBTN Tc9c | je parle en premier');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, BB 2000\nBTN 10♥ 9♥ | je parle en premier');
   act(s, 's');
   assert.strictEqual(who(s), 'BB');
   act(s, 'x');
   E.addStreet(s, ['2p', '7c', 'Kk']);
   assert.strictEqual(who(s), 'BB'); // la BB parle en premier après le flop
   act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), '(moi s)\nBB x\n+2p7cKk pot 40 | BB x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\nBB x\n+2♠ 7♥ K♦ pot 40 | BB x\n(ma main : hauteur Roi)');
 });
 
 test('arrivée, départ, bouton et ligne « table »', () => {
@@ -254,22 +254,22 @@ test('tapis différents dès la création', () => {
   const s = E.newGame({ names: ['Moi', 'A', 'B'], stacks: [1500, 2500, '3000'], meIndex: 0, btnIndex: 0, sb: 10, bb: 20, stack: 2000 });
   assert.deepStrictEqual(s.players.map((p) => p.stack), [1500, 2500, 3000]);
   E.startHand(s); E.chooseCards(s, ['Ac', 'Ad'.replace('d', 'k')]);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 1500, SB 2500, BB 3000\nBTN AcAk | je parle en premier');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 1500, SB 2500, BB 3000\nBTN A♥ A♦ | je parle en premier');
 });
 
 test('je parle en premier : c\'est écrit explicitement', () => {
   const s = E.newGame({ names: ['Moi', 'A', 'B'], stacks: [201, 2161, 91], meIndex: 0, btnIndex: 0, sb: 10, bb: 20 });
   E.startHand(s); E.chooseCards(s, ['Qc', '3k']);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 201, SB 2161, BB 91\nBTN Qc3k | je parle en premier');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 201, SB 2161, BB 91\nBTN Q♥ 3♦ | je parle en premier');
   act(s, 's'); act(s, 's'); act(s, 'x');
   E.addStreet(s, ['Kc', '7t', '2k']);
   act(s, 'x'); act(s, 'x');
-  assert.strictEqual(E.buildMessage(s), '(moi s)\nSB s, BB x\n+Kc7t2k pot 60 | SB x, BB x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\nSB s, BB x\n+K♥ 7♣ 2♦ pot 60 | SB x, BB x\n(ma main : hauteur Roi)');
   act(s, 'x');
   E.addStreet(s, ['5c']);
   act(s, 'r', 40); // SB mise
   act(s, 'f');
-  assert.strictEqual(E.buildMessage(s), '(moi x)\n+5c pot 60 | SB b40');
+  assert.strictEqual(E.buildMessage(s), '(moi x)\n+5♥ pot 60 | SB b40\n(ma main : hauteur Roi)');
   assert.ok(E.buildPrompt(s).includes('je parle en premier'));
 });
 
@@ -283,7 +283,7 @@ test('ante classique : chaque joueur paie, le pot de départ est donné', () => 
   assert.strictEqual(h.cb, 20); // l'ante ne compte pas dans la mise à suivre
   assert.strictEqual(E.options(h, h.toAct).toCall, 20);
   act(s, 'f'); act(s, 's');
-  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 3, CO 2000, BTN 2000, SB 2000, BB 2000\nBTN AcKk pot 58 | CO s');
+  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, MP 3, CO 2000, BTN 2000, SB 2000, BB 2000\nBTN A♥ K♦ pot 58 | CO s');
   act(s, 's'); act(s, 'f'); act(s, 'x');
   assert.strictEqual(h.phase, 'board');
   E.addStreet(s, ['2c', '3c', '4c']);
@@ -298,7 +298,7 @@ test('ante grosse blinde : seule la BB paie, la blinde passe avant si tapis cour
   assert.strictEqual(h.bet[id(s, 'B')], 20);
   assert.strictEqual(h.total[id(s, 'B')], 30);
   assert.strictEqual(E.potOf(h), 10 + 30);
-  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, SB 2000, BB 30\nBTN AcKk pot 40 | je parle en premier');
+  assert.strictEqual(E.buildMessage(s), 'tapis BTN 2000, SB 2000, BB 30\nBTN A♥ K♦ pot 40 | je parle en premier');
   assert.ok(E.buildPrompt(s).includes("ante BB 20 (la grosse blinde paie l'ante pour toute la table)"));
   act(s, 's'); act(s, 's');
   assert.strictEqual(h.phase, 'board'); // BB à tapis : plus d'enchère préflop
@@ -320,6 +320,22 @@ test('changement d\'ante signalé, et « sans ante » quand elle disparaît', ()
   E.startHand(s); E.chooseCards(s, ['2c', '2k']);
   assert.ok(E.buildMessage(s).startsWith('blindes 10/20, sans ante\n'));
   assert.ok(!E.updateSettings(s, { anteType: 'autre' }).ok);
+});
+
+test('ta main 10♣ 8♦ : plus de confusion possible (cas réel)', () => {
+  const s = E.newGame({ names: ['Moi', 'A', 'B', 'C', 'D', 'E', 'F'], stacks: Array(7).fill(2000), meIndex: 0, btnIndex: 0, sb: 10, bb: 20 });
+  E.startHand(s); E.chooseCards(s, ['Tt', '8k']);
+  act(s, 'f'); act(s, 'r', 50); act(s, 'f'); act(s, 'f');
+  assert.strictEqual(E.buildMessage(s), 'tapis UTG 2000, UTG+1 2000, MP 2000, CO 2000, BTN 2000, SB 2000, BB 2000\nBTN 10♣ 8♦ | UTG+1 r50');
+  act(s, 's'); act(s, 'f'); act(s, 's');
+  E.addStreet(s, ['Tc', '7p', '4k']);
+  act(s, 'x'); act(s, 'r', 80);
+  assert.strictEqual(E.buildMessage(s), '(moi s)\nBB s\n+10♥ 7♠ 4♦ pot 160 | BB x, UTG+1 b80\n(ma main : paire de 10)');
+  act(s, 's'); act(s, 's');
+  E.addStreet(s, ['9c']);
+  act(s, 'x'); act(s, 'x');
+  assert.strictEqual(E.buildMessage(s), '(moi s)\nBB s\n+9♥ pot 400 | BB x, UTG+1 x\n(ma main : paire de 10 · tirage quinte (un J ou un 6))'.replace('un J', 'un Valet'));
+  assert.ok(E.buildPrompt(s).includes('♠ pique, ♥ cœur, ♦ carreau, ♣ trèfle'));
 });
 
 test('prompt de départ', () => {

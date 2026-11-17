@@ -48,17 +48,21 @@ Sur téléphone, l'affichage ne change pas.
 Début de main :
 ```
 tapis UTG 2000, MP 1500, CO 2400, BTN 1800, SB 2000, BB 900
-BTN AcKk | UTG r60, CO s
+BTN A♥ K♦ | UTG r60, CO s
 ```
-Avec une ante, le pot de départ est ajouté : `BTN AcKk pot 45 | UTG r60, CO s`.
-Si personne ne parle avant toi : `BTN AcKk | je parle en premier`.
+Avec une ante, le pot de départ est ajouté : `BTN A♥ K♦ pot 45 | UTG r60, CO s`.
+Si personne ne parle avant toi : `BTN A♥ K♦ | je parle en premier`.
+
+Les cartes sont écrites avec les symboles ♠ ♥ ♦ ♣ (et 10 pour le dix) : avec des lettres, Claude confondait « Tt » (dix de trèfle) avec une paire de 10.
 
 Après ta décision, ton coup est rappelé, puis les réactions :
 ```
 (moi r180)
 UTG s
-+Kc7t2k pot 450 | UTG x
++K♥ 7♣ 2♦ pot 450 | UTG x
+(ma main : paire de Rois)
 ```
+Après chaque carte du tableau, l'appli rappelle ta meilleure combinaison (et tes tirages), calculée par elle.
 
 Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40, ante 5`.
 

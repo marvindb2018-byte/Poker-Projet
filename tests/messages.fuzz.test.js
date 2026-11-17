@@ -15,16 +15,17 @@ const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
 const POS = '(?:UTG\\+[12]|UTG|MP\\+[12]|MP|CO|BTN|SB|BB)';
 const ACT = `${POS} (?:f|x|s|b\\d+|r\\d+|AI\\d+)`;
 const ACTS = `${ACT}(?:, ${ACT})*`;
-const CARD = '[AKQJT2-9][pckt]';
+const CARD = '(?:[AKQJ2-9]|10)[♠♥♦♣]';
 const TAIL = `(?:${ACTS}|tous couchés|je parle en premier)`;
 const BLINDS = 'blindes \\d+/\\d+(?:, ante (?:BB )?\\d+|, sans ante)?';
 const LINE = [
   new RegExp(`^table \\d+ joueurs \\(${POS}(?:, ${POS})*\\)(?: — le BTN est aussi SB)?(?:, ${BLINDS})?$`),
   new RegExp(`^${BLINDS}$`),
   new RegExp(`^tapis ${POS} \\d+(?:, ${POS} \\d+)*$`),
-  new RegExp(`^${POS} ${CARD}${CARD}(?: pot \\d+)? \\| ${TAIL}$`),
+  new RegExp(`^${POS} ${CARD} ${CARD}(?: pot \\d+)? \\| ${TAIL}$`),
+  new RegExp('^\\(ma main : [^()]+(?:\\([^()]*\\)[^()]*)*\\)$'),
   new RegExp('^\\(moi (?:f|x|s|b\\d+|r\\d+|AI\\d+)\\)$'),
-  new RegExp(`^\\+(?:${CARD}){1,3} pot \\d+ \\| ${TAIL}$`),
+  new RegExp(`^\\+${CARD}(?: ${CARD}){0,2} pot \\d+ \\| ${TAIL}$`),
   new RegExp(`^${ACTS}$`),
 ];
 
@@ -61,13 +62,15 @@ for (let g = 0; g < 60; g++) {
           assert.ok(m.length > 0, 'message vide');
           assert.ok(!/undefined|NaN|null/.test(m), m);
           for (const line of m.split('\n')) assert.ok(LINE.some((re) => re.test(line)), 'ligne inconnue : « ' + line + ' »\n' + m);
+          const ls = m.split('\n');
+          ls.forEach((l, k) => { if (l.startsWith('+')) assert.ok(/^\(ma main : /.test(ls[k + 1] || ''), 'pas de rappel de ma main :\n' + m); });
           if (sent.length > 1) {
             const prev = h.events.filter((e) => e.t === 'act' && e.mine).pop();
             const fa = prev.a === 'b' || prev.a === 'r' || prev.a === 'AI' ? prev.a + prev.amt : prev.a;
             assert.strictEqual(m.split('\n')[0], '(moi ' + fa + ')', 'mon coup n\'est pas rappelé :\n' + m);
           }
           if (sent.length === 1) {
-            assert.ok(new RegExp('^' + h.pos[h.meId].replace('+', '\\+') + ' ' + h.cards.join('') + '(?: pot \\d+)? \\| ', 'm').test(m), 'pas de ligne « position + cartes » :\n' + m);
+            assert.ok(new RegExp('^' + h.pos[h.meId].replace('+', '\\+') + ' ' + h.cards.map(E.cardText).join(' ') + '(?: pot \\d+)? \\| ', 'm').test(m), 'pas de ligne « position + cartes » :\n' + m);
             assert.ok(/^tapis /m.test(m), 'pas de ligne tapis :\n' + m);
           }
         }
@@ -95,7 +98,7 @@ for (let g = 0; g < 60; g++) {
     if (lastMine != null) {
       const expected = h.events.slice(0, lastMine).filter((e) => e.t === 'act' && !e.mine && e.a !== 'f').length;
       const text = h.sent.join('\n');
-      const found = (text.replace(/^\(moi .*\)$/gm, '').match(new RegExp(ACT, 'g')) || []).filter((t) => !/ f$/.test(t)).length;
+      const found = (text.replace(/^\((?:moi|ma main) .*\)$/gm, '').match(new RegExp(ACT, 'g')) || []).filter((t) => !/ f$/.test(t)).length;
       assert.strictEqual(found, expected, 'actions perdues ou en double :\n' + text);
       assert.deepStrictEqual(h.sent, sent);
       checked++;

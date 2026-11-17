@@ -25,6 +25,14 @@
     10: ['UTG', 'UTG+1', 'UTG+2', 'MP', 'MP+1', 'MP+2', 'CO', 'BTN', 'SB', 'BB'],
   };
 
+  // Cartes dans les messages pour Claude : symboles, pour éviter toute confusion
+  // (« Tt » se lisait comme une paire de 10, et « c » veut dire trèfle en anglais).
+  const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
+  const cardText = (c) => (c[0] === 'T' ? '10' : c[0]) + SUIT_SYM[c[1]];
+  const cardsText = (cards) => cards.map(cardText).join(' ');
+  // Calcul des combinaisons (hands.js), chargé dans le navigateur ou dans Node.
+  const handsLib = () => root.PokerHands || (typeof require === 'function' ? require('./hands.js') : null);
+
   const ok = (extra) => Object.assign({ ok: true }, extra || {});
   const fail = (err) => ({ ok: false, err });
   const clone = (o) => (o == null ? o : JSON.parse(JSON.stringify(o)));
@@ -511,7 +519,11 @@
     }
     h.street += 1;
     h.board = h.board.concat(cards);
-    h.events.push({ t: 'street', street: h.street, cards: cards.slice(), pot: potOf(h) });
+    const ev = { t: 'street', street: h.street, cards: cards.slice(), pot: potOf(h) };
+    // Rappel de ma meilleure combinaison, calculée par l'appli (Claude se trompait parfois en lisant les cartes)
+    const lib = handsLib();
+    if (lib && meLive(h) && cards.length) ev.hand = lib.shortText(lib.describe(h.cards, h.board));
+    h.events.push(ev);
     h.order.forEach((id) => { h.bet[id] = 0; h.acted[id] = false; });
     h.cb = 0;
     h.lastRaise = h.bb;
@@ -741,11 +753,12 @@
         lines.push({ raw: e.text });
         cur = null;
       } else if (e.t === 'deal') {
-        cur = { head: e.pos + ' ' + e.cards.join('') + (e.pot ? ' pot ' + e.pot : ''), acts: [] };
+        cur = { head: e.pos + ' ' + cardsText(e.cards) + (e.pot ? ' pot ' + e.pot : ''), acts: [] };
         lines.push(cur);
       } else if (e.t === 'street') {
-        cur = { head: '+' + (e.cards.length ? e.cards.join('') : '??') + ' pot ' + e.pot, acts: [] };
+        cur = { head: '+' + (e.cards.length ? cardsText(e.cards) : '??') + ' pot ' + e.pot, acts: [] };
         lines.push(cur);
+        if (e.hand) lines.push({ raw: '(ma main : ' + e.hand + ')' });
       } else if (e.t === 'act' && !e.mine) {
         if (!cur) { cur = { head: null, acts: [] }; lines.push(cur); }
         cur.acts.push(e);
@@ -765,15 +778,16 @@
       : ', ante ' + ante + ' (payée par chaque joueur)') : '') + '.');
     L.push('');
     L.push('Notation :');
-    L.push('- Cartes : rang A K Q J T 9…2 + couleur p=pique, c=cœur, k=carreau, t=trèfle. Ex : AcTk. Sans couleur : AKs (assorties) / AKo (dépareillées).');
+    L.push('- Cartes : valeur A K Q J 10 9 … 2 + couleur ♠ pique, ♥ cœur, ♦ carreau, ♣ trèfle. Ex : A♥ 10♦. Sans couleur : AKs (assorties) / AKo (dépareillées).');
     L.push('- Positions : ' + POSITIONS[n].join(', ') + (n === 2 ? ' (à 2 joueurs, le BTN est aussi SB)' : '') + '.');
     L.push('- Actions : f=couché, x=check, s=suit, b40=mise 40, r120=relance à 120, AI350=tapis pour 350. Les montants sont le total misé par le joueur sur le tour en cours.');
     L.push('- Nouvelle main : une ligne avec le tapis de chaque position (avant blindes et antes), puis ma position + mes cartes | actions avant moi. Ex :');
     L.push('  tapis UTG 2000, MP 1500, CO 2400, BTN 1800, SB 2000, BB 900');
-    L.push('  BTN AcKk | UTG r60, CO s');
-    L.push('- Cartes du tableau : + les nouvelles cartes, le pot | les actions. Ex : +Kc7t2k pot 200 | BB b100');
-    L.push('- Si personne ne parle avant moi, j\'écris « je parle en premier ». Ex : BTN AcKk | je parle en premier');
-    L.push("- Quand il y a une ante, j'ajoute le pot de départ (blindes + antes) après mes cartes. Ex : BTN AcKk pot 45 | UTG r60");
+    L.push('  BTN A♥ K♦ | UTG r60, CO s');
+    L.push('- Cartes du tableau : + les nouvelles cartes, le pot | les actions. Ex : +K♥ 7♣ 2♦ pot 200 | BB b100');
+    L.push("- Après chaque nouvelle carte du tableau, je te rappelle ma meilleure combinaison, calculée par l'appli (elle est juste, fie-toi à elle). Ex : (ma main : paire de Rois · tirage couleur ♥)");
+    L.push('- Si personne ne parle avant moi, j\'écris « je parle en premier ». Ex : BTN A♥ K♦ | je parle en premier');
+    L.push("- Quand il y a une ante, j'ajoute le pot de départ (blindes + antes) après mes cartes. Ex : BTN A♥ K♦ pot 45 | UTG r60");
     L.push("- Après ma décision, je te rappelle entre parenthèses ce que j'ai vraiment joué, puis les réactions. Ex :");
     L.push('  (moi r180)');
     L.push('  BB r300');
@@ -792,7 +806,7 @@
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots,
     endHand, abortHand, handSummary, handHistory, contestedPot,
-    buildMessage, buildPrompt, blindsText,
+    buildMessage, buildPrompt, blindsText, cardText,
     isActive, isCard, potOf, live, meLive,
   };
 

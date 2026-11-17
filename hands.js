@@ -97,7 +97,7 @@
     board = board || [];
     const all = mine.concat(board);
     const best = evaluate(all);
-    const out = { best, note: null, shared: false, draws: [] };
+    const out = { best, note: null, shared: false, draws: [], flushDraw: null, straightOuts: [] };
     if (board.length === 0) {
       out.note = mine[0][1] === mine[1][1] ? 'Cartes assorties (même couleur)' : 'Cartes dépareillées';
     }
@@ -110,7 +110,10 @@
         const bySuit = {};
         all.forEach((c) => { bySuit[c[1]] = (bySuit[c[1]] || 0) + 1; });
         Object.keys(bySuit).forEach((s) => {
-          if (bySuit[s] === 4) out.draws.push('Tirage couleur : encore un ' + SUIT_SYM[s] + ' et tu as la couleur.');
+          if (bySuit[s] === 4) {
+            out.flushDraw = SUIT_SYM[s];
+            out.draws.push('Tirage couleur : encore un ' + SUIT_SYM[s] + ' et tu as la couleur.');
+          }
         });
       }
       if (best.cat < 4) {
@@ -122,13 +125,23 @@
           s2.add(v);
           if (straightTop(s2)) outs.push(one(v));
         }
+        out.straightOuts = outs;
         if (outs.length) out.draws.push('Tirage quinte : un ' + outs.join(' ou un ') + ' te donne la quinte.');
       }
     }
     return out;
   }
 
-  const api = { CATEGORIES, evaluate, describe, straightTop };
+  function shortText(d) {
+    if (!d) return '';
+    const parts = [d.best.name.charAt(0).toLowerCase() + d.best.name.slice(1)];
+    if (d.shared && d.best.cat > 0) parts[0] += ' (sur le tableau : tout le monde l\'a)';
+    if (d.flushDraw) parts.push('tirage couleur ' + d.flushDraw);
+    if (d.straightOuts.length) parts.push('tirage quinte (un ' + d.straightOuts.join(' ou un ') + ')');
+    return parts.join(' · ');
+  }
+
+  const api = { CATEGORIES, evaluate, describe, shortText, straightTop };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PokerHands = api;
 })(typeof window !== 'undefined' ? window : globalThis);
