@@ -36,6 +36,14 @@ L'**historique de la main** (blindes, actions de chacun, cartes, pot, gagnant, m
 - quand il faut suivre, la cote du pot : « pour suivre 60, il faut gagner 40 % du temps → suivre est rentable ».
 Avant le flop, seul le tableau décide (les chances et le « rentable » s'affichent à partir du flop, pour ne pas contredire le conseil). Chaque conseil et chaque calcul est suivi d'une explication « En clair » avec les chiffres de la main, masquable une fois les notions acquises. Ce sont des estimations : plus l'appli a vu jouer un joueur, plus elles sont justes.
 
+**Conseil après le flop** : à ton tour, l'appli compare le *gain moyen* de chaque action possible (check, mise d'1/3, 2/3 ou du pot, suivre, relancer, tapis, couché). Elle tire des milliers de fois les mains probables des adversaires et les cartes à venir, estime qui se couche ou paie selon la force de sa main et son profil, puis conseille l'action qui rapporte le plus, avec l'explication en clair (mise de valeur, bluff, semi-bluff, protection, cote du pot) et l'écart de gain avec la 2e meilleure action.
+
+**Avant le flop**, le tableau tient aussi compte de la situation comme un bon joueur : sur-relance ou couché en petite blinde, bouton qui paie plus large, sur-relance « bluff » avec A5s/A4s contre une relance tardive, sur-relance plus grosse quand des joueurs ont déjà suivi (squeeze), relance pour isoler les suiveurs ou suivi derrière eux avec les petites paires et connecteurs, tapis ou couché entre 12 et 25 grosses blindes, vol des blindes quand les joueurs restants jouent très peu.
+
+**Cartes montrées** : à l'abattage, tape les cartes que les joueurs montrent (« ac kk » = A♥ K♦). L'appli trouve seule le gagnant, et surtout vérifie ses prévisions : ce joueur bluffait-il ? Relance-t-il avec des mains plus faibles que prévu ? Ses profils s'ajustent en conséquence.
+
+**Validation** : `node tests/sim.js 12000` fait jouer l'appli contre des robots de différents styles (amis, payeurs, serrés, maniaques, mélange), avec les mêmes cartes pour l'ancienne et la nouvelle version. Sur 12 000 mains par table, la nouvelle gagne nettement plus contre des amis (+65 ± 31 grosses blindes / 100 mains), des payeurs (+303 ± 50) et une table mélangée (+71 ± 33) ; contre des maniaques (+18 ± 31) et des joueurs serrés (+6 ± 21), elle fait au moins aussi bien. `node tests/advice.test.js` vérifie 12 situations classiques (mise de valeur, bluff contre un joueur qui se couche, pas de bluff contre un payeur, paiement contre un maniaque…).
+
 **Profils des joueurs** : à chaque main saisie, l'appli retient ce que fait chaque joueur (mains jouées, relances, s'il se couche face à une mise). Après 8 mains, son style s'affiche sous son nom sur la table (« serré » = joue peu de mains, « large » = en joue beaucoup ; « passif » = suit plus qu'il ne relance, « agressif » = relance souvent), avec une bulle qui explique quoi en faire. Les profils servent :
 - au calcul des mains probables et au conseil avant le flop (on se méfie de la relance d'un joueur serré, on paie plus large contre un joueur qui relance tout) ;
 - à Claude : une ligne « profils » est ajoutée en tête de main (ex : `profils (…) : UTG 45/8/70 sur 30`) ;
@@ -109,10 +117,11 @@ Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blin
 | `hands.js` | Les combinaisons du poker et le calcul de « ta main » |
 | `odds.js` | Probabilité de gagner (au hasard et contre les mains probables), cote du pot, tableaux des mains de départ (`RANGES`) et conseil avant le flop |
 | `learn.js` | Les notions de l'onglet Apprendre (mot, explication, exemple) |
+| `advisor.js` | Le « cerveau » de l'aide instantanée : mains probables de chacun, situation avant le flop, conseil à ton tour (partagé avec la simulation) |
 | `profiles.js` | Profils des joueurs : statistiques par pseudo, style en mots simples, ligne pour Claude |
 | `app.js` | Les écrans, les boutons et les raccourcis clavier |
 | `style.css` | L'apparence (couleurs en haut du fichier, affichage PC à la fin) |
 | `index.html` | La page qui charge le tout |
-| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages), `node tests/odds.test.js` (probabilités et tableaux), `node tests/profiles.test.js` (profils et mains probables) |
+| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages), `node tests/odds.test.js` (probabilités et tableaux), `node tests/profiles.test.js` (profils et mains probables), `node tests/advice.test.js` (situations classiques), `node tests/sim.js` (simulation contre des robots) |
 
 Pour essayer en local : `python3 -m http.server` dans ce dossier, puis ouvrir http://localhost:8000.

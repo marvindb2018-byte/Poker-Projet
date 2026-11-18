@@ -32,6 +32,7 @@
   const cardsText = (cards) => cards.map(cardText).join(' ');
   // Calcul des combinaisons (hands.js), chargé dans le navigateur ou dans Node.
   const handsLib = () => root.PokerHands || (typeof require === 'function' ? require('./hands.js') : null);
+  const oddsLib = () => root.PokerOdds || (typeof require === 'function' ? require('./odds.js') : null);
 
   const ok = (extra) => Object.assign({ ok: true }, extra || {});
   const fail = (err) => ({ ok: false, err });
@@ -603,6 +604,38 @@
     h.pots.forEach((p) => { if (!p.won && p.elig.length === 1) p.won = p.elig.slice(); });
   }
 
+  // Cartes montrées par un joueur à la fin de la main. Elles servent à apprendre sa façon de jouer, et si toutes
+  // les mains encore en jeu sont connues, l'appli désigne elle-même le gagnant de chaque pot.
+  function showCards(state, id, cards) {
+    const h = state.hand;
+    if (!h || !['showdown', 'done'].includes(h.phase)) return fail('Les cartes se montrent à la fin de la main.');
+    if (!h.order.includes(id) || id === h.meId) return fail('Joueur inconnu.');
+    h.shown = h.shown || {};
+    if (!cards || !cards.length) { delete h.shown[id]; return ok(); }
+    if (cards.length !== 2 || !cards.every(isCard) || cards[0] === cards[1]) return fail('Il faut 2 cartes, ex : A♥ K♦ (tape « ac kk »).');
+    const seen = h.board.concat(h.meIn ? h.cards : []);
+    Object.keys(h.shown).forEach((o) => { if (o !== id) seen.push(...h.shown[o]); });
+    const dup = cards.find((c) => seen.includes(c));
+    if (dup) return fail(cardText(dup) + ' est déjà ailleurs (tableau ou autre main).');
+    h.shown[id] = cards.slice();
+    autoWinners(state);
+    return ok();
+  }
+
+  function autoWinners(state) {
+    const h = state.hand;
+    const O = oddsLib();
+    if (!O || h.phase !== 'showdown' || h.board.length < 5) return;
+    const cardsOf = (id) => (id === h.meId ? (h.cards.length === 2 ? h.cards : null) : h.shown && h.shown[id]);
+    for (let guard = 0; guard < 10 && h.phase === 'showdown'; guard++) {
+      const cand = showdownCandidates(h);
+      if (!cand.length || !cand.every(cardsOf)) return;
+      const sc = cand.map((id) => O.score7(cardsOf(id).concat(h.board).map(O.toInt)));
+      const best = Math.max(...sc);
+      if (!declareWinners(state, cand.filter((x, i) => sc[i] === best)).ok) return;
+    }
+  }
+
   // Quand je suis couché et que je ne veux pas saisir la suite : on passe directement au gagnant.
   function forceShowdown(state) {
     const h = state.hand;
@@ -876,7 +909,7 @@
     defaultSettings, newGame, markConversationStart, updateSettings,
     addPlayer, removePlayer, leavePlayer, updatePlayer, setButtonNext, setMe, togglePause,
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
-    addStreet, forceShowdown, showdownCandidates, declareWinners, computePots,
+    addStreet, forceShowdown, showdownCandidates, declareWinners, computePots, showCards,
     endHand, abortHand, handSummary, handHistory, contestedPot,
     buildMessage, buildPrompt, buildAutoPrompt, blindsText, cardText,
     isActive, isCard, potOf, live, meLive,

@@ -62,20 +62,61 @@ assert.strictEqual(P.profile({ n: 5, vpip: 5, pfr: 5 }), null, 'trop peu de main
 const fish = P.profile({ n: 20, vpip: 11, pfr: 1, agg: 2, calls: 10, faced: 10, foldBet: 1 });
 assert.strictEqual(fish.short, 'large · passif');
 assert.ok(fish.text.includes('ne le bluffe pas'), fish.text);
-const rock = P.profile({ n: 30, vpip: 4, pfr: 3, agg: 4, calls: 2, faced: 8, foldBet: 6 });
+const rock = P.profile({ n: 60, vpip: 8, pfr: 7, agg: 4, calls: 2, faced: 8, foldBet: 6 });
 assert.strictEqual(rock.short, 'serré · agressif');
 assert.ok(rock.text.includes('se bluffe bien'), rock.text);
-assert.ok(rock.bluff > 0.3 && fish.loose > rock.loose);
-console.log('✓ styles : ' + fish.short + ' / ' + rock.short);
+assert.ok(rock.bluff > fish.bluff && fish.loose > rock.loose, [rock.bluff, fish.bluff, fish.loose, rock.loose].join(' '));
+// lissage : après 8 mains toutes jouées, il n'est pas encore « 100 % » : on reste prudent
+const early = P.stats({ n: 8, vpip: 8, pfr: 8, agg: 0, calls: 0, faced: 0, foldBet: 0 });
+assert.ok(early.vpip > 0.55 && early.vpip < 0.75, early.vpip);
+assert.strictEqual(P.stats(null).vpip, P.PRIOR.vpip); // inconnu = joueur moyen
+console.log('✓ styles : ' + fish.short + ' / ' + rock.short + ' ; lissage (8 mains jouées sur 8 → ≈ ' + Math.round(early.vpip * 100) + ' %)');
 
 // 4. Ligne pour Claude
 const s2 = game6();
 ok(E.startHand(s2));
 const lookup = (name) => ({ marc: { n: 30, vpip: 12, pfr: 3, faced: 10, foldBet: 7 }, léa: { n: 3, vpip: 1, pfr: 1 } })[P.keyFor(name)];
-assert.strictEqual(P.claudeLine(s2.hand, lookup), 'profils (mains jouées/relancées avant le flop/couché face à une mise, en %) : UTG 40/10/70 sur 30');
+assert.strictEqual(P.claudeLine(s2.hand, lookup), 'profils (mains jouées/relancées avant le flop/couché face à une mise, en %) : UTG 38/11/61 sur 30');
 assert.ok(E.buildPrompt(s2).includes('profils (…) : UTG 45/8/70 sur 30'));
 assert.ok(E.buildAutoPrompt().includes('Retiens'));
 console.log('✓ ligne des profils pour Claude');
+
+// 4 bis. Mains montrées à l'abattage : bluffs et mains hors prévisions
+{
+  const s3 = game6();
+  ok(E.startHand(s3));
+  ok(E.chooseCards(s3, ['Ac', 'Kk']));
+  act(s3, 'r', 60);   // UTG Marc relance… avec 7-2
+  act(s3, 'f'); act(s3, 'f'); // MP, CO
+  act(s3, 's');       // moi
+  act(s3, 'f'); act(s3, 'f'); // SB, BB
+  ok(E.addStreet(s3, ['Qc', '9t', '4k']));
+  act(s3, 'r', 100);  // Marc mise sans rien
+  act(s3, 's');       // moi
+  ok(E.addStreet(s3, ['3p']));
+  act(s3, 'x'); act(s3, 'x');
+  ok(E.addStreet(s3, ['8c']));
+  act(s3, 'x'); act(s3, 'x');
+  assert.strictEqual(s3.hand.phase, 'showdown');
+  ok(E.showCards(s3, pid(s3, 'Marc'), ['7p', '2c']));
+  assert.strictEqual(s3.hand.phase, 'done', 'gagnant trouvé tout seul');
+  assert.ok(s3.hand.pots[0].won.includes(s3.hand.meId));
+  const st3 = P.handStats(s3.hand)[pid(s3, 'Marc')];
+  assert.deepStrictEqual([st3.sd.a, st3.sd.cls, st3.sd.bets, st3.sd.bluffs], ['r', '72o', 1, 1]);
+  let db3 = null;
+  for (let i = 0; i < 5; i++) db3 = P.record(db3, 'g:' + i, s3.hand, 'g');
+  const m = P.stats(db3.p.marc);
+  assert.strictEqual(m.sdN, 5);
+  assert.ok(m.bluff > 0.6, 'il bluffe : ' + m.bluff);
+  assert.ok(m.mix > 0.4, 'il relance n\'importe quoi : ' + m.mix);
+  assert.strictEqual(m.inRange, 0);
+  P.forget(db3, 'g:4');
+  assert.strictEqual(P.stats(db3.p.marc).sdN, 4);
+  assert.ok(P.profile(Object.assign({}, db3.p.marc, { n: 10 })).text.includes('bluffs 4 fois sur 4'));
+  // cartes impossibles refusées
+  assert.ok(!E.showCards(s3, pid(s3, 'Paul'), ['Ac', '2p']).ok, 'carte déjà vue');
+  console.log('✓ mains montrées : gagnant automatique, bluffs et mains hors prévisions appris');
+}
 
 // 5. Ce que les cartes font avec le tableau
 const I = (cs) => cs.map(O.toInt);

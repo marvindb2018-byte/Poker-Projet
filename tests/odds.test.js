@@ -67,7 +67,7 @@ const adv = (o) => O.preflopAdvice(Object.assign({ n: 6, bb: 20, sb: 10, cb: 20,
 let a = adv({ cards: ['Ac', 'Kk'], pos: 'UTG' });
 assert.deepStrictEqual([a.action, a.to], ['raise', 60]);
 a = adv({ cards: ['Ac', 'Kk'], pos: 'BTN', limpers: 2 });
-assert.deepStrictEqual([a.action, a.to], ['raise', 90]); // 2,5 BB + 2 suiveurs
+assert.deepStrictEqual([a.action, a.to], ['raise', 100]); // 3 BB + 1 par suiveur
 assert.strictEqual(adv({ cards: ['7c', '2k'], pos: 'BTN' }).action, 'fold');
 assert.strictEqual(adv({ cards: ['7c', '2k'], pos: 'BB', myBet: 20 }).action, 'check');
 assert.strictEqual(adv({ cards: ['Qc', 'Qk'], pos: 'CO', raises: 1, cb: 60 }).action, 'raise');

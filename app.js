@@ -7,6 +7,7 @@
   const ODDS = window.PokerOdds;
   const PROF = window.PokerProfiles;
   const LEARN = window.PokerLearn;
+  const ADV = window.PokerAdvisor;
   const KEY = 'pokercode:v1';
   const HKEY = 'pokercode:hist:v1';
   const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
@@ -98,6 +99,7 @@
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
     instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains), adapté au relanceur quand on connaît sa façon de jouer. La probabilité de gagner est calculée contre les mains probables de chacun : un joueur qui a relancé a surtout de bonnes mains, et un joueur qui mise après le flop a souvent touché quelque chose. Plus l'appli a vu jouer un joueur, plus l'estimation est juste. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
+    shown: "Si des joueurs montrent leurs cartes à la fin, tape-les : la valeur puis la couleur (p pique, c cœur, k carreau, t trèfle), ex : « ac kk » = A♥ K♦. Quand toutes les mains sont connues, l'appli trouve seule le gagnant. Surtout, elle vérifie ses prévisions : ce joueur bluffait-il ? Relance-t-il avec des mains plus faibles que prévu ? C'est ce qui affine le plus ses conseils.",
     profiles: "L'appli retient ce que fait chaque joueur à chaque main saisie : combien de mains il joue, combien il en relance, s'il se couche souvent face à une mise. Après 8 mains, son style s'affiche (serré = joue peu de mains, large = en joue beaucoup ; passif = suit plus qu'il ne relance, agressif = relance souvent). Les profils sont rangés par pseudo et gardés d'une partie à l'autre, sur ce navigateur.",
     sidepot: "Pot annexe : un joueur à tapis ne peut gagner, chez chaque adversaire, que ce qu'il a lui-même misé. Le reste forme un pot annexe, disputé seulement entre les joueurs qui avaient plus de jetons. L'appli fait le calcul : désigne juste la meilleure main.",
     hand: "Ta meilleure combinaison avec tes 2 cartes et les cartes du tableau. Un « tirage », c'est quand il te manque une seule carte pour faire une couleur ou une quinte : elle peut encore tomber à la turn ou à la river.",
@@ -578,75 +580,42 @@
 
   const eqCache = new Map();
 
-  // Ce que chaque adversaire encore en jeu a fait, et donc ses mains probables
-  function oppModels(h) {
-    return E.live(h).filter((id) => id !== h.meId).map((id) => {
-      const act = { raised: false, raiseOver: false, reraiseCount: 0, called: false, facingRaise: false, openKey: ODDS.openRangeKey(h.pos[id], h.order.length) };
-      const post = [];
-      let top = h.bb, raises = 0, st = 0;
-      h.events.forEach((e) => {
-        if (e.t === 'street') { st = e.street; top = 0; return; }
-        if (e.t !== 'act') return;
-        const raise = (e.a === 'r' || e.a === 'b' || e.a === 'AI') && e.amt > top;
-        if (e.id === id) {
-          if (st === 0) {
-            if (raise) { act.raised = true; act.raiseOver = raises >= 1; act.reraiseCount = raises; }
-            else if (e.a === 's' || e.a === 'AI') { act.called = true; act.facingRaise = raises >= 1; }
-          } else if (raise) post.push({ street: st, kind: top > 0 ? 'raise' : 'bet' });
-          else if (e.a === 's' || e.a === 'AI') post.push({ street: st, kind: 'call' });
-        }
-        if (raise) { top = e.amt; if (st === 0) raises++; }
-      });
-      const pr = profOf(h.names[id]);
-      const r = ODDS.playerRange(act, pr ? { vpip: pr.vpip, pfr: pr.pfr } : null);
-      return { id, name: h.names[id], pos: h.pos[id], pr, range: r.range, minus: r.minus, text: r.text, acts: post,
-        bluff: pr ? pr.bluff : 0.3, loose: pr ? pr.loose : 0.25 };
-    });
-  }
+  // Le « cerveau » (advisor.js) est partagé avec la simulation : ce qui est mesuré là-bas est ce que tu vois ici.
+  const oppModels = (h) => ADV.oppModels(h, profRec);
+  const preflopCtx = (h, override) => ADV.preflopCtx(h, profRec, override);
 
-  function myEquity(h) {
+  // Chances de gagner (contre les mains probables et au hasard) et, à mon tour, le conseil : calculés une fois par situation
+  function myEquity(h, mine) {
     const opps = oppModels(h);
     if (!opps.length) return null;
-    const key = (state.gid || '') + h.no + '|' + h.events.length + '|' + h.cards.join('') + '|' + h.board.join('');
+    const key = (state.gid || '') + h.no + '|' + h.events.length + '|' + h.cards.join('') + '|' + h.board.join('') + '|' + (mine ? 1 : 0);
     if (!eqCache.has(key)) {
       if (eqCache.size > 60) eqCache.clear();
+      const advice = mine ? ADV.advise(h, profRec) : null;
       eqCache.set(key, {
-        likely: ODDS.equityVs(h.cards, h.board, opps).equity,
+        likely: advice && advice.eq != null ? advice.eq : ODDS.equityVs(h.cards, h.board, opps).equity,
         random: ODDS.equity(h.cards, h.board, opps.length).equity,
+        advice,
       });
     }
     const c = eqCache.get(key);
-    return { nOpp: opps.length, eq: c.likely, random: c.random, opps };
-  }
-
-  // Ce qui s'est passé avant moi pendant le préflop (relances, suiveurs)
-  function preflopCtx(h, override) {
-    let raises = 0, limpers = 0, iRaised = false, top = h.bb;
-    h.events.forEach((e) => {
-      if (e.t !== 'act' || e.street !== 0) return;
-      const isRaise = e.a === 'r' || e.a === 'b' || (e.a === 'AI' && e.amt > top);
-      if (isRaise) top = e.amt;
-      if (e.id === h.meId) { if (isRaise) iRaised = true; return; }
-      if (isRaise) raises++;
-      else if (e.a === 's' && raises === 0) limpers++;
-    });
-    // le relanceur, si on connaît sa façon de jouer
-    const raiseEv = h.events.filter((e) => e.t === 'act' && e.street === 0 && e.id !== h.meId && (e.a === 'r' || e.a === 'b' || e.a === 'AI')).pop();
-    const rp = raiseEv && profOf(h.names[raiseEv.id]);
-    return Object.assign({
-      cards: h.cards, pos: h.pos[h.meId], n: h.order.length, bb: h.bb, sb: h.sb, cb: h.cb,
-      myBet: h.bet[h.meId], myStack: h.stack[h.meId], raises, limpers, iRaised: iRaised && raises > 0,
-      raiser: rp ? { name: h.names[raiseEv.id], pfr: rp.pfr } : null,
-    }, override || {});
+    return { nOpp: opps.length, eq: c.likely, random: c.random, advice: c.advice, opps };
   }
 
   function adviceLine(a, applicable) {
     const btn = applicable ? ` <button class="chip apply" data-a="apply-advice" data-act="${a.action}" data-to="${a.to || ''}">Jouer ça ${K('G')}</button>` : '';
-    return `<div class="ins-adv"><b>${a.text}</b>${btn}<small>${esc(a.why)}</small></div>${plain(a.plain)}`;
+    const close = a.close ? ' <span class="close-tag">décision serrée</span>' : '';
+    return `<div class="ins-adv"><b>${a.text}</b>${btn}${close}<small>${esc(a.why)}</small></div>${plain(a.plain)}${a.gains ? `<p class="ins-gains">${esc(a.gains)}</p>` : ''}`;
   }
 
   // Explication « En clair » pour un débutant (masquable)
   const plain = (text) => (plainOn && text ? `<p class="plain"><b>En clair :</b> ${esc(text)}</p>` : '');
+
+  // « ac kk », « A♥ K♦ », « 10p 9p » → ['Ac', 'Kk'] / ['Tp', '9p']
+  function parseCardsText(txt) {
+    const t = String(txt || '').replace(/10/g, 'T').replace(/♠/g, 'p').replace(/♥/g, 'c').replace(/♦/g, 'k').replace(/♣/g, 't');
+    return [...t.matchAll(/([AKQJT2-9])\s*([pckt])/gi)].map((m) => m[1].toUpperCase() + m[2].toLowerCase());
+  }
 
   // 0.19 → « un peu moins d'une fois sur 5 »
   function oneIn(p) {
@@ -672,7 +641,8 @@
     }
     // Avant le flop, c'est le tableau qui décide : le calcul compterait comme adversaires
     // les joueurs qui n'ont pas encore parlé (ils se coucheront souvent) et contredirait le conseil.
-    const e = h.street > 0 ? myEquity(h) : null;
+    const e = h.street > 0 ? myEquity(h, mine) : null;
+    if (e && e.advice) out += adviceLine(e.advice, true);
     if (h.street === 0) {
       out += plain("tes chances de gagner et le calcul « suivre est rentable » s'affichent à partir du flop. Avant le flop, c'est le tableau des mains de départ qui décide : il tient déjà compte de ta place et de ce qu'ont fait les autres.");
     }
@@ -688,7 +658,9 @@
         out += `<div class="ins-odds">Pour suivre ${o.toCall}, il faut gagner <b>${Math.round(need * 100)} %</b> du temps → <span class="${good ? 'good' : 'bad'}">${good ? 'suivre est rentable' : 'suivre n\'est pas rentable'}</span> <small>(d'après le seul calcul)</small></div>`;
         out += plain(`il y a ${pot} dans le pot et on te demande ${o.toCall} pour suivre. Tu risques donc ${o.toCall} pour remporter un pot de ${pot + o.toCall}. `
           + `Il te suffit de gagner ${oneIn(need)} (${Math.round(need * 100)} %) pour ne pas perdre de jetons sur la durée. `
-          + `Ici tu gagnes environ ${eqPct} fois sur 100 : ${good ? `c'est plus que ${Math.round(need * 100)} %, donc suivre est rentable.${e.eq >= 0.6 ? ' Avec autant de chances, relancer peut même rapporter plus.' : ''}` : `c'est moins que ${Math.round(need * 100)} %, donc suivre n'est pas rentable : couche-toi.`}`);
+          + `Ici tu gagnes environ ${eqPct} fois sur 100 : ${good ? `c'est plus que ${Math.round(need * 100)} %, donc suivre est rentable.` : `c'est moins que ${Math.round(need * 100)} %, donc suivre n'est pas rentable.`}`
+          + (e.advice && (good ? e.advice.action === 'fold' : e.advice.action !== 'fold')
+            ? ' Le conseil au-dessus va plus loin que ce calcul : il compare aussi ce que rapporteraient une mise ou une relance (qui peuvent faire coucher l\'adversaire), et tient compte de ta place.' : ''));
       } else {
         out += plain(`si personne ne se couchait jusqu'à la fin de la main, tu gagnerais environ ${eqPct} fois sur 100.`);
       }
@@ -893,7 +865,21 @@
       <p class="hint">Touche la meilleure main. Plusieurs joueurs = partage du pot.</p>
       <div class="cands">${cand.map((id, i) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}"><span class="pos">${h.pos[id]}</span>${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}${i < 9 ? `<kbd class="k right">${i + 1}</kbd>` : ''}</button>`).join('')}</div>
       <button class="btn primary big" data-a="declare" ${ui.sel.length ? '' : 'disabled'}>Valider ${K('Entrée')}</button>
+      ${showCardsBox(h, cand)}
     </section>`;
+  }
+
+  // Cartes montrées (facultatif) : l'appli trouve le gagnant et apprend la façon de jouer de chacun
+  function showCardsBox(h, cand) {
+    const others = cand.filter((id) => id !== h.meId);
+    if (!others.length) return '';
+    const fmt = (c) => (c || []).map((x) => (x[0] === 'T' ? '10' : x[0]) + SUIT_SYM[x[1]]).join(' ');
+    return `<div class="show-box">
+      <div class="sb-title">Cartes montrées <span class="muted">facultatif</span> ${tip('shown')}</div>
+      ${others.map((id) => `<label class="sb-row"><span><span class="pos">${h.pos[id]}</span> ${esc(h.names[id])}</span>
+        <input class="in" data-show="${id}" placeholder="ex : ac kk" value="${esc(fmt(h.shown && h.shown[id]))}" autocomplete="off"></label>`).join('')}
+      ${h.board.length < 5 ? '<p class="hint">Tapis avant la river : choisis le gagnant toi-même (les cartes montrées servent quand même à apprendre).</p>' : ''}
+    </div>`;
   }
 
   function viewDone(h) {
@@ -1633,9 +1619,17 @@
       toast('Profils effacés');
     },
     'apply-advice'(d) {
-      const map = { raise: { type: 'r', to: Number(d.to) }, call: { type: 's' }, check: { type: 'x' }, fold: { type: 'f' }, allin: { type: 'AI' } };
-      const a = map[d.act];
+      const a = ADV.toAction({ action: d.act, to: Number(d.to) });
       if (a) cmd((s) => E.applyAction(s, a));
+    },
+    'show-cards'(d) {
+      const h = state.hand;
+      if (!h) return;
+      const cards = parseCardsText(d.value);
+      if (d.value.trim() && cards.length !== 2) return toast('Tape 2 cartes : la valeur puis la couleur (p c k t), ex : « ac kk » = A♥ K♦');
+      const before = h.phase;
+      const r = cmd((s) => E.showCards(s, d.id, cards));
+      if (r && r.ok && before === 'showdown' && state.hand && state.hand.phase === 'done') toast('Gagnant trouvé grâce aux cartes montrées');
     },
     // table de poker (PC) : « + » et « − »
     'seat-add'(d) {
@@ -1799,6 +1793,12 @@
     const t = ev.target;
     if (t.dataset.setupSel) { ui.setup[t.dataset.setupSel] = Number(t.value); return; }
     if (t.dataset.setupStr) { ui.setup[t.dataset.setupStr] = t.value; return; }
+    if (t.dataset.show) {
+      const h = state && state.hand;
+      const cur = h && h.shown && h.shown[t.dataset.show] ? h.shown[t.dataset.show].join('') : '';
+      if (parseCardsText(t.value).join('') !== cur) handlers['show-cards']({ id: t.dataset.show, value: t.value });
+      return;
+    }
     if (t.dataset.know) {
       if (t.checked) learned.add(t.dataset.know); else learned.delete(t.dataset.know);
       saveLearned();
@@ -1832,6 +1832,7 @@
         if (t.id === 'amt') { ev.preventDefault(); handlers.act({ t: 'r' }); }
         else if (t.id === 'add-name' || t.id === 'add-stack') { ev.preventDefault(); handlers.add(); }
         else if (t.id === 'sa-name' || t.id === 'sa-stack') { ev.preventDefault(); handlers['seat-add-ok'](); }
+        else if (t.dataset.show) { ev.preventDefault(); handlers['show-cards']({ id: t.dataset.show, value: t.value }); }
       } else if (k === 'Escape' && t.id === 'amt') { ui.sizing = false; render(); }
       else if (k === 'Escape' && (t.id === 'sa-name' || t.id === 'sa-stack')) handlers['seat-add-cancel']();
       return;
