@@ -108,6 +108,7 @@
     'mode-auto': "Mode Auto : tu envoies des captures d'écran de la table à Claude, qui lit tout lui-même. Rien à saisir dans l'appli.",
     undo: "Annuler : revient en arrière d'une action, en cas d'erreur de saisie (Ctrl+Z).",
     vsraise: "Face à une relance : ce que tu fais quand un joueur a déjà relancé avant toi, à une autre place que la grosse blinde.",
+    skip: "Tu n'as pas pu suivre cette main ? Passe-la : le jeton D avance comme sur le site et la main suivante commence. Les jetons reviennent à leur valeur d'avant la main : corrige-les si besoin en touchant un joueur. Ctrl+Z annule.",
     shown: "Si des joueurs montrent leurs cartes à la fin, tape-les : la valeur puis la couleur (p pique, c cœur, k carreau, t trèfle), ex : « ac kk » = A♥ K♦. Quand toutes les mains sont connues, l'appli trouve seule le gagnant. Surtout, elle vérifie ses prévisions : ce joueur bluffait-il ? Relance-t-il avec des mains plus faibles que prévu ? C'est ce qui affine le plus ses conseils.",
     profiles: "L'appli retient ce que fait chaque joueur à chaque main saisie : combien de mains il joue, combien il en relance, s'il se couche souvent face à une mise. Après 8 mains, son style s'affiche (serré = joue peu de mains, large = en joue beaucoup ; passif = suit plus qu'il ne relance, agressif = relance souvent). Les profils sont rangés par pseudo et gardés d'une partie à l'autre, sur ce navigateur.",
     sidepot: "Pot annexe : un joueur à tapis ne peut gagner, chez chaque adversaire, que ce qu'il a lui-même misé. Le reste forme un pot annexe, disputé seulement entre les joueurs qui avaient plus de jetons. L'appli fait le calcul : désigne juste la meilleure main.",
@@ -417,6 +418,7 @@
         <span class="tag">${h.phase === 'board' ? '→ ' + E.STREET_NAMES[h.street + 1] : E.STREET_NAMES[h.street]}</span>
         <span class="tag">${h.sb}/${h.bb}${h.ante ? (h.anteType === 'bb' ? ' · ante BB ' : ' · ante ') + h.ante : ''}</span>
         <span class="pot">Pot <b>${h.phase === 'done' ? E.contestedPot(h) : E.potOf(h)}</b></span>
+        ${h.phase === 'done' ? '' : `<button class="btn small skip tipped" data-a="skip-hand" data-tip="skip">⏭ Passer le tour</button>`}
       </div>
       <div class="hh-cards">
         <div class="hh-mine">${mine}${h.meIn ? posTag(h.pos[h.meId], 'hh-pos') : '<span class="muted">hors main</span>'}</div>
@@ -637,6 +639,7 @@
   }
 
   function lastHand(L) {
+    if (L.skipped) return `<section class="panel soft"><h3>Main #${L.no} <span class="muted">passée, non suivie</span></h3></section>`;
     // les parties enregistrées avec une ancienne version n'ont pas « players » ni « history »
     const old = !L.players;
     return `<section class="panel soft">
@@ -1689,6 +1692,17 @@
         return { ok: true };
       });
       if (warn) toast(warn);
+    },
+    'skip-hand'() {
+      let warn = null;
+      const r = cmd((s) => {
+        const r1 = E.skipHand(s);
+        if (!r1.ok) return r1;
+        const r2 = startHand(s);
+        if (!r2.ok) warn = r2.err;
+        return { ok: true };
+      });
+      if (r && r.ok) toast(warn || 'Main passée : le jeton D avance. Les jetons ont pu changer sur le site : touche un joueur pour les corriger. (Ctrl+Z pour annuler)');
     },
     'next-only'() { cmd((s) => { recordHand(s); return E.endHand(s); }); },
     'end-only'() {

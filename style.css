@@ -772,3 +772,6 @@ details.plain > div p + p { margin-top: 6px; }
 .quick-ok { margin: 10px 0 4px; color: #dfe8e3; line-height: 1.5; }
 .quick-ok b { color: var(--accent); }
 .quick-warn { margin: 4px 0 6px; padding-left: 20px; color: var(--gold); font-size: 13.5px; }
+
+/* ---------- passer le tour (main pas suivie) */
+.hh-line .skip { margin-left: 8px; min-height: 30px; padding: 0 10px; font-size: 13px; text-decoration: none; }

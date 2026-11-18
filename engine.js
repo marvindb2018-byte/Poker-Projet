@@ -769,6 +769,20 @@
     return ok();
   }
 
+  // Main pas suivie (trop rapide pour tout saisir) : on la passe. Le jeton D a avancé comme sur le site, mais on ne sait pas
+  // qui a gagné : les jetons reviennent à leur valeur d'avant la main (à corriger d'après le site si besoin).
+  function skipHand(state) {
+    const h = state.hand;
+    if (!h) return fail('Pas de main en cours.');
+    if (h.phase === 'done') return endHand(state);
+    h.order.forEach((id) => { const p = getPlayer(state, id); if (p) p.stack = h.stacks0[id]; });
+    if (!h.sent.length) state.told = h.prevMeta.told; // rien n'a été envoyé à Claude pour cette main
+    state.last = { no: h.no, skipped: true, board: h.board.slice(), cards: h.cards.slice() };
+    state.hand = null;
+    removeLeavers(state);
+    return ok();
+  }
+
   // Annule complètement la main : tapis, bouton et numéro reviennent à l'état d'avant.
   function abortHand(state) {
     const h = state.hand;
@@ -993,7 +1007,7 @@
     addPlayer, removePlayer, leavePlayer, updatePlayer, setButtonNext, setMe, togglePause,
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots, showCards,
-    endHand, abortHand, handSummary, handHistory, contestedPot,
+    endHand, abortHand, skipHand, handSummary, handHistory, contestedPot,
     buildMessage, buildPrompt, buildAutoPrompt, buildTablePrompt, parseTableLine, chipAmount, blindsText, cardText,
     isActive, isCard, potOf, live, meLive,
   };
