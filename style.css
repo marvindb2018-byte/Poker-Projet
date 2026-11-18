@@ -741,3 +741,20 @@ details.plain > div p + p { margin-top: 6px; }
 
 /* ---------- bulles sur les onglets et les boutons du haut (sans soulignement) */
 .nav .tipped, .top-right .tipped { text-decoration: none; cursor: pointer; }
+
+/* ---------- joueurs : modifier / ajouter dans la page Main */
+.pl-edit { background: var(--panel); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+.pl-edit .pe-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 2px 0 10px; font-size: 17px; }
+.pl-edit .grid2 { margin-top: 4px; }
+.ptable .pl-edit {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
+  width: min(460px, 90%); background: #15211b;
+}
+.strip li[data-a="edit"] { cursor: pointer; }
+.strip li[data-a="edit"]:hover { background: rgba(255, 255, 255, .035); }
+.strip li.editing { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 8px; }
+.seat[data-a="edit"] { cursor: pointer; }
+.seat[data-a="edit"]:hover .seat-box { border-color: rgba(241, 195, 95, .6); }
+.others { margin-top: 10px; }
+.arrive-btn { margin-top: 10px; }
+@media (min-width: 1000px) { .others { display: none; } }

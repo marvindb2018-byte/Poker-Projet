@@ -56,7 +56,7 @@ En mode Auto, c'est Claude qui retient le style des joueurs au fil des captures.
 
 **Onglet Mains** : les tableaux des mains de départ (13 × 13) pour chaque place, la défense en grosse blinde et « face à une relance », avec ta main encadrée. Pour les apprendre petit à petit.
 
-**Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, pour corriger des jetons d'après le site, ou pour déplacer le jeton D.
+**Les joueurs** (plus d'onglet Table) : dans la page Main, touche un joueur (son siège sur la table sur PC, sa ligne dans la liste sur téléphone) pour corriger ses jetons, changer son pseudo, le mettre en pause, lui donner le jeton D pour la prochaine main, dire que c'est toi, ou le faire partir. « + Un joueur arrive » (ou les « + » entre les sièges sur PC) ajoute quelqu'un, même en pleine main : il jouera à la suivante. Pendant une main, seul le pseudo se change ; le reste entre deux mains.
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action. « Effacer cette main » efface toute la saisie de la main en cours (ce n'est pas se coucher : pour ça, c'est « Couché »).
 
 ## Sur PC (écran large)

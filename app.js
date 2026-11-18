@@ -99,8 +99,7 @@
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
     instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains), adapté au relanceur quand on connaît sa façon de jouer. La probabilité de gagner est calculée contre les mains probables de chacun : un joueur qui a relancé a surtout de bonnes mains, et un joueur qui mise après le flop a souvent touché quelque chose. Plus l'appli a vu jouer un joueur, plus l'estimation est juste. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
-    'tab-main': "Main : la partie en cours. Tes cartes, ce que fait chaque joueur, le message à envoyer à Claude et l'aide instantanée.",
-    'tab-table': "Table : les joueurs assis. Ajouter quelqu'un qui arrive, retirer quelqu'un qui part, corriger des jetons ou déplacer le jeton D.",
+    'tab-main': "Main : la partie en cours. Tes cartes, ce que fait chaque joueur, le message à envoyer à Claude et l'aide instantanée. Touche un joueur pour corriger ses jetons, le mettre en pause, le faire partir ou lui donner le jeton D.",
     'tab-charts': "Mains : les tableaux des mains de départ, quoi faire avant le flop selon ta place. À étudier pour progresser.",
     'tab-learn': "Apprendre : toutes les notions du poker expliquées simplement, avec une recherche et un mode « Teste-toi ».",
     'tab-prompt': "Prompt : le texte de départ à coller dans une nouvelle conversation Claude, pour qu'il comprenne les messages de l'appli.",
@@ -269,12 +268,11 @@
     nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
     let html;
     if (!state) html = viewSetup();
-    else if (ui.tab === 'table') html = viewTable();
     else if (ui.tab === 'prompt') html = viewPrompt();
     else if (ui.tab === 'settings') html = viewSettings();
     else if (ui.tab === 'charts') html = viewCharts();
     else if (ui.tab === 'learn') html = viewLearn();
-    else html = viewMain();
+    else { ui.tab = 'main'; html = viewMain(); }
     if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
     $('view').innerHTML = html;
     $('side').innerHTML = viewSide();
@@ -341,7 +339,7 @@
         </div>
       </div>`;
     }
-    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle(state.promptCopied)}</div><div class="col-b">${ptable(null)}</div></div>`;
+    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle(state.promptCopied && !ui.edit && !ui.addOpen)}</div><div class="col-b">${ptable(null)}${wide() ? arrivalBox() : ''}</div></div>`;
     let a = handHead(h);
     if (h.phase === 'spectate') a += viewSpectate(h);
     else if (h.phase === 'cards') a += picker(2, `Tes cartes <span class="muted">(${h.pos[h.meId]})</span>`, [], null);
@@ -349,7 +347,7 @@
     else if (h.phase === 'action') a += viewAction(h);
     else if (h.phase === 'showdown') a += viewShowdown(h);
     else if (h.phase === 'done') a += viewDone(h);
-    let b = h.phase === 'spectate' ? '' : ptable(h) + strip(h);
+    let b = h.phase === 'spectate' ? '' : ptable(h) + (wide() ? '' : editorPanel()) + strip(h) + othersList(h) + arrivalBox();
     if (h.phase !== 'spectate') b += historyView(E.handHistory(h), true);
     if (!['done', 'spectate'].includes(h.phase)) {
       b += `<div class="row end"><button class="btn ghost danger small" data-a="abort" title="Efface la saisie de cette main : jetons et jeton D reviennent comme avant. Ce n'est pas se coucher.">Effacer cette main (erreur de saisie)</button></div>`;
@@ -387,8 +385,87 @@
         const st = h.folded[id] ? 'couché' : h.allin[id] ? 'tapis' : id === h.toAct ? 'parle' : '';
         right = `<span class="stk">${h.stack[id]}</span><span class="bet">${h.bet[id] || ''}</span><span class="st">${st}</span>`;
       }
-      return `<li class="${cls}">${posTag(h.pos[id], 'pos')}<span class="nm">${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}</span>${right}</li>`;
+      return `<li class="${cls} ${ui.edit === id ? 'editing' : ''}" data-a="edit" data-id="${id}" title="Modifier ce joueur">${posTag(h.pos[id], 'pos')}<span class="nm">${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}</span>${right}</li>`;
     }).join('')}</ol>`;
+  }
+
+  /* ---- joueurs : modifier, ajouter (dans la page Main, plus d'onglet Table) */
+
+  const wide = () => !!(window.matchMedia && window.matchMedia('(min-width: 1000px)').matches); // PC : la table est affichée
+
+  // Options d'un joueur (comme l'ancien onglet Table). Sur PC : par-dessus la table ; sur téléphone : au-dessus de la liste.
+  function playerEditor(p) {
+    const h = state.hand;
+    const locked = !!h;
+    const plan = h ? null : E.planNextHand(state);
+    const btnId = h ? h.btnId : plan && plan.ok ? plan.btnId : null;
+    const pos = h ? h.pos[p.id] : plan && plan.ok ? plan.pos[p.id] : null;
+    const badges = [
+      p.me ? '<span class="badge me">moi</span>' : '',
+      p.id === btnId ? '<span class="badge dealer">D</span>' : '',
+      p.paused ? '<span class="badge">pause</span>' : '',
+      !p.paused && p.stack === 0 ? '<span class="badge out">0 jeton</span>' : '',
+      h && E.isActive(p) && !h.order.includes(p.id) ? '<span class="badge new">prochaine main</span>' : '',
+      p.leaving ? '<span class="badge out">part</span>' : '',
+    ].join('');
+    return `<div class="pl-edit todo" role="dialog" aria-label="Modifier ${esc(p.name)}">
+      <div class="mt-label">À faire · modifier ce joueur</div>
+      <div class="pe-head"><b>${esc(p.name)}</b> ${pos ? posTag(pos, 'pos-inline') : ''} ${badges} ${p.me ? '' : styleTag(p.name, 'style-tag')}</div>
+      <div class="grid2">
+        <label class="field">Pseudo<input class="in" id="ed-name" value="${esc(p.name)}" maxlength="18" autocomplete="off"></label>
+        <label class="field">Jetons ${tip('stack')}<input class="in" id="ed-stack" type="number" inputmode="numeric" min="0" value="${p.stack}" ${locked ? 'disabled' : ''}></label>
+      </div>
+      ${locked ? '<p class="hint">Main en cours : seul le pseudo se change maintenant. Jetons, jeton D, pause et « c\'est moi » : entre deux mains.</p>' : ''}
+      <div class="btn-grid">
+        <button class="btn primary" data-a="ed-save" data-id="${p.id}">Enregistrer ${K('Entrée')}</button>
+        <button class="btn" data-a="ed-btn" data-id="${p.id}" ${locked ? 'disabled' : ''}>Jeton D à la prochaine main</button>
+        <button class="btn" data-a="ed-pause" data-id="${p.id}" ${locked ? 'disabled' : ''}>${p.paused ? 'Revient en jeu' : 'Pause (ne joue pas)'}</button>
+        <button class="btn" data-a="ed-me" data-id="${p.id}" ${locked || p.me ? 'disabled' : ''}>C'est moi</button>
+        ${p.me || p.leaving ? '' : `<button class="btn danger" data-a="seat-remove" data-id="${p.id}">Il quitte la table</button>`}
+        <button class="btn ghost" data-a="ed-close">Fermer ${K('Échap')}</button>
+      </div>
+    </div>`;
+  }
+  // Téléphone : les options s'ouvrent sous la liste, on les fait venir à l'écran
+  function showEditor() {
+    const ed = document.querySelector('.pl-edit');
+    if (ed && !wide()) ed.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  const editorPanel = () => {
+    const p = ui.edit && player(ui.edit);
+    return p ? playerEditor(p) : '';
+  };
+
+  // Joueurs assis qui ne jouent pas la main (pause, arrivés en cours de main, sans jetons) : à toucher aussi
+  function othersList(h) {
+    const out = state.players.filter((p) => (h ? !h.order.includes(p.id) : !E.isActive(p) || p.leaving));
+    if (!out.length) return '';
+    return `<div class="others"><div class="ins-sub">Aussi à table</div><ol class="strip">${out.map((p) => {
+      const tag = p.leaving ? 'part' : p.paused ? 'pause' : p.stack === 0 ? '0 jeton' : 'prochaine main';
+      return `<li class="${ui.edit === p.id ? 'editing' : ''}" data-a="edit" data-id="${p.id}" title="Modifier ce joueur"><span class="pos">—</span><span class="nm">${esc(p.name)}${p.me ? ' <em>moi</em>' : ''}</span><span class="stk">${p.stack}</span><span class="st">${tag}</span></li>`;
+    }).join('')}</ol></div>`;
+  }
+
+  // « Un joueur arrive » (sur PC, aussi avec les « + » entre les places de la table)
+  function arrivalBox() {
+    const full = state.players.length >= E.MAX_PLAYERS;
+    if (full) return '';
+    if (!ui.addOpen) return `<button class="btn ghost wide arrive-btn" data-a="add-open">+ Un joueur arrive</button>`;
+    return `<div class="pl-edit todo">
+      <div class="mt-label">À faire · un joueur arrive</div>
+      <div class="grid2">
+        <label class="field">Pseudo<input class="in" id="add-name" placeholder="Pseudo" maxlength="18" autocomplete="off"></label>
+        <label class="field">Jetons<input class="in" id="add-stack" type="number" inputmode="numeric" min="1" placeholder="ex : 2550"></label>
+      </div>
+      <label class="field">S'assoit après
+        <select class="in" id="add-after">${state.players.map((p, i) => `<option value="${p.id}" ${i === state.players.length - 1 ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+      </label>
+      <div class="btn-grid">
+        <button class="btn primary" data-a="add">Ajouter ${K('Entrée')}</button>
+        <button class="btn ghost" data-a="add-close">Annuler</button>
+      </div>
+      <p class="hint">${state.hand ? 'Une main est en cours : il jouera à partir de la main suivante.' : 'Il jouera dès la prochaine main.'}</p>
+    </div>`;
   }
 
   // Table de poker vue de dessus (affichée seulement sur PC). Je suis toujours en bas au centre,
@@ -444,7 +521,7 @@
       } else if (folded) tag = '<span class="seat-tag fold">couché</span>';
       else if (h.allin[id]) tag = '<span class="seat-tag allin">tapis</span>';
       else if (id === h.toAct) tag = '<span class="seat-tag">parle</span>';
-      const click = cand.includes(id) ? ` data-a="sel" data-id="${id}" title="Choisir comme gagnant"` : '';
+      const click = cand.includes(id) ? ` data-a="sel" data-id="${id}" title="Choisir comme gagnant"` : ` data-a="edit" data-id="${id}" title="Modifier ${esc(p.name)}"`;
       const pos = posOf(id);
       const remove = me || p.leaving ? '' : `<button type="button" class="seat-remove" data-a="seat-remove" data-id="${id}" title="${esc(p.name)} quitte la table" aria-label="Retirer ${esc(p.name)}">−</button>`;
       html += `<div class="${cls}" style="${at(1, deg)}"${click}>
@@ -463,7 +540,8 @@
     let center = `<div class="pt-board">${board}</div>`;
     center += h ? `<div class="pt-pot">Pot ${done ? E.contestedPot(h) : E.potOf(h)}</div>` : `<div class="pt-pot muted-pot">Prochaine main #${state.handNo + 1}</div>`;
     html += `<div class="pt-center">${center}</div>`;
-    if (ui.addAfter && P.some((x) => x.id === ui.addAfter)) {
+    if (ui.edit && P.some((x) => x.id === ui.edit) && wide()) html += editorPanel();
+    else if (ui.addAfter && P.some((x) => x.id === ui.addAfter)) {
       const after = P.find((x) => x.id === ui.addAfter);
       const nextIdx = (P.indexOf(after) + 1) % P.length;
       html += `<div class="seat-form todo" role="dialog" aria-label="Ajouter un joueur">
@@ -491,16 +569,17 @@
     else {
       out += `<ol class="strip preview idle-list">${plan.pre.map((id) => {
         const p = player(id);
-        return `<li class="${p.me ? 'me' : ''}">${posTag(plan.pos[id], 'pos')}<span class="nm">${esc(p.name)}${p.me ? ' <em>moi</em>' : ''}</span><span class="stk">${p.stack}</span></li>`;
+        return `<li class="${p.me ? 'me' : ''} ${ui.edit === id ? 'editing' : ''}" data-a="edit" data-id="${id}" title="Modifier ce joueur">${posTag(plan.pos[id], 'pos')}<span class="nm">${esc(p.name)}${p.me ? ' <em>moi</em>' : ''}</span><span class="stk">${p.stack}</span></li>`;
       }).join('')}</ol>`;
       const me = state.players.find((p) => p.me);
-      if (!me) out += `<p class="warn">Aucun joueur n'est marqué « moi » (onglet Table).</p>`;
+      if (!me) out += `<p class="warn">Aucun joueur n'est marqué « moi » : touche ton nom, puis « C'est moi ».</p>`;
       else if (!plan.order.includes(me.id)) out += `<p class="warn">Tu ne joues pas cette main (pause ou 0 jeton).</p>`;
     }
-    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier ${tip('positions')}. Les jetons ne correspondent plus au site ? Corrige-les dans l'onglet Table.</p>
+    out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier ${tip('positions')}.</p>
       <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n} ${K('Entrée')}</button>
-      <button class="btn ghost wide" data-a="tab" data-tab="table">Un joueur arrive, part, ou recave ?</button>
+      <p class="hint">Un joueur part, recave ou n'a plus les mêmes jetons que sur le site ? Touche-le${wide() ? ' sur la table' : ' dans la liste'}.</p>
     </section>`;
+    if (!wide()) out += editorPanel() + othersList(null) + arrivalBox();
     if (state.last) out += lastHand(state.last);
     return out;
   }
@@ -1352,70 +1431,6 @@
     render();
   });
 
-  /* ---- onglet Table */
-
-  function viewTable() {
-    const h = state.hand;
-    const locked = !!h;
-    const plan = E.planNextHand(state);
-    const btnId = h ? h.btnId : plan.ok ? plan.btnId : null;
-    let out = `<section class="panel">
-      <h2>Joueurs <span class="muted">${state.players.length}/${E.MAX_PLAYERS}</span></h2>
-      <p class="hint">${locked ? 'Main en cours : tu peux ajouter un joueur qui arrive (il jouera à la main suivante) et changer les pseudos. Le reste se modifie entre deux mains.' : 'Les joueurs dans l\'ordre des places. Touche un joueur pour corriger ses jetons (comme affichés sur le site), le mettre en pause, le faire partir ou lui donner le jeton D.'}</p>
-      <ul class="players">`;
-    state.players.forEach((p) => {
-      const pos = h ? h.pos[p.id] : plan.ok ? plan.pos[p.id] : null;
-      const badges = [
-        p.me ? '<span class="badge me">moi</span>' : '',
-        p.id === btnId ? '<span class="badge dealer">D</span>' : '',
-        p.paused ? '<span class="badge">pause</span>' : '',
-        !p.paused && p.stack === 0 ? '<span class="badge out">0 jeton</span>' : '',
-        h && E.isActive(p) && !h.order.includes(p.id) ? '<span class="badge new">prochaine main</span>' : '',
-      ].join('');
-      const open = ui.edit === p.id;
-      out += `<li class="${open ? 'open' : ''} ${E.isActive(p) ? '' : 'inactive'}">
-        <button class="pl-row" data-a="edit" data-id="${p.id}">
-          <span class="pos">${pos || '—'}</span>
-          <span class="nm">${esc(p.name)} ${badges} ${p.me ? '' : styleTag(p.name, 'style-tag')}</span>
-          <span class="stk">${p.stack}</span>
-        </button>`;
-      if (open) {
-        out += `<div class="edit">
-          <div class="grid2">
-            <label class="field">Pseudo<input class="in" id="ed-name" value="${esc(p.name)}" maxlength="18"></label>
-            <label class="field">Tapis<input class="in" id="ed-stack" type="number" inputmode="numeric" min="0" value="${p.stack}" ${locked ? 'disabled' : ''}></label>
-          </div>
-          <div class="btn-grid">
-            <button class="btn primary" data-a="ed-save" data-id="${p.id}">Enregistrer</button>
-            <button class="btn" data-a="ed-btn" data-id="${p.id}" ${locked ? 'disabled' : ''}>Il a le jeton D à la prochaine main</button>
-            <button class="btn" data-a="ed-pause" data-id="${p.id}" ${locked ? 'disabled' : ''}>${p.paused ? 'Revient en jeu' : 'Pause (ne joue pas)'}</button>
-            <button class="btn" data-a="ed-me" data-id="${p.id}" ${locked || p.me ? 'disabled' : ''}>C'est moi</button>
-            ${p.me ? '' : `<button class="btn danger" data-a="seat-remove" data-id="${p.id}">Il quitte la table</button>`}
-          </div>
-        </div>`;
-      }
-      out += '</li>';
-    });
-    out += '</ul></section>';
-
-    const full = state.players.length >= E.MAX_PLAYERS;
-    out += `<section class="panel">
-      <h2>Un joueur arrive</h2>
-      <div class="grid2">
-        <label class="field">Pseudo<input class="in" id="add-name" placeholder="Pseudo" maxlength="18" ${full ? 'disabled' : ''}></label>
-        <label class="field">Jetons<input class="in" id="add-stack" type="number" inputmode="numeric" min="1" placeholder="ex : 2550" ${full ? 'disabled' : ''}></label>
-      </div>
-      <label class="field">S'assoit après
-        <select class="in" id="add-after" ${full ? 'disabled' : ''}>
-          ${state.players.map((p, i) => `<option value="${p.id}" ${i === state.players.length - 1 ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
-        </select>
-      </label>
-      <button class="btn primary wide" data-a="add" ${full ? 'disabled' : ''}>Ajouter à la table</button>
-      ${full ? `<p class="hint">${E.MAX_PLAYERS} joueurs maximum.</p>` : `<p class="hint">${locked ? 'Une main est en cours : il jouera à partir de la main suivante.' : 'Il jouera dès la prochaine main.'}</p>`}
-    </section>`;
-    return out;
-  }
-
   /* ---- onglet Prompt */
 
   function viewPrompt() {
@@ -1620,8 +1635,7 @@
     'next-only'() { cmd((s) => { recordHand(s); return E.endHand(s); }); },
     'end-only'() {
       cmd((s) => { recordHand(s); return E.endHand(s); });
-      ui.tab = 'table';
-      render();
+      toast('Touche un joueur pour le modifier, ou « + Un joueur arrive »');
     },
     abort() {
       if (!window.confirm('Effacer la saisie de cette main ? Les jetons et le jeton D reviennent à leur état d\'avant la main. (Pour te coucher, utilise plutôt « Couché ».)')) return;
@@ -1690,10 +1704,21 @@
       const p = player(d.id);
       if (!p) return;
       const r = cmd((s) => E.leavePlayer(s, d.id));
+      if (r && r.ok && ui.edit === d.id) { ui.edit = null; render(); }
       if (r && r.ok) toast(r.later ? `${p.name} part : couché quand c'est à lui, retiré à la fin de la main (Ctrl+Z pour annuler)` : `${p.name} a quitté la table (Ctrl+Z pour annuler)`);
     },
     // table
-    edit(d) { ui.edit = ui.edit === d.id ? null : d.id; render(); },
+    edit(d) {
+      ui.edit = ui.edit === d.id ? null : d.id;
+      ui.addAfter = null; ui.addOpen = false;
+      render();
+      showEditor();
+      const el = $('ed-stack');
+      if (el && !el.disabled) { el.focus({ preventScroll: true }); el.select(); } else if ($('ed-name')) $('ed-name').focus({ preventScroll: true });
+    },
+    'ed-close'() { ui.edit = null; render(); },
+    'add-open'() { ui.addOpen = true; ui.edit = null; ui.addAfter = null; render(); showEditor(); const el = $('add-name'); if (el) el.focus({ preventScroll: true }); },
+    'add-close'() { ui.addOpen = false; render(); },
     'ed-save'(d) {
       const name = $('ed-name').value;
       const stackEl = $('ed-stack');
@@ -1713,7 +1738,7 @@
       const stack = $('add-stack').value;
       const afterId = $('add-after').value;
       const r = cmd((s) => E.addPlayer(s, { name, stack, afterId }));
-      if (r && r.ok) toast('Joueur ajouté : il jouera dès la prochaine main');
+      if (r && r.ok) { ui.addOpen = false; render(); toast(state.hand ? 'Joueur ajouté : il jouera à la main suivante' : 'Joueur ajouté : il jouera dès la prochaine main'); }
     },
 
     // réglages
@@ -1799,7 +1824,9 @@
 
   document.addEventListener('click', (ev) => {
     let q = ev.target.closest(TIP_SEL);
-    if (q && q.classList.contains('tipped') && q.closest('[data-a]')) q = null; // dans un bouton : le bouton d'abord
+    // dans un bouton : le bouton d'abord ; sauf dans la ligne d'un joueur, où la position (UTG…) montre sa bulle
+    // et le reste de la ligne ouvre les options du joueur
+    if (q && q.classList.contains('tipped') && q.closest('[data-a]') && q.closest('[data-a]').dataset.a !== 'edit') q = null;
     if (q) {
       ev.preventDefault();
       if (bubble.for === q && bubble.pinned) hideTip();
@@ -1890,10 +1917,13 @@
       if (k === 'Enter') {
         if (t.id === 'amt') { ev.preventDefault(); handlers.act({ t: 'r' }); }
         else if (t.id === 'add-name' || t.id === 'add-stack') { ev.preventDefault(); handlers.add(); }
+        else if ((t.id === 'ed-name' || t.id === 'ed-stack') && ui.edit) { ev.preventDefault(); handlers['ed-save']({ id: ui.edit }); }
         else if (t.id === 'sa-name' || t.id === 'sa-stack') { ev.preventDefault(); handlers['seat-add-ok'](); }
         else if (t.dataset.show) { ev.preventDefault(); handlers['show-cards']({ id: t.dataset.show, value: t.value }); }
       } else if (k === 'Escape' && t.id === 'amt') { ui.sizing = false; render(); }
       else if (k === 'Escape' && (t.id === 'sa-name' || t.id === 'sa-stack')) handlers['seat-add-cancel']();
+      else if (k === 'Escape' && (t.id === 'ed-name' || t.id === 'ed-stack')) handlers['ed-close']();
+      else if (k === 'Escape' && (t.id === 'add-name' || t.id === 'add-stack')) handlers['add-close']();
       return;
     }
     if (mode === 'auto') {
@@ -1908,6 +1938,7 @@
     const h = state.hand;
     const key = k.toLowerCase();
     const run = (fn) => { ev.preventDefault(); fn(); };
+    if (k === 'Escape' && (ui.edit || ui.addOpen)) return run(() => { ui.edit = null; ui.addOpen = false; render(); });
 
     if (!h) { if (k === 'Enter' && E.planNextHand(state).ok) run(handlers.deal); return; }
 
