@@ -712,3 +712,18 @@ details.plain > div p + p { margin-top: 6px; }
 .sb-title { font: 700 14px var(--sans); margin-bottom: 8px; }
 .sb-row { display: grid; grid-template-columns: 1fr 140px; gap: 10px; align-items: center; padding: 4px 0; font-size: 14.5px; }
 .sb-row .in { min-height: 40px; }
+
+/* ---------- « À faire » : chaque étape où je dois saisir ou toucher quelque chose, encadrée en doré */
+.todo {
+  border: 2px solid var(--gold) !important; background: rgba(241, 195, 95, .07);
+  box-shadow: 0 0 0 4px rgba(241, 195, 95, .08);
+  animation: todo-in .7s ease-out;
+}
+.todo > .mt-label:first-child { display: block; margin-bottom: 6px; }
+.act.todo .act-head .mt-label { display: inline; margin-right: 4px; }
+.seat-form.todo { background: #15211b; }
+@keyframes todo-in {
+  from { box-shadow: 0 0 0 10px rgba(241, 195, 95, .35); }
+  to { box-shadow: 0 0 0 4px rgba(241, 195, 95, .08); }
+}
+@media (prefers-reduced-motion: reduce) { .todo { animation: none; } }

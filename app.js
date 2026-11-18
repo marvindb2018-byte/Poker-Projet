@@ -284,7 +284,8 @@
       </div>`;
     }
     const opts = (sel) => Array.from({ length: s.n }, (_, i) => `<option value="${i}" ${sel === i ? 'selected' : ''}>${i + 1}. ${esc(s.names[i])}</option>`).join('');
-    return `<section class="panel">
+    return `<section class="panel todo">
+      <div class="mt-label">À remplir</div>
       <h1>Nouvelle partie</h1>
       <div class="field-row">
         <span class="lbl">Nombre de joueurs</span>
@@ -321,15 +322,16 @@
     const h = state.hand;
     let out = '';
     if (!state.promptCopied) {
-      out += `<div class="banner">
-        <div><b>D'abord :</b> envoie le prompt de départ à Claude, dans une nouvelle conversation.</div>
+      out += `<div class="banner todo">
+        <div class="mt-label">À faire d'abord</div>
+        <div>Envoie le prompt de départ à Claude, dans une nouvelle conversation.</div>
         <div class="row">
           <button class="btn primary" data-a="copy-prompt">Copier le prompt</button>
           <button class="btn" data-a="tab" data-tab="prompt">Le voir</button>
         </div>
       </div>`;
     }
-    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle()}</div><div class="col-b">${ptable(null)}</div></div>`;
+    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle(state.promptCopied)}</div><div class="col-b">${ptable(null)}</div></div>`;
     let a = handHead(h);
     if (h.phase === 'spectate') a += viewSpectate(h);
     else if (h.phase === 'cards') a += picker(2, `Tes cartes <span class="muted">(${h.pos[h.meId]})</span>`, [], null);
@@ -454,7 +456,7 @@
     if (ui.addAfter && P.some((x) => x.id === ui.addAfter)) {
       const after = P.find((x) => x.id === ui.addAfter);
       const nextIdx = (P.indexOf(after) + 1) % P.length;
-      html += `<div class="seat-form" role="dialog" aria-label="Ajouter un joueur">
+      html += `<div class="seat-form todo" role="dialog" aria-label="Ajouter un joueur">
         <div class="sf-title">Nouveau joueur entre ${esc(after.name)} et ${esc(P[nextIdx].name)}</div>
         <div class="sf-row">
           <input class="in" id="sa-name" placeholder="Pseudo" maxlength="18" autocomplete="off">
@@ -470,11 +472,11 @@
     return html + '</div>';
   }
 
-  function viewIdle() {
+  function viewIdle(todoOn) {
     const S = state.settings;
     const plan = E.planNextHand(state);
     const n = state.handNo + 1;
-    let out = `<section class="panel"><h2>Prochaine main <span class="muted">#${n}</span></h2>`;
+    let out = `<section class="panel ${todoOn ? 'todo' : ''}">${todoOn ? '<div class="mt-label">À faire · distribuer</div>' : ''}<h2>Prochaine main <span class="muted">#${n}</span></h2>`;
     if (!plan.ok) out += `<p class="warn">${esc(plan.err)}</p>`;
     else {
       out += `<ol class="strip preview idle-list">${plan.pre.map((id) => {
@@ -505,7 +507,8 @@
   }
 
   function viewSpectate() {
-    return `<section class="panel">
+    return `<section class="panel todo">
+      <div class="mt-label">À faire · main suivante</div>
       <p>Tu ne joues pas cette main (en pause ou sans jetons). Rien à envoyer à Claude.</p>
       <button class="btn primary big" data-a="next-only">Main suivante ${K('Entrée')}</button>
       <button class="btn ghost wide" data-a="abort">Effacer cette main (le jeton D ne bouge pas)</button>
@@ -525,7 +528,8 @@
     const slots = Array.from({ length: need }, (_, i) => (ui.pick[i]
       ? `<button class="slot" data-a="unpick" data-i="${i}" title="Retirer">${cardHtml(ui.pick[i])}</button>`
       : '<span class="card empty"></span>')).join('');
-    return `<section class="panel picker">
+    return `<section class="panel picker todo">
+      <div class="mt-label">À faire</div>
       <div class="pk-title">${title}</div>
       <div class="slots">${slots}</div>
       <p class="hint">${ui.rank ? 'Choisis la couleur.' : 'Touche la valeur, puis la couleur.'} <span class="pc-only">Au clavier : <kbd>A</kbd> puis <kbd>C</kbd> = A♥.</span></p>
@@ -828,11 +832,11 @@
 
   function actionPanel(h, id, mine, meLive) {
     const o = E.options(h, id);
-    const head = (mine ? '<span class="mt-label">À toi · ce que tu joues</span>' : `À <b>${esc(h.names[id])}</b> ${posTag(h.pos[id], 'pos-inline')}`) + ' ' + tip('actions');
+    const head = (mine ? '<span class="mt-label">À toi · ce que tu joues</span>' : `<span class="mt-label">À saisir</span> ce que fait <b>${esc(h.names[id])}</b> ${posTag(h.pos[id], 'pos-inline')}`) + ' ' + tip('actions');
     const call = o.canCheck
       ? `<button class="btn" data-a="act" data-t="x">Check ${K('X')}</button>`
       : `<button class="btn" data-a="act" data-t="s">${o.toCall >= o.st ? 'Suit (tapis)' : 'Suit ' + o.toCall} ${K('S')}</button>`;
-    let out = `<section class="act ${mine ? 'mine' : ''}">
+    let out = `<section class="act todo ${mine ? 'mine' : ''}">
       <div class="act-head"><span>${head}</span><span class="muted">tapis ${o.st}${o.toCall ? ` · à suivre <b>${o.toCall}</b>` : ''}</span></div>
       <div class="act-btns">
         <button class="btn fold" data-a="act" data-t="f">Couché ${K('F')}</button>
@@ -865,7 +869,8 @@
       const who = p.won ? '→ ' + p.won.map((id) => esc(h.names[id])).join(', ') : p.elig.map((id) => esc(h.names[id])).join(', ');
       return `<li class="${p.won ? 'won' : ''}"><span>${label} <b>${p.amount}</b></span><span class="muted">${who}</span></li>`;
     }).join('');
-    return `<section class="panel">
+    return `<section class="panel todo">
+      <div class="mt-label">À faire</div>
       <h2>Qui gagne ?</h2>
       <ul class="pots">${pots}</ul>
       ${h.pots.filter((x) => !x.refund).length > 1 ? `<p class="hint">Il y a un pot annexe ${tip('sidepot')}</p>` : ''}
@@ -891,7 +896,8 @@
 
   function viewDone(h) {
     const S = E.handSummary(h);
-    return `<section class="panel done">
+    return `<section class="panel done todo">
+      <div class="mt-label">À faire · main suivante</div>
       <h2>Main #${h.no} terminée</h2>
       ${resultList(S)}
       <button class="btn primary big" data-a="next">Main suivante ${K('Entrée')}</button>
@@ -1011,14 +1017,16 @@
         <p class="hint">Fais une capture d'écran classique et partage-la à Claude. Sur PC Windows : <kbd>Win</kbd>+<kbd>Maj</kbd>+<kbd>S</kbd>.</p>
       </section>`;
     } else if (!capLive()) {
-      capture = `<section class="panel">
+      capture = `<section class="panel todo">
+        <div class="mt-label">À faire</div>
         <h2>Capture de la table</h2>
         <p>Choisis une seule fois la fenêtre (ou l'onglet) du jeu. Ensuite, un clic ou la touche <kbd>Espace</kbd> copie une image de la table, prête à coller dans Claude.</p>
         <button class="btn primary big" data-a="cap-start">Choisir la fenêtre du jeu</button>
         <p class="hint">Edge affiche un bandeau « partage en cours » : c'est normal, l'image ne sort pas de ton ordinateur, elle va seulement dans ton presse-papiers.</p>
       </section>`;
     } else {
-      capture = `<section class="panel">
+      capture = `<section class="panel todo">
+        <div class="mt-label">À chaque carte</div>
         <h2>Capture de la table <span class="ok-dot">fenêtre partagée</span></h2>
         <div id="cap-stage" class="cap-stage ${ui.cropping ? 'cropping' : ''}">
           <div id="cap-slot"></div>
