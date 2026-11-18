@@ -15,6 +15,7 @@
   const PKEY = 'pokercode:profiles:v1'; // façon de jouer de chaque pseudo, gardée d'une partie à l'autre
   const XKEY = 'pokercode:plainOpen'; // explications « En clair » que j'ai laissées ouvertes (par sorte)
   const LKEY = 'pokercode:learned'; // notions que je connais (onglet Apprendre)
+  const QKEY = 'pokercode:quickgame'; // partie rapide de l'onglet Mains : { on, n, btn (siège du jeton D), cls (ma main) }
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
   const SUIT_NAME = { p: 'pique', c: 'cœur', k: 'carreau', t: 'trèfle' };
@@ -42,6 +43,8 @@
   const plainOpen = new Set(parse(store.get(XKEY)) || []);
   const learned = new Set(parse(store.get(LKEY)) || []);
   const saveLearned = () => store.set(LKEY, JSON.stringify([...learned]));
+  let qg = parse(store.get(QKEY));
+  const saveQg = () => (qg ? store.set(QKEY, JSON.stringify(qg)) : store.del(QKEY));
   let crop = parse(store.get(CKEY));
 
   function save() {
@@ -63,6 +66,7 @@
     autoKey: null,
     setup: defaultSetup(),
   };
+  if (qg && qg.on && !state) ui.tab = 'charts'; // partie rapide en cours : on rouvre directement l'onglet Mains
 
   function defaultSetup() {
     return {
@@ -251,8 +255,11 @@
     return `<span class="card s-${c[1]}${cls ? ' ' + cls : ''}"><b>${c[0] === 'T' ? '10' : c[0]}</b><i>${SUIT_SYM[c[1]]}</i></span>`;
   }
 
+  const curPage = () => (!state ? (ui.tab === 'charts' || ui.tab === 'learn' ? ui.tab : 'main') : ui.tab);
+
   function render() {
     hideTip();
+    document.body.classList.toggle('tab-charts', mode !== 'auto' && curPage() === 'charts');
     const auto = mode === 'auto';
     document.body.classList.toggle('auto', auto);
     document.querySelectorAll('.mode-switch button').forEach((b) => b.classList.toggle('on', b.dataset.v === mode));
@@ -276,7 +283,8 @@
     else if (ui.tab === 'charts') html = viewCharts();
     else if (ui.tab === 'learn') html = viewLearn();
     else { ui.tab = 'main'; html = viewMain(); }
-    if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
+    if (curPage() === 'charts' && qg && qg.on) html = `<div class="wide-page">${html}</div>`; // table + tableau côte à côte sur PC
+    else if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
     $('view').innerHTML = html;
     $('side').innerHTML = viewSide();
     if (ui.tab === 'learn') filterLearn();
@@ -935,11 +943,66 @@
 
   /* ---- onglet Mains : tableaux des mains de départ */
 
+  // Place de chaque siège (0 = moi, puis dans le sens des aiguilles d'une montre) quand le jeton D est au siège b
+  function seatPositions(n, b) {
+    const P = E.POSITIONS[n];
+    return Array.from({ length: n }, (_, i) => {
+      const off = (i - b + n) % n;
+      if (n === 2) return off === 0 ? 'BTN' : 'BB';
+      return off === 0 ? 'BTN' : off === 1 ? 'SB' : off === 2 ? 'BB' : P[off - 3];
+    });
+  }
+
+  // Partie rapide (onglet Mains) : je joue avec mes potes, l'appli suit seulement le jeton D et me dit ma place
+  function quickTable() {
+    const n = qg.n, b = qg.btn;
+    const pos = b == null ? null : seatPositions(n, b);
+    const seats = Array.from({ length: n }, (_, k) => {
+      const a = ((90 + (k * 360) / n) * Math.PI) / 180;
+      const style = `left:${(50 + 43 * Math.cos(a)).toFixed(2)}%;top:${(50 + 41 * Math.sin(a)).toFixed(2)}%`;
+      return `<button type="button" class="q-seat ${k === 0 ? 'me' : ''} ${k === b ? 'is-btn' : ''}" style="${style}" data-a="qg-btn" data-i="${k}" title="Le jeton D est ici">
+        ${pos ? `<span class="q-pos">${pos[k]}</span>` : ''}<b>${k === 0 ? 'Toi' : 'Joueur ' + (k + 1)}</b>${k === b ? '<span class="q-d">D</span>' : ''}</button>`;
+    }).join('');
+    const mine = pos ? pos[0] : null;
+    return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
+      <div class="qg-head"><div class="mt-label">${b == null ? 'À faire · touche le joueur qui a le jeton D' : '🎯 Partie rapide'}</div><button class="link-btn" data-a="qg-stop">Arrêter</button></div>
+      <div class="field-row">
+        <span class="lbl">Joueurs à la table</span>
+        <div class="stepper">
+          <button data-a="qg-n" data-d="-1" aria-label="Un joueur de moins">−</button>
+          <b>${n}</b>
+          <button data-a="qg-n" data-d="1" aria-label="Un joueur de plus">+</button>
+        </div>
+      </div>
+      <div class="qtable"><div class="q-felt"></div>${seats}</div>
+      ${mine ? `<div class="q-me">Tu es <span class="q-me-pos">${mine}</span><span class="q-me-txt">${esc(POS_TIPS[mine] || '')}</span></div>
+        <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
+        <p class="hint">Touche ta main dans le tableau${wide() ? ' à droite' : ' en dessous'} pour savoir si tu la joues. Quelqu'un a relancé avant toi ? Choisis « Face à une relance ».</p>`
+        : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre. Touche le joueur qui a le jeton D sur votre table.</p>'}
+    </section>`;
+  }
+
+  // Verdict pour la main touchée dans le tableau
+  function verdict(v, c, cls) {
+    const label = { raise: 'Relance', r3: 'Sur-relance', call: 'Suis', fold: 'Couche-toi' }[c];
+    const ctx = v === 'vs' ? 'face à une relance' : v === 'BB' ? 'en grosse blinde, face à une relance' : "si personne n'a relancé avant toi";
+    const extra = v === 'BB' && c === 'fold' ? " (si personne n'a relancé : check, c'est gratuit)" : '';
+    return `<div class="verdict v-${c}"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><b>${label}</b><span class="v-ctx">${ctx}${extra}</span></div>`;
+  }
+
   function viewCharts() {
     const h = state && state.hand;
-    const n = h ? h.order.length : state ? state.players.filter(E.isActive).length : 6;
-    const myPos = h && h.meIn ? h.pos[h.meId] : null;
-    const myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : null;
+    const quick = !!(qg && qg.on);
+    let n, myPos, myClass;
+    if (quick) {
+      n = qg.n;
+      myPos = qg.btn == null ? null : seatPositions(n, qg.btn)[0];
+      myClass = qg.cls || null;
+    } else {
+      n = h ? h.order.length : state ? state.players.filter(E.isActive).length : 6;
+      myPos = h && h.meIn ? h.pos[h.meId] : null;
+      myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : ui.chartHand || null;
+    }
     const views = [['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['vs', 'Face à une relance']];
     let v = ui.chart;
     if (!v) {
@@ -963,16 +1026,19 @@
       legend = [['raise', 'Relance'], ['fold', 'Couche-toi']];
       text = `Personne n'a relancé avant toi : relance (${v === 'CO' || v === 'BTN' ? '2,5' : '3'} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
     }
-    const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
-    return `<section class="panel">
+    const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}" data-a="chart-hand" data-c="${c}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
+    const top = quick ? quickTable() : `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide <small>tu joues avec tes potes : l'appli suit le jeton D et te montre les mains à jouer à ta place</small></button>`;
+    const chart = `<section class="panel">
       <h2>Mains de départ</h2>
-      <p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c'est ce qui fait le plus progresser un débutant.</p>
+      ${quick ? '' : '<p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c\'est ce qui fait le plus progresser un débutant.</p>'}
       <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : 'pos:' + k}">${l}</button>`).join('')}</div>
+      ${myClass ? verdict(v, cat(myClass), myClass) : quick && myPos ? '<p class="v-empty">Touche ta main dans le tableau.</p>' : ''}
       <div class="hc-grid">${grid}</div>
       <div class="hc-legend">${legend.map(([c, l]) => `<span><i class="hc ${c}"></i>${l}</span>`).join('')}${myClass ? `<span><i class="hc mine"></i>Ta main (${myClass})</span>` : ''}</div>
       <p class="hint">${text}</p>
       <p class="hint">Lecture : « s » = cartes de la même couleur (assorties), « o » = couleurs différentes. Au-dessus de la diagonale, les mains assorties ; en dessous, les autres ; sur la diagonale, les paires.</p>
     </section>`;
+    return quick ? `<div class="charts-play"><div class="cp-a">${top}</div><div class="cp-b">${chart}</div></div>` : top + chart;
   }
 
   function actionPanel(h, id, mine, meLive) {
@@ -1109,7 +1175,8 @@
       </li>`).join('');
     out += '</ol></section></div>';
 
-    out += `<div class="side-b"><section class="side-box keys">
+    // onglet Mains : pas de raccourcis (la place va à la table et au tableau)
+    if (curPage() !== 'charts') out += `<div class="side-b"><section class="side-box keys">
       <h3>Raccourcis clavier</h3>
       <p class="hint">Les mêmes lettres que dans les messages pour Claude.</p>
       <dl>
@@ -1724,6 +1791,28 @@
         if (el) showTip(el, true);
       }
     },
+    'qg-start'() {
+      qg = { on: true, n: state ? Math.max(2, state.players.filter(E.isActive).length) : 6, btn: null, cls: null };
+      ui.chart = null; saveQg(); render(); window.scrollTo(0, 0);
+    },
+    'qg-stop'() { qg = null; ui.chart = null; saveQg(); render(); },
+    'qg-n'(d) {
+      qg.n = Math.max(2, Math.min(E.MAX_PLAYERS, qg.n + Number(d.d)));
+      if (qg.btn != null && qg.btn >= qg.n) qg.btn = null;
+      ui.chart = null; saveQg(); render();
+    },
+    'qg-btn'(d) { qg.btn = Number(d.i); ui.chart = null; saveQg(); render(); },
+    'qg-next'() {
+      if (!qg || qg.btn == null) return;
+      qg.btn = (qg.btn + 1) % qg.n; // le jeton D passe au joueur suivant (sens des aiguilles d'une montre)
+      qg.cls = null; ui.chart = null; saveQg(); render();
+      toast('Main suivante : tu es ' + seatPositions(qg.n, qg.btn)[0]);
+    },
+    'chart-hand'(d) {
+      if (qg && qg.on) { qg.cls = qg.cls === d.c ? null : d.c; saveQg(); }
+      else ui.chartHand = ui.chartHand === d.c ? null : d.c;
+      render();
+    },
     'quiz-start'() { ui.quiz = pickQuiz(null); render(); window.scrollTo(0, 0); },
     'quiz-show'() { if (ui.quiz) { ui.quiz.shown = true; render(); } },
     'quiz-yes'() { if (!ui.quiz) return; learned.add(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },
@@ -2013,6 +2102,10 @@
       if (t.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return; // le bouton s'en charge
       if (k === ' ' || k.toLowerCase() === 'c') { ev.preventDefault(); shoot(); }
       else if (k === 'Escape' && ui.cropping) { ui.cropping = false; render(); }
+      return;
+    }
+    if (curPage() === 'charts' && qg && qg.on && qg.btn != null && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if ((k === 'Enter' || k === ' ') && t.tagName !== 'BUTTON') { ev.preventDefault(); handlers['qg-next'](); }
       return;
     }
     if (ev.ctrlKey || ev.metaKey || ev.altKey || !state || ui.tab !== 'main') return;
