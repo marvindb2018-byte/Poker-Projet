@@ -29,6 +29,14 @@ L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode �
 
 L'**historique de la main** (blindes, actions de chacun, cartes, pot, gagnant, mise non suivie rendue) s'affiche pendant et après la main.
 
+**Aide instantanée (sans IA)** : dès que tes cartes sont choisies, l'appli affiche sans attendre Claude :
+- avant le flop, le conseil du tableau des mains de départ selon ta place et ce qui s'est passé avant toi (« Relance à 180 · AKo : main premium »). Avant ton tour, le plan pour les cas fréquents (personne ne relance / une relance / deux relances). `G` ou « Jouer ça » joue le conseil ;
+- à chaque tour, ta probabilité de gagner contre les joueurs encore en jeu (calculée en tirant des milliers de mains au hasard) ;
+- quand il faut suivre, la cote du pot : « pour suivre 60, il faut gagner 40 % du temps → suivre est rentable ».
+La probabilité suppose des adversaires aux mains quelconques : face à une grosse relance, la vraie chance est plus basse.
+
+**Onglet Mains** : les tableaux des mains de départ (13 × 13) pour chaque place, la défense en grosse blinde et « face à une relance », avec ta main encadrée. Pour les apprendre petit à petit.
+
 **Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, pour corriger des jetons d'après le site, ou pour déplacer le jeton D.
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action. « Effacer cette main » efface toute la saisie de la main en cours (ce n'est pas se coucher : pour ça, c'est « Couché »).
 
@@ -46,6 +54,7 @@ L'**historique de la main** (blindes, actions de chacun, cartes, pot, gagnant, m
 | `A` | Tapis |
 | `J` | Check / couché jusqu'à moi |
 | `C` | Copier le message pour Claude |
+| `G` | Jouer le conseil du tableau (avant le flop) |
 | Cartes | la valeur puis la couleur : `A` puis `C` = A♥ (couleurs `P` ♠ `C` ♥ `K` ♦ `T` ♣), `⌫` efface |
 | `1` `2`… | Qui gagne : choisir le joueur |
 | `Entrée` | Distribuer, valider, main suivante |
@@ -87,9 +96,10 @@ Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blin
 |---|---|
 | `engine.js` | Règles de la partie : positions, ordre de parole, mises, pots annexes, texte des messages et du prompt (`buildPrompt`, `buildMessage`) |
 | `hands.js` | Les combinaisons du poker et le calcul de « ta main » |
+| `odds.js` | Probabilité de gagner, cote du pot, tableaux des mains de départ (`RANGES`) et conseil avant le flop |
 | `app.js` | Les écrans, les boutons et les raccourcis clavier |
 | `style.css` | L'apparence (couleurs en haut du fichier, affichage PC à la fin) |
 | `index.html` | La page qui charge le tout |
-| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages) |
+| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages), `node tests/odds.test.js` (probabilités et tableaux) |
 
 Pour essayer en local : `python3 -m http.server` dans ce dossier, puis ouvrir http://localhost:8000.

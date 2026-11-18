@@ -4,6 +4,7 @@
 
   const E = window.PokerEngine;
   const HANDS = window.PokerHands;
+  const ODDS = window.PokerOdds;
   const KEY = 'pokercode:v1';
   const HKEY = 'pokercode:hist:v1';
   const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
@@ -84,6 +85,7 @@
     dealer: "Le jeton « D » (dealer, ou « bouton ») marque le joueur qui distribue, même si en ligne c'est le logiciel qui le fait. Les deux joueurs à sa gauche paient les blindes. C'est la meilleure place : il parle en dernier après le flop. Il avance d'une place à chaque main.",
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
+    instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains). La probabilité de gagner est calculée contre des mains au hasard : face à une grosse relance, la vraie chance est plus basse. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
     sidepot: "Pot annexe : un joueur à tapis ne peut gagner, chez chaque adversaire, que ce qu'il a lui-même misé. Le reste forme un pot annexe, disputé seulement entre les joueurs qui avaient plus de jetons. L'appli fait le calcul : désigne juste la meilleure main.",
     hand: "Ta meilleure combinaison avec tes 2 cartes et les cartes du tableau. Un « tirage », c'est quand il te manque une seule carte pour faire une couleur ou une quinte : elle peut encore tomber à la turn ou à la river.",
   };
@@ -185,6 +187,7 @@
     else if (ui.tab === 'table') html = viewTable();
     else if (ui.tab === 'prompt') html = viewPrompt();
     else if (ui.tab === 'settings') html = viewSettings();
+    else if (ui.tab === 'charts') html = viewCharts();
     else html = viewMain();
     if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
     $('view').innerHTML = html;
@@ -490,8 +493,116 @@
     } else if (h.meIn && !meLive) {
       out += foldedBanner();
     }
-    out += actionPanel(h, id, mine, meLive);
+    const help = meLive && h.cards.length === 2 ? instantHelp(h, mine) : '';
+    // à mon tour : l'aide juste avant mes boutons ; sinon, sous le joueur qui parle
+    out += mine ? help + actionPanel(h, id, mine, meLive) : actionPanel(h, id, mine, meLive) + help;
     return out;
+  }
+
+  /* ---- aide instantanée (sans IA) : tableau des mains de départ, probabilité de gagner, cote du pot */
+
+  const eqCache = new Map();
+  function myEquity(h) {
+    const nOpp = E.live(h).filter((id) => id !== h.meId).length;
+    if (!nOpp) return null;
+    const key = h.cards.join('') + '|' + h.board.join('') + '|' + nOpp;
+    if (!eqCache.has(key)) {
+      if (eqCache.size > 60) eqCache.clear();
+      eqCache.set(key, ODDS.equity(h.cards, h.board, nOpp));
+    }
+    return { nOpp, eq: eqCache.get(key).equity };
+  }
+
+  // Ce qui s'est passé avant moi pendant le préflop (relances, suiveurs)
+  function preflopCtx(h, override) {
+    let raises = 0, limpers = 0, iRaised = false, top = h.bb;
+    h.events.forEach((e) => {
+      if (e.t !== 'act' || e.street !== 0) return;
+      const isRaise = e.a === 'r' || e.a === 'b' || (e.a === 'AI' && e.amt > top);
+      if (isRaise) top = e.amt;
+      if (e.id === h.meId) { if (isRaise) iRaised = true; return; }
+      if (isRaise) raises++;
+      else if (e.a === 's' && raises === 0) limpers++;
+    });
+    return Object.assign({
+      cards: h.cards, pos: h.pos[h.meId], n: h.order.length, bb: h.bb, sb: h.sb, cb: h.cb,
+      myBet: h.bet[h.meId], myStack: h.stack[h.meId], raises, limpers, iRaised: iRaised && raises > 0,
+    }, override || {});
+  }
+
+  function adviceLine(a, applicable) {
+    const btn = applicable ? ` <button class="chip apply" data-a="apply-advice" data-act="${a.action}" data-to="${a.to || ''}">Jouer ça ${K('G')}</button>` : '';
+    return `<div class="ins-adv"><b>${a.text}</b>${btn}<small>${esc(a.why)}</small></div>`;
+  }
+
+  function instantHelp(h, mine) {
+    let out = `<section class="instant"><div class="ins-title">Aide instantanée <span class="muted">sans IA</span> ${tip('instant')}</div>`;
+    if (h.street === 0) {
+      if (mine) {
+        out += adviceLine(ODDS.preflopAdvice(preflopCtx(h)), true);
+      } else {
+        // pas encore à moi : le plan du tableau pour les cas les plus fréquents
+        const plan = [
+          ['Si personne ne relance', ODDS.preflopAdvice(preflopCtx(h, { raises: 0, limpers: 0, cb: h.bb, iRaised: false }))],
+          ['Si une relance', ODDS.preflopAdvice(preflopCtx(h, { raises: 1, limpers: 0, cb: h.bb * 3, iRaised: false }))],
+          ['Si deux relances', ODDS.preflopAdvice(preflopCtx(h, { raises: 2, limpers: 0, cb: h.bb * 9, iRaised: false }))],
+        ];
+        out += `<ul class="ins-plan">${plan.map(([k, a]) => `<li><span>${k}</span> → <b>${a.text}</b></li>`).join('')}</ul>`;
+      }
+    }
+    const e = myEquity(h);
+    if (e) {
+      out += `<div class="ins-eq">≈ <b>${Math.round(e.eq * 100)} %</b> de gagner contre ${e.nOpp} adversaire${e.nOpp > 1 ? 's' : ''}</div>`;
+      const o = E.options(h, h.meId);
+      if (mine && o.toCall > 0) {
+        const need = ODDS.potOdds(o.toCall, E.potOf(h));
+        const good = e.eq >= need;
+        out += `<div class="ins-odds">Pour suivre ${o.toCall}, il faut gagner <b>${Math.round(need * 100)} %</b> du temps → <span class="${good ? 'good' : 'bad'}">${good ? 'suivre est rentable' : 'suivre n\'est pas rentable'}</span> <small>(d'après le seul calcul)</small></div>`;
+      }
+    }
+    return out + '</section>';
+  }
+
+  /* ---- onglet Mains : tableaux des mains de départ */
+
+  function viewCharts() {
+    const h = state.hand;
+    const n = h ? h.order.length : state.players.filter(E.isActive).length;
+    const myPos = h && h.meIn ? h.pos[h.meId] : null;
+    const myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : null;
+    const views = [['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['vs', 'Face à une relance']];
+    let v = ui.chart;
+    if (!v) {
+      const k = myPos ? (myPos === 'BB' ? 'BB' : ODDS.openRangeKey(myPos, n)) : 'CO';
+      v = k === 'UTG9' ? 'UTG' : k || 'CO';
+    }
+    const R = ODDS.RANGES;
+    let cat, legend, text;
+    if (v === 'BB') {
+      cat = (c) => (R.threeBet.has(c) ? 'r3' : R.callBB.has(c) ? 'call' : 'fold');
+      legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
+      text = "En grosse blinde, face à une seule relance (jusqu'à 4,5 grosses blindes) : tu as déjà misé, donc tu peux payer avec beaucoup de mains. Si personne n'a relancé : check (ou relance avec TT+, AQs+, AKo).";
+    } else if (v === 'vs') {
+      cat = (c) => (R.threeBet.has(c) ? 'r3' : R.call.has(c) ? 'call' : 'fold');
+      legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
+      text = "Face à une seule relance, à une autre place que la grosse blinde. Face à une grosse relance (plus de 4,5 grosses blindes) : continue seulement avec 77+, AJs+, KQs, AQo+. Face à deux relances : relance encore avec AA et KK, suis avec QQ et AK, couche le reste.";
+    } else {
+      const key = v === 'UTG' && n >= 8 ? 'UTG9' : v;
+      const range = R.open[key];
+      cat = (c) => (range.has(c) ? 'raise' : 'fold');
+      legend = [['raise', 'Relance'], ['fold', 'Couche-toi']];
+      text = `Personne n'a relancé avant toi : relance (${v === 'CO' || v === 'BTN' ? '2,5' : '3'} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
+    }
+    const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
+    return `<section class="panel">
+      <h2>Mains de départ</h2>
+      <p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c'est ce qui fait le plus progresser un débutant.</p>
+      <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}">${l}</button>`).join('')}</div>
+      <div class="hc-grid">${grid}</div>
+      <div class="hc-legend">${legend.map(([c, l]) => `<span><i class="hc ${c}"></i>${l}</span>`).join('')}${myClass ? `<span><i class="hc mine"></i>Ta main (${myClass})</span>` : ''}</div>
+      <p class="hint">${text}</p>
+      <p class="hint">Lecture : « s » = cartes de la même couleur (assorties), « o » = couleurs différentes. Au-dessus de la diagonale, les mains assorties ; en dessous, les autres ; sur la diagonale, les paires.</p>
+    </section>`;
   }
 
   function actionPanel(h, id, mine, meLive) {
@@ -594,6 +705,8 @@
       const show = (c, cls) => `<span class="${cls}${mineSet.has(c) ? ' from-me' : ''}">${cardHtml(c, 'sm')}</span>`;
       out += `<div class="now-cards">${cur.best.main.map((c) => show(c, 'nc')).join('')}${cur.best.kick.map((c) => show(c, 'nc kick')).join('')}</div>`;
       out += `<div class="now">${esc(cur.best.name)}</div>`;
+      const eqSide = E.meLive(h) ? myEquity(h) : null;
+      if (eqSide) out += `<div class="now-eq">≈ <b>${Math.round(eqSide.eq * 100)} %</b> de gagner contre ${eqSide.nOpp} adversaire${eqSide.nOpp > 1 ? 's' : ''}</div>`;
       out += '<p class="hint small-legend"><span class="dot"></span> carte de ta main · grisée = carte d\'appoint (kicker)</p>';
       if (cur.note) out += `<p class="hint">${cur.note}</p>`;
       if (cur.shared) out += '<p class="warn small">Cette combinaison est entièrement sur le tableau : tous les joueurs l\'ont aussi.</p>';
@@ -621,6 +734,7 @@
         <dt><kbd>A</kbd></dt><dd>Tapis</dd>
         <dt><kbd>J</kbd></dt><dd>Check / couché jusqu'à moi</dd>
         <dt><kbd>C</kbd></dt><dd>Copier le message pour Claude</dd>
+        <dt><kbd>G</kbd></dt><dd>Jouer le conseil du tableau (avant le flop)</dd>
         <dt>Cartes</dt><dd>La valeur puis la couleur : <kbd>A</kbd> puis <kbd>C</kbd> = A♥.<br>Valeurs A K Q J T 9…2 · couleurs <kbd>P</kbd> ♠ <kbd>C</kbd> ♥ <kbd>K</kbd> ♦ <kbd>T</kbd> ♣ · <kbd>⌫</kbd> efface</dd>
         <dt><kbd>1</kbd> <kbd>2</kbd>…</dt><dd>Qui gagne : choisir le joueur</dd>
         <dt><kbd>Entrée</kbd></dt><dd>Distribuer, valider, main suivante</dd>
@@ -1082,6 +1196,12 @@
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
+    chart(d) { ui.chart = d.v; render(); },
+    'apply-advice'(d) {
+      const map = { raise: { type: 'r', to: Number(d.to) }, call: { type: 's' }, check: { type: 'x' }, fold: { type: 'f' }, allin: { type: 'AI' } };
+      const a = map[d.act];
+      if (a) cmd((s) => E.applyAction(s, a));
+    },
     // table de poker (PC) : « + » et « − »
     'seat-add'(d) {
       ui.addAfter = ui.addAfter === d.id ? null : d.id;
@@ -1303,6 +1423,11 @@
       if (key === 'a') return run(() => handlers.act({ t: 'AI' }));
       if (key === 'j' && !mine && E.meLive(h)) return run(handlers['skip-to-me']);
       if (key === 'c' && mine) return run(handlers['copy-msg']);
+      if (key === 'g' && mine) {
+        const btn = document.querySelector('[data-a="apply-advice"]');
+        if (btn) return run(() => handlers['apply-advice'](btn.dataset));
+        return;
+      }
       if (k === 'Escape' && ui.sizing) return run(() => { ui.sizing = false; render(); });
       return;
     }
