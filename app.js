@@ -66,7 +66,7 @@
 
   function defaultSetup() {
     return {
-      n: 6, sb: 10, bb: 20, ante: 0, anteType: 'chacun', me: 0, btn: 0, paused: [],
+      n: 6, sb: 10, bb: 20, ante: 0, anteType: 'chacun', me: 0, btn: 0, paused: [], qgBtn: null,
       names: Array.from({ length: E.MAX_PLAYERS }, (_, i) => (i === 0 ? 'Moi' : 'Joueur ' + (i + 1))),
       stacks: Array.from({ length: E.MAX_PLAYERS }, () => ''),
     };
@@ -251,8 +251,11 @@
     return `<span class="card s-${c[1]}${cls ? ' ' + cls : ''}"><b>${c[0] === 'T' ? '10' : c[0]}</b><i>${SUIT_SYM[c[1]]}</i></span>`;
   }
 
+  const curPage = () => (!state ? (ui.tab === 'charts' || ui.tab === 'learn' ? ui.tab : 'main') : ui.tab);
+
   function render() {
     hideTip();
+    document.body.classList.toggle('tab-main', mode !== 'auto' && curPage() === 'main');
     const auto = mode === 'auto';
     document.body.classList.toggle('auto', auto);
     document.querySelectorAll('.mode-switch button').forEach((b) => b.classList.toggle('on', b.dataset.v === mode));
@@ -271,12 +274,13 @@
     nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
     let html;
     if (!state) html = ui.tab === 'charts' ? viewCharts() : ui.tab === 'learn' ? viewLearn() : viewSetup();
+    else if (ui.qgOpen && ui.tab === 'main') html = viewQuickGame();
     else if (ui.tab === 'prompt') html = viewPrompt();
     else if (ui.tab === 'settings') html = viewSettings();
     else if (ui.tab === 'charts') html = viewCharts();
     else if (ui.tab === 'learn') html = viewLearn();
     else { ui.tab = 'main'; html = viewMain(); }
-    if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
+    if (!state || ui.tab !== 'main' || ui.qgOpen) html = `<div class="narrow">${html}</div>`;
     $('view').innerHTML = html;
     $('side').innerHTML = viewSide();
     if (ui.tab === 'learn') filterLearn();
@@ -285,6 +289,7 @@
   /* ---- nouvelle partie */
 
   function viewSetup() {
+    if (ui.qgOpen) return viewQuickGame();
     const s = ui.setup;
     let rows = '';
     for (let i = 0; i < s.n; i++) {
@@ -331,8 +336,11 @@
   // Démarrage rapide : une capture de la table → Claude répond par une ligne « TABLE … » → collée ici, elle remplit tout
   function quickStart() {
     if (!ui.quickOpen) {
-      return `<button class="btn quick-btn wide" data-a="quick-open">⚡ Démarrage rapide <small>une capture de la table, Claude remplit tout</small></button>
-        <p class="hint quick-or">ou remplis toi-même ci-dessous :</p>`;
+      return `<div class="quick-btns">
+          <button class="btn quick-btn" data-a="qg-open">🎯 Partie rapide <small>juste le nombre de joueurs et le jeton D</small></button>
+          <button class="btn quick-btn" data-a="quick-open">⚡ Depuis une capture <small>Claude lit la table et remplit tout</small></button>
+        </div>
+        <p class="hint quick-or">ou remplis tout toi-même ci-dessous :</p>`;
     }
     const r = ui.quickResult;
     let msg = '';
@@ -345,7 +353,7 @@
           <button class="btn primary big" data-a="setup-go">Commencer la partie</button>`;
     }
     return `<div class="quick">
-      <div class="quick-head"><b>⚡ Démarrage rapide</b><button class="link-btn" data-a="quick-close">Fermer</button></div>
+      <div class="quick-head"><b>⚡ Depuis une capture</b><button class="link-btn" data-a="quick-close">Fermer</button></div>
       <ol class="steps">
         <li>Fais une capture de la table du site (sur PC : <kbd>Win</kbd>+<kbd>Maj</kbd>+<kbd>S</kbd>).</li>
         <li>Copie ce prompt et colle-le dans Claude avec ta capture :
@@ -355,6 +363,53 @@
       <textarea class="in" id="table-paste" rows="2" placeholder="TABLE blindes 10/20 | ante 0 | Marvin 2000 (moi) | Paul 1850 (D) | …">${esc(ui.tablePaste || '')}</textarea>
       ${msg}
     </div>`;
+  }
+
+  // Place de chaque siège (0 = moi, puis dans le sens des aiguilles d'une montre) quand le jeton D est au siège b
+  function seatPositions(n, b) {
+    const P = E.POSITIONS[n];
+    return Array.from({ length: n }, (_, i) => {
+      const off = (i - b + n) % n;
+      if (n === 2) return off === 0 ? 'BTN' : 'BB';
+      return off === 0 ? 'BTN' : off === 1 ? 'SB' : off === 2 ? 'BB' : P[off - 3];
+    });
+  }
+
+  // Partie rapide : le nombre de joueurs, puis un clic sur le joueur qui a le jeton D. Pas de pseudo, pas de jetons à taper.
+  function viewQuickGame() {
+    const s = ui.setup;
+    const n = s.n;
+    const b = s.qgBtn;
+    const pos = b == null ? null : seatPositions(n, b);
+    const seats = Array.from({ length: n }, (_, k) => {
+      const a = ((90 + (k * 360) / n) * Math.PI) / 180;
+      const style = `left:${(50 + 43 * Math.cos(a)).toFixed(2)}%;top:${(50 + 41 * Math.sin(a)).toFixed(2)}%`;
+      return `<button type="button" class="q-seat ${k === 0 ? 'me' : ''} ${k === b ? 'is-btn' : ''}" style="${style}" data-a="qg-btn" data-i="${k}">
+        ${pos ? `<span class="q-pos">${pos[k]}</span>` : ''}<b>${k === 0 ? 'Toi' : 'Joueur ' + (k + 1)}</b>${k === b ? '<span class="q-d">D</span>' : ''}</button>`;
+    }).join('');
+    const mine = pos ? pos[0] : null;
+    return `<section class="panel todo">
+      <div class="mt-label">À faire · partie rapide</div>
+      <h1>Partie rapide</h1>
+      <div class="field-row">
+        <span class="lbl">Joueurs à la table</span>
+        <div class="stepper">
+          <button data-a="setup-n" data-d="-1" aria-label="Un joueur de moins">−</button>
+          <b>${n}</b>
+          <button data-a="setup-n" data-d="1" aria-label="Un joueur de plus">+</button>
+        </div>
+      </div>
+      <p class="q-help">${b == null ? '<b>Touche le joueur qui a le jeton D</b> sur le site. Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.' : 'Pas le bon joueur ? Touche celui qui a vraiment le jeton D.'}</p>
+      <div class="qtable"><div class="q-felt"></div>${seats}</div>
+      ${mine ? `<div class="q-me">Tu es <b>${posTag(mine, 'q-me-pos')}</b><span>${esc(POS_TIPS[mine] || '')}</span></div>` : ''}
+      <div class="grid2 q-blinds">
+        <label class="field">Petite blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="sb" value="${esc(s.sb)}"></label>
+        <label class="field">Grosse blinde<input class="in" type="number" inputmode="numeric" min="1" data-setup="bb" value="${esc(s.bb)}"></label>
+      </div>
+      <button class="btn primary big" data-a="qg-go" ${b == null ? 'disabled' : ''}>Commencer : à tes cartes</button>
+      <p class="hint">Chaque joueur part avec 100 grosses blindes. Tu pourras corriger les pseudos et les jetons à tout moment en touchant un joueur.</p>
+      <button class="link-btn" data-a="qg-close">${state ? '← Revenir à la partie en cours' : '← Saisir les pseudos et les jetons à la place'}</button>
+    </section>`;
   }
 
   // La réponse de Claude collée : on remplit le formulaire de départ
@@ -387,6 +442,7 @@
         <div class="row">
           <button class="btn primary" data-a="copy-prompt">Copier le prompt</button>
           <button class="btn" data-a="tab" data-tab="prompt">Le voir</button>
+          <button class="btn ghost" data-a="prompt-skip">Pas besoin : juste l'aide de l'appli</button>
         </div>
       </div>`;
     }
@@ -631,6 +687,7 @@
     }
     out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier ${tip('positions')}.</p>
       <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n} ${K('Entrée')}</button>
+      <button class="btn ghost wide qg-new" data-a="qg-new">🎯 Partie rapide à une nouvelle table</button>
       <p class="hint">Un joueur part, recave ou n'a plus les mêmes jetons que sur le site ? Touche-le${wide() ? ' sur la table' : ' dans la liste'}.${wide() ? ' Un joueur arrive ? Le « + » entre deux sièges.' : ''}</p>
     </section>`;
     if (!wide()) out += editorPanel() + othersList(null) + arrivalBox();
@@ -1108,11 +1165,19 @@
         <small>${c.desc}</small>
       </li>`).join('');
     out += '</ol></section></div>';
-
-    out += `<div class="side-b"><section class="side-box keys">
+    // page Main : pas de raccourcis (la place va à la table) ; ailleurs, ils restent à droite
+    if (curPage() !== 'main') {
+      out += `<div class="side-b"><section class="side-box keys">
       <h3>Raccourcis clavier</h3>
-      <p class="hint">Les mêmes lettres que dans les messages pour Claude.</p>
-      <dl>
+      <p class="hint">Les mêmes lettres que dans les messages pour Claude. Ils marchent sur la page Main.</p>
+      ${SHORTCUTS}
+    </section></div>`;
+    }
+    return out;
+  }
+
+  // Raccourcis clavier (PC) : rangés dans l'onglet Apprendre ; les touches restent aussi affichées sur les boutons
+  const SHORTCUTS = `<dl>
         <dt><kbd>F</kbd></dt><dd>Couché</dd>
         <dt><kbd>X</kbd></dt><dd>Check</dd>
         <dt><kbd>S</kbd></dt><dd>Suit</dd>
@@ -1126,10 +1191,7 @@
         <dt><kbd>Entrée</kbd></dt><dd>Distribuer, valider, main suivante</dd>
         <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Annuler la dernière action</dd>
         <dt><kbd>Échap</kbd></dt><dd>Fermer le montant ou la valeur choisie</dd>
-      </dl>
-    </section></div>`;
-    return out;
-  }
+      </dl>`;
 
   /* ---- mode Auto : captures d'écran lues par Claude */
 
@@ -1592,12 +1654,40 @@
       const s = ui.setup;
       s.n = Math.max(2, Math.min(E.MAX_PLAYERS, s.n + Number(d.d)));
       s.paused = (s.paused || []).filter((i) => i < s.n);
+      if (s.qgBtn != null && s.qgBtn >= s.n) s.qgBtn = null;
       if (s.me >= s.n) s.me = 0;
       if (s.btn >= s.n) s.btn = 0;
       render();
     },
     'setup-me'(d) { ui.setup.me = Number(d.i); render(); },
     'quick-open'() { ui.quickOpen = true; render(); },
+    'qg-open'() { ui.qgOpen = true; ui.setup.qgBtn = null; render(); window.scrollTo(0, 0); },
+    'qg-close'() { ui.qgOpen = false; render(); },
+    'qg-new'() {
+      const s = ui.setup;
+      s.n = Math.max(2, Math.min(E.MAX_PLAYERS, state.players.filter(E.isActive).length));
+      s.sb = state.settings.sb; s.bb = state.settings.bb; s.qgBtn = null;
+      ui.qgOpen = true;
+      render();
+      window.scrollTo(0, 0);
+    },
+    'qg-btn'(d) { ui.setup.qgBtn = Number(d.i); render(); },
+    'qg-go'() {
+      const s = ui.setup;
+      const sb = Number(s.sb) || 10, bb = Number(s.bb) || 20;
+      if (sb > bb) return toast('La petite blinde doit être ≤ à la grosse.');
+      if (s.qgBtn == null) return toast('Touche d\'abord le joueur qui a le jeton D.');
+      if (state && !window.confirm('Commencer une nouvelle partie rapide ? La partie en cours sera remplacée.')) return;
+      const names = Array.from({ length: s.n }, (_, i) => (i === 0 ? 'Moi' : 'Joueur ' + (i + 1)));
+      state = E.newGame({ names, stacks: names.map(() => bb * 100), meIndex: 0, btnIndex: s.qgBtn, sb, bb, ante: 0 });
+      hist = [];
+      startHand(state); // directement à mes cartes
+      ui.qgOpen = false; ui.tab = 'main';
+      save();
+      render();
+      window.scrollTo(0, 0);
+    },
+    'prompt-skip'() { cmd((st) => { st.promptCopied = true; return { ok: true }; }); },
     'quick-close'() { ui.quickOpen = false; render(); },
     'copy-table-prompt'() { copy(E.buildTablePrompt(), 'Prompt copié : colle-le dans Claude avec ta capture'); },
 

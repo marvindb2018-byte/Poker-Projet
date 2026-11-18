@@ -372,6 +372,7 @@ kbd {
   main { max-width: none; margin: 0; padding: 0; }
   .side { display: block; position: sticky; top: 84px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; }
   .narrow { max-width: 720px; }
+  body.tab-main .narrow { margin: 0 auto; } /* page Main : centrée */
   .hand-grid { display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
   .k, .pc-only { display: inline-block; }
   .k { margin-left: 6px; opacity: .8; font-size: 11px; padding: 0 5px; }
@@ -386,6 +387,9 @@ kbd {
 @media (min-width: 1600px) {
   .layout { grid-template-columns: minmax(0, 1fr) 700px; max-width: 1880px; }
   .side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; overflow: visible; max-height: none; }
+  /* page Main : pas de colonne « raccourcis », la place va à la table, au centre */
+  body.tab-main .layout { grid-template-columns: minmax(0, 1fr) 400px; }
+  body.tab-main .side { display: block; overflow: auto; max-height: calc(100vh - 100px); }
 }
 
 /* ---------- table de poker (PC uniquement) */
@@ -775,3 +779,37 @@ details.plain > div p + p { margin-top: 6px; }
 
 /* ---------- passer le tour (main pas suivie) */
 .hh-line .skip { margin-left: 8px; min-height: 30px; padding: 0 10px; font-size: 13px; text-decoration: none; }
+
+
+/* ---------- départ : partie rapide / depuis une capture */
+.quick-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 4px; }
+.quick-btns .quick-btn { margin: 0; }
+@media (max-width: 520px) { .quick-btns { grid-template-columns: 1fr; } }
+.q-help { margin: 4px 0 6px; font-size: 15px; line-height: 1.45; }
+.qtable { position: relative; width: 100%; aspect-ratio: 4 / 3; margin: 10px 0 14px; }
+.q-felt {
+  position: absolute; inset: 14% 11%; border-radius: 9999px;
+  background: radial-gradient(ellipse at 50% 38%, #23774f 0%, #165a3b 55%, #0f4430 100%);
+  border: 10px solid #3b2a1d; box-shadow: inset 0 0 30px rgba(0, 0, 0, .45);
+}
+.q-seat {
+  position: absolute; transform: translate(-50%, -50%); z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: clamp(62px, 19%, 104px);
+  padding: 6px 8px; border-radius: 12px; border: 1px solid var(--line); background: #0f1a15; color: var(--paper);
+  font: 600 clamp(11px, 2.9vw, 14px) var(--sans); cursor: pointer; box-shadow: 0 6px 14px rgba(0, 0, 0, .45); white-space: nowrap;
+}
+.q-seat:hover { border-color: rgba(241, 195, 95, .7); }
+.q-seat.me { border-color: var(--gold); }
+.q-seat.me b { color: var(--gold); }
+.q-seat.is-btn { border: 2px solid var(--accent); }
+.q-pos { font: 800 10px var(--mono); color: var(--muted); letter-spacing: .04em; }
+.q-d {
+  position: absolute; top: -9px; right: -9px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; background: #fff; color: #111; font: 800 12px var(--sans); box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
+}
+.q-me { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: rgba(60, 196, 127, .1); font-size: 17px; }
+.q-me b { font-size: 22px; color: var(--accent); }
+.q-me > span:last-child { flex-basis: 100%; font-size: 14px; color: #dfe8e3; }
+.q-me-pos { text-decoration: none; font: 800 24px var(--sans); color: var(--accent); }
+.q-blinds { margin-bottom: 10px; }
+.qg-new { margin-top: 8px; }
