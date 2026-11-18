@@ -20,9 +20,7 @@ L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode �
 
 Les onglets **Mains** et **Apprendre** sont accessibles même sans partie en cours, pour étudier avant de s'asseoir à une table.
 
-**🎯 Partie rapide** (page Main, en haut de « Nouvelle partie », et entre deux mains pour changer de table) : choisis le nombre de joueurs, touche sur la petite table le joueur qui a le jeton D sur le site, et l'appli te dit ta place (« Tu es UTG ») puis lance la première main. Pas de pseudo ni de jetons à taper (100 grosses blindes chacun, à corriger en touchant un joueur si besoin). « Pas besoin : juste l'aide de l'appli » masque le rappel du prompt Claude.
-
-**⚡ Depuis une capture** (même endroit) : fais une capture de la table du site, copie le prompt « lecture de table » et colle-le dans Claude avec la capture. Claude répond par une ligne du type `TABLE blindes 10/20 | ante 0 | Marvin 2000 (moi) | Paul 1850 (D) | Léa 2300 | …` : colle-la dans l'appli, tout se remplit (joueurs dans l'ordre, jetons, blindes, ante, toi, jeton D, joueurs en pause). Vérifie, puis « Commencer la partie ». Les montants abrégés (12,5K, 1,2M) sont compris.
+**⚡ Démarrage rapide** (bouton en haut de « Nouvelle partie ») : fais une capture de la table du site, copie le prompt « lecture de table » et colle-le dans Claude avec la capture. Claude répond par une ligne du type `TABLE blindes 10/20 | ante 0 | Marvin 2000 (moi) | Paul 1850 (D) | Léa 2300 | …` : colle-la dans l'appli, tout se remplit (joueurs dans l'ordre, jetons, blindes, ante, toi, jeton D, joueurs en pause). Vérifie, puis « Commencer la partie ». Les montants abrégés (12,5K, 1,2M) sont compris.
 
 Sinon, à la main :
 1. « Nouvelle partie » : nombre de joueurs, blindes, ante éventuelle (payée par chaque joueur ou par la grosse blinde pour toute la table), puis le pseudo et les jetons de chaque joueur tels qu'affichés sur le site (dans l'ordre des places), lequel est toi, et qui a le jeton « D ».
@@ -70,9 +68,6 @@ En mode Auto, c'est Claude qui retient le style des joueurs au fil des captures.
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action. « Effacer cette main » efface toute la saisie de la main en cours (ce n'est pas se coucher : pour ça, c'est « Couché »).
 
 ## Sur PC (écran large)
-
-Sur la page Main, la colonne de droite ne garde que « Ta main » et les combinaisons : la place libérée va à la table, au centre. Les raccourcis clavier restent affichés à droite sur les autres pages, et sur les boutons.
-
 
 À partir de 1000 px de large, l'appli passe en affichage PC. La main en cours est sur deux colonnes : à gauche le message pour Claude et les boutons d'action, au milieu une **table de poker** vue de dessus (aussi entre deux mains ; un « + » discret entre deux places pour ajouter un joueur, un « − » au survol d'un joueur pour le retirer : tout de suite s'il ne joue pas la main, sinon il est couché quand c'est à lui puis retiré à la fin de la main) (toi en bas, les autres joueurs autour avec leurs jetons et leurs mises, le jeton D, le joueur qui parle en surbrillance, le tableau et le pot au centre ; à l'abattage, on clique sur le gagnant). Une colonne à droite affiche :
 - **Ta main** : les cartes qui forment ta combinaison (les tiennes marquées d'un point, les cartes d'appoint grisées) et son nom (ex. « Paire de Rois »), les tirages couleur et quinte, et un avertissement si la combinaison est entièrement sur le tableau ;
