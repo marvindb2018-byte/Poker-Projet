@@ -973,9 +973,7 @@
     for (let k = 0; k < n; k++) {
       const deg = 90 + (k * 360) / n;
       const me = k === 0;
-      const mineCards = me ? (qg.cards && qg.cards.length === 2 ? qg.cards : qg.cls ? classCards(qg.cls) : null) : null;
-      const picking = me && ui.qgPick && ui.qgPick.length ? ui.qgPick.map((c) => cardHtml(c, 'xs')).join('') + '<span class="card empty xs"></span>' : '';
-      const cards = me ? (picking || (mineCards ? mineCards.map((c) => cardHtml(c, 'xs')).join('') : '')) : back;
+      const cards = me ? (qg.cls ? `<span class="seat-hand">${qg.cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>` : '') : back;
       seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="Le jeton D est ici">
         <div class="seat-cards">${cards}</div>
         <div class="seat-box">${k === b ? `<span class="dealer-badge ${dealerCorner(deg)}">D</span>` : ''}<span class="seat-pos">${pos ? pos[k] : '—'}</span><b class="seat-name">${me ? 'Toi' : 'Joueur ' + (k + 1)}</b></div>
@@ -992,15 +990,9 @@
       <div class="ptable qg-pt"><div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
       ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'} pour savoir si tu la joues${wide() ? ', ou tape tes cartes au clavier comme en partie normale (<kbd>A</kbd> puis <kbd>C</kbd> = A♥)' : ''}. Quelqu'un a relancé avant toi ? Choisis « Face à une relance ».</p>`
+        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'} pour savoir si tu la joues. Quelqu'un a relancé avant toi ? Choisis « Face à une relance ».</p>`
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
-  }
-
-  // Deux cartes qui représentent une main du tableau : AKs → A♠ K♠, AKo → A♠ K♥, 77 → 7♠ 7♥
-  function classCards(cls) {
-    if (cls.length === 2) return [cls[0] + 'p', cls[1] + 'c'];
-    return cls[2] === 's' ? [cls[0] + 'p', cls[1] + 'p'] : [cls[0] + 'p', cls[1] + 'c'];
   }
 
   // Verdict pour la main touchée dans le tableau
@@ -1826,11 +1818,11 @@
     'qg-next'() {
       if (!qg || qg.btn == null) return;
       qg.btn = (qg.btn + 1) % qg.n; // le jeton D passe au joueur suivant (sens des aiguilles d'une montre)
-      qg.cls = null; qg.cards = null; ui.qgPick = []; ui.qgRank = null; ui.chart = null; saveQg(); render();
+      qg.cls = null; ui.chart = null; saveQg(); render();
       toast('Main suivante : tu es ' + seatPositions(qg.n, qg.btn)[0]);
     },
     'chart-hand'(d) {
-      if (qg && qg.on) { qg.cls = qg.cls === d.c ? null : d.c; qg.cards = null; ui.qgPick = []; ui.qgRank = null; saveQg(); }
+      if (qg && qg.on) { qg.cls = qg.cls === d.c ? null : d.c; saveQg(); }
       else ui.chartHand = ui.chartHand === d.c ? null : d.c;
       render();
     },
@@ -2126,25 +2118,7 @@
       return;
     }
     if (curPage() === 'charts' && qg && qg.on && qg.btn != null && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
-      if ((k === 'Enter' || k === ' ') && t.tagName !== 'BUTTON') { ev.preventDefault(); handlers['qg-next'](); return; }
-      const key = k.toLowerCase();
-      ui.qgPick = ui.qgPick || [];
-      if (k === 'Backspace' || k === 'Escape') { ev.preventDefault(); ui.qgRank = null; ui.qgPick = []; render(); return; }
-      if (!ui.qgRank && RANK_KEYS[key]) { ev.preventDefault(); ui.qgRank = RANK_KEYS[key]; toast('Valeur ' + (ui.qgRank === 'T' ? '10' : ui.qgRank) + ' : tape la couleur (P ♠, C ♥, K ♦, T ♣)'); return; }
-      if (ui.qgRank && SUIT_KEYS[key]) {
-        ev.preventDefault();
-        const card = ui.qgRank + SUIT_KEYS[key];
-        ui.qgRank = null;
-        if (ui.qgPick.includes(card)) { toast('Cette carte est déjà prise.'); return; }
-        ui.qgPick.push(card);
-        if (ui.qgPick.length === 2) {
-          qg.cards = ui.qgPick.slice();
-          qg.cls = ODDS.handClass(qg.cards[0], qg.cards[1]);
-          ui.qgPick = [];
-          saveQg();
-        }
-        render();
-      }
+      if ((k === 'Enter' || k === ' ') && t.tagName !== 'BUTTON') { ev.preventDefault(); handlers['qg-next'](); }
       return;
     }
     if (ev.ctrlKey || ev.metaKey || ev.altKey || !state || ui.tab !== 'main') return;
