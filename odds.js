@@ -234,19 +234,217 @@
       }
       return fold(`${hc} ne fait pas partie des mains à jouer depuis ${ctx.pos}`);
     }
-    // Une relance avant moi
+    // Une relance avant moi. Si on connaît le relanceur : on s'adapte à sa façon de jouer.
     if (ctx.raises === 1) {
       const big = ctx.cb > bb * 4.5;
-      if (has(RANGES.threeBet)) return R(ctx.cb * (late ? 3 : 3.5), hc + ' : main premium, sur-relance');
-      if (big) return has(RANGES.vsBig) ? call(hc + ' : assez forte pour payer une grosse relance') : fold(hc + ' : trop faible face à une grosse relance');
-      const range = ctx.pos === 'BB' ? RANGES.callBB : RANGES.call;
-      if (has(range)) return call(`${hc} : assez bonne pour payer une relance${ctx.pos === 'BB' ? ' depuis la grosse blinde' : ''}`);
+      const r = ctx.raiser; // { name, pfr } si on le connaît assez
+      const loose = r && r.pfr >= 0.25, tight = r && r.pfr < 0.08;
+      const who = r ? r.name + ' relance ' + Math.round(r.pfr * 100) + ' % de ses mains' : '';
+      const threeBet = loose ? parseRange('TT+, AQs+, AKo, AQo') : tight ? parseRange('KK+') : RANGES.threeBet;
+      if (has(threeBet)) return R(ctx.cb * (late ? 3 : 3.5), hc + (loose ? ` : forte, et ${who} (souvent sans grosse main) : sur-relance` : ' : main premium, sur-relance'));
+      if (tight) {
+        if (has(parseRange('TT+, AQs+, AKo, AQo'))) return call(`${hc} : ${who}, c'est peu : sa relance est sérieuse, suis seulement`);
+        return fold(`${hc} : ${who}, c'est peu : sa relance est sérieuse`);
+      }
+      if (big && !loose) return has(RANGES.vsBig) ? call(hc + ' : assez forte pour payer une grosse relance') : fold(hc + ' : trop faible face à une grosse relance');
+      const range = ctx.pos === 'BB' || loose ? RANGES.callBB : RANGES.call;
+      if (has(range)) return call(`${hc} : assez bonne pour payer ${loose ? `(${who} : sa relance est souvent faible)` : 'une relance'}${ctx.pos === 'BB' ? ' depuis la grosse blinde' : ''}`);
       return fold(hc + ' : trop faible face à une relance');
     }
     // Relance et sur-relance avant moi
     if (has(RANGES.vs3bet.raise)) return stackBB <= 40 ? allin(hc + ' : main la plus forte, tapis') : R(ctx.cb * 2.3, hc + ' : main la plus forte, on relance encore');
     if (has(parseRange('QQ, AKs'))) return call(hc + ' : assez forte pour payer');
     return fold(hc + ' : face à deux relances, seules les meilleures mains continuent');
+  }
+
+  /* ------------------------------------------------------------ mains probables des adversaires */
+
+  // Les 169 mains de départ, de la plus forte à la plus faible (calculé par simulation contre 1 et 3 adversaires).
+  const HAND_RANK = ('AA KK QQ JJ TT 99 AKs AQs 88 AKo AJs ATs KQs AQo 77 AJo KJs KTs A9s ATo KQo QJs 66 A8s KJo A7s K9s QTs A5s A9o '
+    + 'KTo QJo A6s JTs A4s A8o 55 K8s QTo Q9s A3s K9o A7o K7s J9s A2s K6s JTo A5o A6o Q8s T9s K5s A4o Q9o J8s K8o K4s Q7s 44 '
+    + 'T8s J9o A3o K3s K7o Q6s A2o 98s J7s K6o Q8o T9o K2s Q5s T7s Q4s K5o J8o 33 97s Q3s Q7o K4o J6s J5s 87s T6s Q2s Q6o 98o '
+    + 'T8o K3o J4s 96s J7o K2o 86s 22 J3s T7o Q5o 76s T5s J2s Q4o 97o T4s 95s J6o 87o 75s 85s 65s Q3o T3s T6o T2s J5o Q2o 54s '
+    + '94s J4o 96o 86o 64s 76o 84s 74s 93s J3o T5o 92s 53s J2o 95o 83s 73s 63s T4o 85o 65o 75o T3o 43s 82s T2o 52s 94o 72s 62s '
+    + '54o 93o 64o 84o 74o 42s 92o 32s 53o 83o 73o 63o 43o 82o 52o 72o 62o 42o 32o').split(' ');
+  const combosIn = (c) => (c.length === 2 ? 6 : c[2] === 's' ? 4 : 12);
+
+  // Les meilleures mains jusqu'à une part donnée de toutes les mains (0.15 = les 15 % meilleures).
+  function topRange(frac) {
+    const out = new Set();
+    let n = 0;
+    for (const c of HAND_RANK) {
+      if (out.size && n + combosIn(c) / 2 > frac * 1326) break;
+      out.add(c);
+      n += combosIn(c);
+    }
+    return out;
+  }
+
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+  /*
+   * Mains probables d'un adversaire d'après ce qu'il a fait avant le flop, et sa façon de jouer si on la connaît.
+   * act = { raised, raiseOver (il a relancé une relance), reraiseCount (relances avant la sienne), called, facingRaise, openKey }
+   * prof = { vpip, pfr } en fractions (part des mains jouées / relancées), ou null si on ne sait pas encore.
+   * Renvoie { range: Set | null (null = n'importe quelle main), minus: Set | null (mains retirées), text }
+   */
+  function playerRange(act, prof) {
+    if (act.raised) {
+      if (act.reraiseCount >= 2) return { range: topRange(0.025), minus: null, text: 'les 2 % meilleures mains' };
+      if (act.raiseOver) {
+        const f = prof ? clamp(prof.pfr * 0.35, 0.025, 0.2) : 0.05;
+        return { range: topRange(f), minus: null, text: `les ${Math.round(f * 100)} % meilleures mains` };
+      }
+      if (prof) {
+        const f = clamp(prof.pfr, 0.04, 0.6);
+        return { range: topRange(f), minus: null, text: `les ${Math.round(f * 100)} % meilleures mains` };
+      }
+      const r = act.openKey && RANGES.open[act.openKey];
+      if (r) return { range: r, minus: null, text: `les ${pct(r)} % de mains qu'on relance en ${act.openKey === 'UTG9' ? 'UTG' : act.openKey}` };
+      return { range: topRange(0.12), minus: null, text: 'les 12 % meilleures mains' };
+    }
+    if (act.called) {
+      let v = prof ? prof.vpip : act.facingRaise ? 0.25 : 0.4;
+      if (prof && act.facingRaise) v *= 0.75;
+      v = clamp(v, 0.06, 0.9);
+      const p = clamp((prof ? prof.pfr : 0.12) * 0.5, 0.01, v / 2);
+      return { range: topRange(v), minus: topRange(p), text: `les ${Math.round(v * 100)} % meilleures mains, sans les toutes meilleures (il aurait relancé)` };
+    }
+    return { range: null, minus: null, text: "n'importe quelle main" };
+  }
+
+  // Toutes les combinaisons de cartes (entiers) d'un ensemble de mains, sauf celles qui touchent des cartes connues.
+  function combosOf(range, minus, dead) {
+    const out = [];
+    const R = '23456789TJQKA';
+    range.forEach((c) => {
+      if (minus && minus.has(c)) return;
+      const a = R.indexOf(c[0]), b = R.indexOf(c[1]);
+      for (let s1 = 0; s1 < 4; s1++) {
+        for (let s2 = 0; s2 < 4; s2++) {
+          if (c.length === 2 ? s2 <= s1 : c[2] === 's' ? s1 !== s2 : s1 === s2) continue;
+          const x = a * 4 + s1, y = b * 4 + s2;
+          if (!dead[x] && !dead[y]) out.push([x, y]);
+        }
+      }
+    });
+    return out;
+  }
+
+  // Ce que les 2 cartes d'un joueur font avec le tableau : 0 rien, 1 petite paire, 2 paire max / paire en main au-dessus,
+  // 3 double paire ou mieux ; draw = tirage couleur ou quinte ouverte ; over = deux cartes plus hautes que le tableau.
+  const tmp7 = new Array(7);
+  function connect(x, y, board, boardCat) {
+    const nb = board.length;
+    tmp7.length = nb + 2;
+    tmp7[0] = x; tmp7[1] = y;
+    for (let i = 0; i < nb; i++) tmp7[i + 2] = board[i];
+    const sc7 = score7(tmp7);
+    const cat = sc7 >> 20;
+    let top = -1, smask = 0;
+    const suits = [0, 0, 0, 0];
+    for (let i = 0; i < nb; i++) { const r = board[i] >> 2; if (r > top) top = r; suits[board[i] & 3]++; smask |= 1 << r; }
+    const rx = x >> 2, ry = y >> 2;
+    let level = 0;
+    if (cat > boardCat) {
+      if (cat >= 2) level = 3;
+      else {
+        const pair = (sc7 >> 12) & 15;
+        level = pair >= top ? 2 : 1;
+      }
+    }
+    let draw = false;
+    if (nb < 5 && level < 3) {
+      if ((suits[x & 3] + 1 + (((y & 3) === (x & 3)) ? 1 : 0)) === 4 || (suits[y & 3] + 1 + (((y & 3) === (x & 3)) ? 1 : 0)) === 4) draw = true;
+      const all = smask | (1 << rx) | (1 << ry);
+      const m = (all << 1) | ((all >> 12) & 1);
+      const mb = (smask << 1) | ((smask >> 12) & 1);
+      for (let lo = 1; lo <= 10 && !draw; lo++) { // 4 valeurs qui se suivent, ouvertes des deux côtés, avec une de mes cartes
+        if (((m >> lo) & 15) === 15 && ((mb >> lo) & 15) !== 15 && lo + 4 <= 13) draw = true;
+      }
+    }
+    return { level, draw, over: rx > top && ry > top };
+  }
+
+  /*
+   * Probabilité de gagner contre les mains probables de chaque adversaire.
+   * opps = [{ range, minus, acts: [{ street: 1|2|3, kind: 'bet'|'raise'|'call' }], bluff, loose }]
+   *  - bluff : part des mises faites sans rien (tirage ou paire), loose : part des fois où il suit sans rien.
+   */
+  function equityVs(mine, board, opps, iters) {
+    const n = opps.length;
+    if (!n) return { win: 1, tie: 0, equity: 1 };
+    iters = iters || (n <= 2 ? 3000 : 2000);
+    const mineI = mine.map(toInt), boardI = board.map(toInt);
+    const dead = new Uint8Array(52);
+    mineI.concat(boardI).forEach((c) => { dead[c] = 1; });
+    const lists = opps.map((o) => (o.range ? combosOf(o.range, o.minus, dead) : null));
+    const LEN = [0, 3, 4, 5]; // cartes du tableau à chaque tour
+    const boardAt = LEN.map((l) => boardI.slice(0, l));
+    const known = (st) => st >= 1 && st <= 3 && boardAt[st].length === LEN[st];
+    const catAt = boardAt.map((b, st) => (known(st) ? score7(b) >> 20 : 0));
+    const acts = opps.map((o) => (o.acts || []).filter((a) => known(a.street)));
+    const used = new Uint8Array(52);
+    const hands = new Array(n);
+    const me = new Array(7), opp = new Array(7);
+    const need = 5 - boardI.length;
+    let win = 0, tie = 0, eq = 0, done = 0;
+    const randCard = () => { let c; do { c = (Math.random() * 52) | 0; } while (used[c]); return c; };
+    const accept = (k, x, y) => {
+      for (const a of acts[k]) {
+        const c = connect(x, y, boardAt[a.street], catAt[a.street]);
+        let p;
+        if (a.kind === 'raise') p = c.level >= 2 || c.draw ? 1 : c.level === 1 ? 0.3 : opps[k].bluff * 0.5;
+        else if (a.kind === 'bet') p = c.level >= 1 || c.draw ? 1 : opps[k].bluff;
+        else p = c.level >= 1 || c.draw || c.over ? 1 : opps[k].loose;
+        if (p < 1 && Math.random() >= p) return false;
+      }
+      return true;
+    };
+    for (let it = 0; it < iters; it++) {
+      used.set(dead);
+      let okAll = true;
+      for (let k = 0; k < n && okAll; k++) {
+        let got = null, fallback = null;
+        for (let t = 0; t < 60 && !got; t++) {
+          let x, y;
+          if (lists[k]) {
+            const L = lists[k];
+            if (!L.length) break;
+            const pick = L[(Math.random() * L.length) | 0];
+            x = pick[0]; y = pick[1];
+            if (used[x] || used[y]) continue;
+          } else {
+            x = randCard(); used[x] = 1; y = randCard(); used[x] = 0;
+          }
+          if (!fallback) fallback = [x, y];
+          if (accept(k, x, y)) got = [x, y];
+        }
+        got = got || fallback;
+        if (!got) { okAll = false; break; }
+        used[got[0]] = used[got[1]] = 1;
+        hands[k] = got;
+      }
+      if (!okAll) continue;
+      let m = 0;
+      me[m++] = mineI[0]; me[m++] = mineI[1];
+      for (let b = 0; b < boardI.length; b++) me[m++] = boardI[b];
+      for (let b = 0; b < need; b++) { const c = randCard(); used[c] = 1; me[m++] = c; }
+      const myScore = score7(me);
+      let beaten = false, ties = 0;
+      for (let k = 0; k < n; k++) {
+        opp[0] = hands[k][0]; opp[1] = hands[k][1];
+        for (let b = 2; b < 7; b++) opp[b] = me[b];
+        const s2 = score7(opp);
+        if (s2 > myScore) { beaten = true; break; }
+        if (s2 === myScore) ties++;
+      }
+      done++;
+      if (beaten) continue;
+      if (ties === 0) { win++; eq += 1; } else { tie++; eq += 1 / (ties + 1); }
+    }
+    done = done || 1;
+    return { win: win / done, tie: tie / done, equity: eq / done };
   }
 
   // Grille 13×13 pour l'affichage : lignes et colonnes A → 2 ; au-dessus de la diagonale = assorties.
@@ -264,7 +462,7 @@
     return rows;
   }
 
-  const api = { score7, equity, potOdds, handClass, parseRange, RANGES, openRangeKey, preflopAdvice, grid, pct, toInt };
+  const api = { score7, equity, equityVs, playerRange, topRange, connect, HAND_RANK, potOdds, handClass, parseRange, RANGES, openRangeKey, preflopAdvice, grid, pct, toInt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PokerOdds = api;
 })(typeof window !== 'undefined' ? window : globalThis);

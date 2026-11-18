@@ -616,3 +616,26 @@ body.auto .layout { grid-template-columns: minmax(0, 1fr); }
 .hc-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
 .hc-legend i.hc { display: inline-block; width: 14px; height: 14px; aspect-ratio: auto; vertical-align: -2px; margin-right: 6px; }
 @media (min-width: 1000px) { .hc { font-size: 12px; } }
+
+/* ---------- bulles sur les positions et les styles de jeu */
+.tipped { cursor: help; text-decoration: underline dotted rgba(255, 255, 255, .28); text-underline-offset: 3px; }
+.tipped.on { text-decoration-color: var(--gold); }
+
+/* ---------- profils des joueurs */
+.style-tag, .seat-style {
+  display: inline-block; padding: 1px 7px; border-radius: 999px; font: 700 11px/1.5 var(--sans);
+  background: #26372f; color: #c9d3cd; white-space: nowrap; text-decoration: none;
+}
+.seat-style { margin-top: 3px; font-size: 10px; padding: 0 6px; }
+.style-tag.unknown, .seat-style.unknown { background: none; color: var(--muted); font-weight: 600; }
+.t-rock { background: #2b4a6b; color: #dcebff; }    /* serré */
+.t-reg { background: #2f4f3f; color: #d8f3e3; }     /* moyen */
+.t-fish { background: #6b5a24; color: #fff1c7; }    /* large et passif */
+.t-maniac { background: #7a3030; color: #ffe1e1; }  /* large et agressif */
+.ins-opps { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line); font-size: 14px; }
+.ins-opps li { padding: 3px 0; }
+.ins-opps small { display: block; color: var(--muted); font-size: 12.5px; }
+.ins-eq small, .now-eq small { color: var(--muted); font-size: 12.5px; }
+.prof-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.prof-list li { display: grid; grid-template-columns: 1fr auto 70px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.prof-list .stk { text-align: right; color: var(--muted); font-size: 13px; }

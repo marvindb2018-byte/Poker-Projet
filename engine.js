@@ -79,6 +79,7 @@
     const btn = players[Math.min(Math.max(0, cfg.btnIndex | 0), players.length - 1)];
     const state = {
       v: 1,
+      gid: uid(), // identifiant de la partie (pour les profils des joueurs aux pseudos par défaut)
       settings,
       players,
       btnId: null, // bouton de la dernière main jouée
@@ -827,6 +828,7 @@
     L.push('  (moi r180)');
     L.push('  BB r300');
     L.push("- Un joueur qui a parlé sans être cité s'est couché.");
+    L.push("- Profils : quand l'appli connaît assez un joueur, j'ajoute en début de main sa façon de jouer, mesurée sur les mains précédentes : % de mains jouées / % de mains relancées avant le flop / % de fois où il se couche face à une mise (– = pas encore assez de données), et le nombre de mains observées. Ex : profils (…) : UTG 45/8/70 sur 30, BB 15/12/– sur 22. Tiens-en compte : un joueur qui relance rarement a une grosse main quand il relance ; un joueur qui se couche souvent se bluffe bien ; un joueur qui joue beaucoup de mains paie avec des mains faibles.");
     L.push("- Table : je te préviens quand le nombre de joueurs, les blindes ou l'ante changent, avec les nouvelles positions. Ex : table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blindes 20/40, ante 5");
     L.push('');
     L.push("Réponds en une seule ligne : le code de l'action, puis sa traduction en clair. Ex : « r180 → relance à 180 », « b60 → mise 60 », « s → suis 40 », « x → check », « f → couche-toi », « AI → tapis (1820) ». Ajoute 3 à 5 mots d'explication seulement si la décision est serrée. Si j'écris « ? », explique en 2 phrases.");
@@ -843,6 +845,7 @@
       '',
       'À chaque capture :',
       "- Lis mes 2 cartes, le tableau, ma position par rapport au jeton D, les blindes (et l'ante s'il y en a), le pot, les jetons et les mises de chacun, et qui est encore en jeu.",
+      '- Retiens d\'une main à l\'autre la façon de jouer de chaque pseudo (joue beaucoup de mains ou peu, relance souvent ou rarement, se couche facilement ou paie tout) et tiens-en compte dans les probabilités et le plan.',
       '- Si mes cartes sont les mêmes que sur la capture précédente, c\'est la même main : déduis ce qui s\'est passé entre les deux captures (qui a misé, suivi, relancé ou s\'est couché) en comparant les jetons, les mises et le pot. Si mes cartes ont changé, c\'est une nouvelle main.',
       '',
       'Réponds exactement dans ce format, rien d\'autre :',

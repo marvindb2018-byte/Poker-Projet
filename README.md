@@ -31,9 +31,17 @@ L'**historique de la main** (blindes, actions de chacun, cartes, pot, gagnant, m
 
 **Aide instantanée (sans IA)** : dès que tes cartes sont choisies, l'appli affiche sans attendre Claude :
 - avant le flop, le conseil du tableau des mains de départ selon ta place et ce qui s'est passé avant toi (« Relance à 180 · AKo : main premium »). Avant ton tour, le plan pour les cas fréquents (personne ne relance / une relance / deux relances). `G` ou « Jouer ça » joue le conseil ;
-- à chaque tour, ta probabilité de gagner contre les joueurs encore en jeu (calculée en tirant des milliers de mains au hasard) ;
+- à chaque tour, ta probabilité de gagner contre les **mains probables** de chaque joueur encore en jeu : un joueur qui a relancé a surtout de bonnes mains, un joueur qui mise après le flop a souvent touché le tableau (tirage, paire…), sauf quand il bluffe. Le chiffre « au hasard » reste affiché à côté ;
 - quand il faut suivre, la cote du pot : « pour suivre 60, il faut gagner 40 % du temps → suivre est rentable ».
-La probabilité suppose des adversaires aux mains quelconques : face à une grosse relance, la vraie chance est plus basse.
+Ce sont des estimations : plus l'appli a vu jouer un joueur, plus elles sont justes.
+
+**Profils des joueurs** : à chaque main saisie, l'appli retient ce que fait chaque joueur (mains jouées, relances, s'il se couche face à une mise). Après 8 mains, son style s'affiche sous son nom sur la table (« serré » = joue peu de mains, « large » = en joue beaucoup ; « passif » = suit plus qu'il ne relance, « agressif » = relance souvent), avec une bulle qui explique quoi en faire. Les profils servent :
+- au calcul des mains probables et au conseil avant le flop (on se méfie de la relance d'un joueur serré, on paie plus large contre un joueur qui relance tout) ;
+- à Claude : une ligne « profils » est ajoutée en tête de main (ex : `profils (…) : UTG 45/8/70 sur 30`) ;
+- d'une partie à l'autre : ils sont rangés par pseudo, dans ce navigateur. Réglages → « Profils des joueurs » pour les voir ou les effacer.
+En mode Auto, c'est Claude qui retient le style des joueurs au fil des captures.
+
+**Positions** : survole (ou touche) une position (UTG, MP, CO, BTN…) pour voir ce qu'elle veut dire.
 
 **Onglet Mains** : les tableaux des mains de départ (13 × 13) pour chaque place, la défense en grosse blinde et « face à une relance », avec ta main encadrée. Pour les apprendre petit à petit.
 
@@ -96,10 +104,11 @@ Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blin
 |---|---|
 | `engine.js` | Règles de la partie : positions, ordre de parole, mises, pots annexes, texte des messages et du prompt (`buildPrompt`, `buildMessage`) |
 | `hands.js` | Les combinaisons du poker et le calcul de « ta main » |
-| `odds.js` | Probabilité de gagner, cote du pot, tableaux des mains de départ (`RANGES`) et conseil avant le flop |
+| `odds.js` | Probabilité de gagner (au hasard et contre les mains probables), cote du pot, tableaux des mains de départ (`RANGES`) et conseil avant le flop |
+| `profiles.js` | Profils des joueurs : statistiques par pseudo, style en mots simples, ligne pour Claude |
 | `app.js` | Les écrans, les boutons et les raccourcis clavier |
 | `style.css` | L'apparence (couleurs en haut du fichier, affichage PC à la fin) |
 | `index.html` | La page qui charge le tout |
-| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages), `node tests/odds.test.js` (probabilités et tableaux) |
+| `tests/` | Tests : `node tests/engine.test.js`, `node tests/hands.test.js` et `node tests/messages.fuzz.test.js` (des milliers de mains au hasard pour vérifier les messages), `node tests/odds.test.js` (probabilités et tableaux), `node tests/profiles.test.js` (profils et mains probables) |
 
 Pour essayer en local : `python3 -m http.server` dans ce dossier, puis ouvrir http://localhost:8000.

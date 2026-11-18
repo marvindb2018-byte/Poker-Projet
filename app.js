@@ -5,10 +5,12 @@
   const E = window.PokerEngine;
   const HANDS = window.PokerHands;
   const ODDS = window.PokerOdds;
+  const PROF = window.PokerProfiles;
   const KEY = 'pokercode:v1';
   const HKEY = 'pokercode:hist:v1';
   const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
   const CKEY = 'pokercode:crop'; // recadrage de la capture (fractions de l'image)
+  const PKEY = 'pokercode:profiles:v1'; // façon de jouer de chaque pseudo, gardée d'une partie à l'autre
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
   const SUIT_NAME = { p: 'pique', c: 'cœur', k: 'carreau', t: 'trèfle' };
@@ -27,6 +29,10 @@
   if (state && state.v !== 1) state = null;
   let hist = parse(store.get(HKEY));
   if (!Array.isArray(hist)) hist = [];
+
+  if (state && !state.gid) state.gid = Math.random().toString(36).slice(2, 10);
+  let profDb = parse(store.get(PKEY));
+  if (!profDb || !profDb.p) profDb = { v: 1, p: {}, recent: [] };
 
   let mode = store.get(MKEY) === 'auto' ? 'auto' : 'manuel';
   let crop = parse(store.get(CKEY));
@@ -85,11 +91,39 @@
     dealer: "Le jeton « D » (dealer, ou « bouton ») marque le joueur qui distribue, même si en ligne c'est le logiciel qui le fait. Les deux joueurs à sa gauche paient les blindes. C'est la meilleure place : il parle en dernier après le flop. Il avance d'une place à chaque main.",
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
-    instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains). La probabilité de gagner est calculée contre des mains au hasard : face à une grosse relance, la vraie chance est plus basse. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
+    instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains), adapté au relanceur quand on connaît sa façon de jouer. La probabilité de gagner est calculée contre les mains probables de chacun : un joueur qui a relancé a surtout de bonnes mains, et un joueur qui mise après le flop a souvent touché quelque chose. Plus l'appli a vu jouer un joueur, plus l'estimation est juste. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
+    profiles: "L'appli retient ce que fait chaque joueur à chaque main saisie : combien de mains il joue, combien il en relance, s'il se couche souvent face à une mise. Après 8 mains, son style s'affiche (serré = joue peu de mains, large = en joue beaucoup ; passif = suit plus qu'il ne relance, agressif = relance souvent). Les profils sont rangés par pseudo et gardés d'une partie à l'autre, sur ce navigateur.",
     sidepot: "Pot annexe : un joueur à tapis ne peut gagner, chez chaque adversaire, que ce qu'il a lui-même misé. Le reste forme un pot annexe, disputé seulement entre les joueurs qui avaient plus de jetons. L'appli fait le calcul : désigne juste la meilleure main.",
     hand: "Ta meilleure combinaison avec tes 2 cartes et les cartes du tableau. Un « tirage », c'est quand il te manque une seule carte pour faire une couleur ou une quinte : elle peut encore tomber à la turn ou à la river.",
   };
   const tip = (key) => `<button type="button" class="help-q" data-tip="${key}" aria-label="Explication">?</button>`;
+
+  // Une phrase par position, en bulle au survol (ou au toucher) de l'étiquette
+  const POS_TIPS = {
+    UTG: "UTG (« under the gun ») : premier à parler avant le flop, la place la plus difficile, on n'y joue que de bonnes mains.",
+    'UTG+1': 'UTG+1 : 2e à parler avant le flop, presque aussi mal placé qu\'UTG, on y joue serré.',
+    'UTG+2': 'UTG+2 : 3e à parler avant le flop, encore une place où l\'on joue serré.',
+    MP: 'MP (« middle position ») : milieu de table, on peut y jouer un peu plus de mains qu\'en UTG.',
+    'MP+1': 'MP+1 : milieu de table, un peu mieux placé que MP.',
+    'MP+2': 'MP+2 : milieu de table, juste avant le cut-off.',
+    CO: 'CO (« cut-off ») : juste avant le bouton, une bonne place où l\'on peut jouer plus de mains.',
+    BTN: 'BTN (bouton, jeton D) : parle en dernier après le flop, la meilleure place de la table.',
+    SB: 'SB (petite blinde) : paie d\'office la petite blinde et parle en premier après le flop, une place difficile.',
+    BB: 'BB (grosse blinde) : paie d\'office la grosse blinde, parle en dernier avant le flop mais en premier après.',
+  };
+  const posTag = (pos, cls) => (pos ? `<span class="${cls} tipped" data-tip="pos:${pos}">${pos}</span>` : `<span class="${cls}">—</span>`);
+
+  function tipText(key) {
+    if (key.startsWith('pos:')) return POS_TIPS[key.slice(4)] || '';
+    if (key.startsWith('prof:')) {
+      const rec = profDb.p[key.slice(5)];
+      if (!rec) return '';
+      const pr = PROF.profile(rec);
+      if (!pr) return `${rec.name} : seulement ${rec.n} main${rec.n > 1 ? 's' : ''} observée${rec.n > 1 ? 's' : ''}. Son style s'affichera à partir de ${PROF.MIN_HANDS} mains.`;
+      return `${rec.name} (${pr.short}, sur ${pr.n} mains) : ${pr.text}`;
+    }
+    return TIPS[key] || '';
+  }
 
   let toastTimer = null;
   function toast(msg) {
@@ -146,6 +180,39 @@
     else $('undo').disabled = false;
     afterChange();
     return r || { ok: true };
+  }
+
+  /* ---- profils des joueurs */
+
+  const profRec = (name) => profDb.p[PROF.keyFor(name, state && state.gid)];
+  const profOf = (name) => PROF.profile(profRec(name));
+
+  // Main terminée : on ajoute ce que chacun a fait à son profil (une main rejouée après « Annuler » remplace l'ancienne).
+  function recordHand(s) {
+    const h = s.hand;
+    if (!h || h.phase !== 'done' || !h.meIn) return;
+    profDb = PROF.record(profDb, s.gid + ':' + h.no, h, s.gid);
+    store.set(PKEY, JSON.stringify(profDb));
+    eqCache.clear();
+  }
+
+  // Nouvelle main : les profils connus vont en tête du premier message pour Claude.
+  function startHand(s) {
+    const r = E.startHand(s);
+    if (r.ok && s.hand && s.hand.meIn) {
+      const line = PROF.claudeLine(s.hand, profRec);
+      if (line) s.hand.events.push({ t: 'hdr', text: line });
+    }
+    return r;
+  }
+
+  // Étiquette de style (« large · passif ») avec sa bulle d'explication
+  function styleTag(name, cls) {
+    const pr = profOf(name);
+    const rec = profRec(name);
+    const key = PROF.keyFor(name, state.gid);
+    if (!pr) return rec && rec.n ? `<span class="${cls} unknown tipped" data-tip="prof:${esc(key)}">${rec.n} main${rec.n > 1 ? 's' : ''}</span>` : '';
+    return `<span class="${cls} t-${pr.tone} tipped" data-tip="prof:${esc(key)}">${pr.short}</span>`;
   }
 
   // Quand c'est à moi : copie automatique du message + petite vibration.
@@ -280,7 +347,7 @@
         <span class="pot">Pot <b>${h.phase === 'done' ? E.contestedPot(h) : E.potOf(h)}</b></span>
       </div>
       <div class="hh-cards">
-        <div class="hh-mine">${mine}${h.meIn ? `<span class="hh-pos">${h.pos[h.meId]}</span>` : '<span class="muted">hors main</span>'}</div>
+        <div class="hh-mine">${mine}${h.meIn ? posTag(h.pos[h.meId], 'hh-pos') : '<span class="muted">hors main</span>'}</div>
         <div class="hh-board">${slots.join('')}</div>
       </div>
     </div>`;
@@ -298,7 +365,7 @@
         const st = h.folded[id] ? 'couché' : h.allin[id] ? 'tapis' : id === h.toAct ? 'parle' : '';
         right = `<span class="stk">${h.stack[id]}</span><span class="bet">${h.bet[id] || ''}</span><span class="st">${st}</span>`;
       }
-      return `<li class="${cls}"><span class="pos">${h.pos[id]}</span><span class="nm">${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}</span>${right}</li>`;
+      return `<li class="${cls}">${posTag(h.pos[id], 'pos')}<span class="nm">${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}</span>${right}</li>`;
     }).join('')}</ol>`;
   }
 
@@ -360,7 +427,7 @@
       const remove = me || p.leaving ? '' : `<button type="button" class="seat-remove" data-a="seat-remove" data-id="${id}" title="${esc(p.name)} quitte la table" aria-label="Retirer ${esc(p.name)}">−</button>`;
       html += `<div class="${cls}" style="${at(1, deg)}"${click}>
         <div class="seat-cards">${cards}</div>
-        <div class="seat-box">${remove}${id === btnId ? `<span class="dealer-badge ${dealerCorner(deg)}" title="Jeton D (bouton)">D</span>` : ''}<span class="seat-pos">${pos || '—'}</span><b class="seat-name">${esc(p.name)}</b><span class="seat-stack">${stack}</span></div>
+        <div class="seat-box">${remove}${id === btnId ? `<span class="dealer-badge ${dealerCorner(deg)}" title="Jeton D (bouton)">D</span>` : ''}${posTag(pos, 'seat-pos')}<b class="seat-name">${esc(p.name)}</b><span class="seat-stack">${stack}</span>${me ? '' : styleTag(p.name, 'seat-style')}</div>
         ${tag}
       </div>`;
       if (inHand && !done && h.bet[id]) html += `<div class="pt-bet" style="${at(0.58, deg)}"><i></i>${h.bet[id]}</div>`;
@@ -402,7 +469,7 @@
     else {
       out += `<ol class="strip preview idle-list">${plan.pre.map((id) => {
         const p = player(id);
-        return `<li class="${p.me ? 'me' : ''}"><span class="pos">${plan.pos[id]}</span><span class="nm">${esc(p.name)}${p.me ? ' <em>moi</em>' : ''}</span><span class="stk">${p.stack}</span></li>`;
+        return `<li class="${p.me ? 'me' : ''}">${posTag(plan.pos[id], 'pos')}<span class="nm">${esc(p.name)}${p.me ? ' <em>moi</em>' : ''}</span><span class="stk">${p.stack}</span></li>`;
       }).join('')}</ol>`;
       const me = state.players.find((p) => p.me);
       if (!me) out += `<p class="warn">Aucun joueur n'est marqué « moi » (onglet Table).</p>`;
@@ -502,15 +569,46 @@
   /* ---- aide instantanée (sans IA) : tableau des mains de départ, probabilité de gagner, cote du pot */
 
   const eqCache = new Map();
+
+  // Ce que chaque adversaire encore en jeu a fait, et donc ses mains probables
+  function oppModels(h) {
+    return E.live(h).filter((id) => id !== h.meId).map((id) => {
+      const act = { raised: false, raiseOver: false, reraiseCount: 0, called: false, facingRaise: false, openKey: ODDS.openRangeKey(h.pos[id], h.order.length) };
+      const post = [];
+      let top = h.bb, raises = 0, st = 0;
+      h.events.forEach((e) => {
+        if (e.t === 'street') { st = e.street; top = 0; return; }
+        if (e.t !== 'act') return;
+        const raise = (e.a === 'r' || e.a === 'b' || e.a === 'AI') && e.amt > top;
+        if (e.id === id) {
+          if (st === 0) {
+            if (raise) { act.raised = true; act.raiseOver = raises >= 1; act.reraiseCount = raises; }
+            else if (e.a === 's' || e.a === 'AI') { act.called = true; act.facingRaise = raises >= 1; }
+          } else if (raise) post.push({ street: st, kind: top > 0 ? 'raise' : 'bet' });
+          else if (e.a === 's' || e.a === 'AI') post.push({ street: st, kind: 'call' });
+        }
+        if (raise) { top = e.amt; if (st === 0) raises++; }
+      });
+      const pr = profOf(h.names[id]);
+      const r = ODDS.playerRange(act, pr ? { vpip: pr.vpip, pfr: pr.pfr } : null);
+      return { id, name: h.names[id], pos: h.pos[id], pr, range: r.range, minus: r.minus, text: r.text, acts: post,
+        bluff: pr ? pr.bluff : 0.3, loose: pr ? pr.loose : 0.25 };
+    });
+  }
+
   function myEquity(h) {
-    const nOpp = E.live(h).filter((id) => id !== h.meId).length;
-    if (!nOpp) return null;
-    const key = h.cards.join('') + '|' + h.board.join('') + '|' + nOpp;
+    const opps = oppModels(h);
+    if (!opps.length) return null;
+    const key = (state.gid || '') + h.no + '|' + h.events.length + '|' + h.cards.join('') + '|' + h.board.join('');
     if (!eqCache.has(key)) {
       if (eqCache.size > 60) eqCache.clear();
-      eqCache.set(key, ODDS.equity(h.cards, h.board, nOpp));
+      eqCache.set(key, {
+        likely: ODDS.equityVs(h.cards, h.board, opps).equity,
+        random: ODDS.equity(h.cards, h.board, opps.length).equity,
+      });
     }
-    return { nOpp, eq: eqCache.get(key).equity };
+    const c = eqCache.get(key);
+    return { nOpp: opps.length, eq: c.likely, random: c.random, opps };
   }
 
   // Ce qui s'est passé avant moi pendant le préflop (relances, suiveurs)
@@ -524,9 +622,13 @@
       if (isRaise) raises++;
       else if (e.a === 's' && raises === 0) limpers++;
     });
+    // le relanceur, si on connaît sa façon de jouer
+    const raiseEv = h.events.filter((e) => e.t === 'act' && e.street === 0 && e.id !== h.meId && (e.a === 'r' || e.a === 'b' || e.a === 'AI')).pop();
+    const rp = raiseEv && profOf(h.names[raiseEv.id]);
     return Object.assign({
       cards: h.cards, pos: h.pos[h.meId], n: h.order.length, bb: h.bb, sb: h.sb, cb: h.cb,
       myBet: h.bet[h.meId], myStack: h.stack[h.meId], raises, limpers, iRaised: iRaised && raises > 0,
+      raiser: rp ? { name: h.names[raiseEv.id], pfr: rp.pfr } : null,
     }, override || {});
   }
 
@@ -552,13 +654,14 @@
     }
     const e = myEquity(h);
     if (e) {
-      out += `<div class="ins-eq">≈ <b>${Math.round(e.eq * 100)} %</b> de gagner contre ${e.nOpp} adversaire${e.nOpp > 1 ? 's' : ''}</div>`;
+      out += `<div class="ins-eq">≈ <b>${Math.round(e.eq * 100)} %</b> de gagner contre leurs mains probables <small>(contre des mains au hasard : ${Math.round(e.random * 100)} %)</small></div>`;
       const o = E.options(h, h.meId);
       if (mine && o.toCall > 0) {
         const need = ODDS.potOdds(o.toCall, E.potOf(h));
         const good = e.eq >= need;
         out += `<div class="ins-odds">Pour suivre ${o.toCall}, il faut gagner <b>${Math.round(need * 100)} %</b> du temps → <span class="${good ? 'good' : 'bad'}">${good ? 'suivre est rentable' : 'suivre n\'est pas rentable'}</span> <small>(d'après le seul calcul)</small></div>`;
       }
+      out += `<ul class="ins-opps">${e.opps.map((x) => `<li><b>${esc(x.name)}</b> ${posTag(x.pos, 'pos-inline')} ${styleTag(x.name, 'style-tag') || '<span class="style-tag unknown">pas encore observé</span>'}${x.range || x.acts.length ? `<small>${x.range ? 'Mains probables : ' + x.text : 'N\'importe quelle main au départ'}${x.acts.length ? ', moins celles qui ne misent pas comme lui' : ''}</small>` : ''}</li>`).join('')}</ul>`;
     }
     return out + '</section>';
   }
@@ -607,7 +710,7 @@
 
   function actionPanel(h, id, mine, meLive) {
     const o = E.options(h, id);
-    const head = (mine ? '<b>Ce que tu joues</b>' : `À <b>${esc(h.names[id])}</b> <span class="pos-inline">${h.pos[id]}</span>`) + ' ' + tip('actions');
+    const head = (mine ? '<b>Ce que tu joues</b>' : `À <b>${esc(h.names[id])}</b> ${posTag(h.pos[id], 'pos-inline')}`) + ' ' + tip('actions');
     const call = o.canCheck
       ? `<button class="btn" data-a="act" data-t="x">Check ${K('X')}</button>`
       : `<button class="btn" data-a="act" data-t="s">${o.toCall >= o.st ? 'Suit (tapis)' : 'Suit ' + o.toCall} ${K('S')}</button>`;
@@ -671,7 +774,7 @@
     const refunds = S.pots.filter((p) => p.refund)
       .map((p) => `<li class="muted">${p.winners.map(esc).join(', ')} récupère ${p.amount} (mise non suivie)</li>`).join('');
     const rows = (S.players || []).map((x) => `<li class="${x.me ? 'me' : ''} ${x.net < 0 ? 'down' : x.net > 0 ? 'up' : 'same'}">
-        <span class="pos">${x.pos}</span><span class="nm">${esc(x.name)}${x.me ? ' <em>moi</em>' : ''}</span>
+        ${posTag(x.pos, 'pos')}<span class="nm">${esc(x.name)}${x.me ? ' <em>moi</em>' : ''}</span>
         <span class="ba">${x.before} → <b>${x.after}</b></span>
       </li>`).join('');
     return `<ul class="res">${pots}${refunds}</ul>${rows ? `<ul class="before-after">${rows}</ul>` : ''}`;
@@ -685,7 +788,7 @@
         return `<li class="h-street"><b>${x.label}</b>${x.cards && x.cards.length ? ' ' + x.cards.map((c) => cardHtml(c, 'xs')).join('') : ''}${x.pot != null ? ` <span class="muted">pot ${x.pot}</span>` : ''}</li>`;
       }
       if (x.kind === 'result') return `<li class="h-result ${x.me ? 'me' : ''}">${esc(x.text)}</li>`;
-      return `<li class="h-line ${x.me ? 'me' : ''}"><span class="h-who">${esc(x.name)}${x.pos ? ` <span class="h-pos">${x.pos}</span>` : ''}</span> ${esc(x.text)}</li>`;
+      return `<li class="h-line ${x.me ? 'me' : ''}"><span class="h-who">${esc(x.name)}${x.pos ? ' ' + posTag(x.pos, 'h-pos') : ''}</span> ${esc(x.text)}</li>`;
     }).join('');
     return `<details class="history" ${open && ui.histOpen !== false ? 'open' : ''}>
       <summary>Historique de la main</summary>
@@ -706,7 +809,7 @@
       out += `<div class="now-cards">${cur.best.main.map((c) => show(c, 'nc')).join('')}${cur.best.kick.map((c) => show(c, 'nc kick')).join('')}</div>`;
       out += `<div class="now">${esc(cur.best.name)}</div>`;
       const eqSide = E.meLive(h) ? myEquity(h) : null;
-      if (eqSide) out += `<div class="now-eq">≈ <b>${Math.round(eqSide.eq * 100)} %</b> de gagner contre ${eqSide.nOpp} adversaire${eqSide.nOpp > 1 ? 's' : ''}</div>`;
+      if (eqSide) out += `<div class="now-eq">≈ <b>${Math.round(eqSide.eq * 100)} %</b> de gagner contre leurs mains probables <small>(au hasard : ${Math.round(eqSide.random * 100)} %)</small></div>`;
       out += '<p class="hint small-legend"><span class="dot"></span> carte de ta main · grisée = carte d\'appoint (kicker)</p>';
       if (cur.note) out += `<p class="hint">${cur.note}</p>`;
       if (cur.shared) out += '<p class="warn small">Cette combinaison est entièrement sur le tableau : tous les joueurs l\'ont aussi.</p>';
@@ -963,7 +1066,7 @@
       out += `<li class="${open ? 'open' : ''} ${E.isActive(p) ? '' : 'inactive'}">
         <button class="pl-row" data-a="edit" data-id="${p.id}">
           <span class="pos">${pos || '—'}</span>
-          <span class="nm">${esc(p.name)} ${badges}</span>
+          <span class="nm">${esc(p.name)} ${badges} ${p.me ? '' : styleTag(p.name, 'style-tag')}</span>
           <span class="stk">${p.stack}</span>
         </button>`;
       if (open) {
@@ -1035,6 +1138,7 @@
       </select></label>
       <p class="hint">Quand les blindes ou l'ante changent : le changement s'applique à la main suivante et Claude en est prévenu tout seul. Pas d'ante ? Laisse 0.</p>
     </section>
+    ${viewProfiles()}
     <section class="panel">
       <h2>Partie</h2>
       <button class="btn danger wide" data-a="new-game">Nouvelle partie (efface tout)</button>
@@ -1049,6 +1153,20 @@
         </ol>
         <p>« ↶ Annuler » revient en arrière d'une action. Tout est enregistré dans ce navigateur, même si tu fermes la page.</p>
       </details>
+    </section>`;
+  }
+
+  function viewProfiles() {
+    const list = Object.entries(profDb.p).filter(([k, r]) => r.n > 0 && (!k.includes('|') || k.startsWith(state.gid + '|')))
+      .sort((a, b) => b[1].n - a[1].n);
+    const rows = list.map(([k, r]) => {
+      const pr = PROF.profile(r);
+      return `<li><span class="nm">${esc(r.name)}</span><span class="style-cell">${pr ? `<span class="style-tag t-${pr.tone} tipped" data-tip="prof:${esc(k)}">${pr.short}</span>` : '<span class="muted">pas assez de mains</span>'}</span><span class="stk">${r.n} main${r.n > 1 ? 's' : ''}</span></li>`;
+    }).join('');
+    return `<section class="panel">
+      <h2>Profils des joueurs ${tip('profiles')}</h2>
+      ${rows ? `<ul class="prof-list">${rows}</ul>` : '<p class="hint">Aucun joueur observé pour l\'instant : les profils se remplissent tout seuls à chaque main saisie en mode Manuel.</p>'}
+      ${rows ? '<button class="btn danger wide" data-a="prof-clear">Oublier tous les profils</button>' : ''}
     </section>`;
   }
 
@@ -1128,7 +1246,7 @@
     },
 
     // main
-    deal() { cmd((s) => E.startHand(s)); },
+    deal() { cmd((s) => startHand(s)); },
     rank(d) { ui.rank = d.r; render(); },
     suit(d) {
       const h = state.hand;
@@ -1176,17 +1294,18 @@
     next() {
       let warn = null;
       cmd((s) => {
+        recordHand(s);
         const r = E.endHand(s);
         if (!r.ok) return r;
-        const r2 = E.startHand(s);
+        const r2 = startHand(s);
         if (!r2.ok) warn = r2.err;
         return { ok: true };
       });
       if (warn) toast(warn);
     },
-    'next-only'() { cmd((s) => E.endHand(s)); },
+    'next-only'() { cmd((s) => { recordHand(s); return E.endHand(s); }); },
     'end-only'() {
-      cmd((s) => E.endHand(s));
+      cmd((s) => { recordHand(s); return E.endHand(s); });
       ui.tab = 'table';
       render();
     },
@@ -1197,6 +1316,14 @@
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
     chart(d) { ui.chart = d.v; render(); },
+    'prof-clear'() {
+      if (!window.confirm('Oublier la façon de jouer de tous les joueurs ?')) return;
+      profDb = { v: 1, p: {}, recent: [] };
+      store.set(PKEY, JSON.stringify(profDb));
+      eqCache.clear();
+      render();
+      toast('Profils effacés');
+    },
     'apply-advice'(d) {
       const map = { raise: { type: 'r', to: Number(d.to) }, call: { type: 's' }, check: { type: 'x' }, fold: { type: 'f' }, allin: { type: 'AI' } };
       const a = map[d.act];
@@ -1279,7 +1406,7 @@
 
   function showTip(btn, pinned) {
     const el = $('tip');
-    el.textContent = TIPS[btn.dataset.tip] || '';
+    el.textContent = tipText(btn.dataset.tip);
     el.hidden = false;
     el.classList.remove('below');
     const r = btn.getBoundingClientRect();
@@ -1291,7 +1418,7 @@
     el.style.left = left + 'px';
     el.style.top = top + 'px';
     el.style.setProperty('--ax', (r.left + r.width / 2 - left) + 'px');
-    document.querySelectorAll('.help-q.on').forEach((b) => b.classList.remove('on'));
+    document.querySelectorAll('.help-q.on, .tipped.on').forEach((b) => b.classList.remove('on'));
     btn.classList.add('on');
     bubble.for = btn;
     bubble.pinned = !!pinned;
@@ -1305,12 +1432,13 @@
     bubble.pinned = false;
   }
 
+  const TIP_SEL = '.help-q, .tipped';
   document.addEventListener('mouseover', (ev) => {
-    const q = ev.target.closest && ev.target.closest('.help-q');
+    const q = ev.target.closest && ev.target.closest(TIP_SEL);
     if (q && !bubble.pinned) showTip(q, false);
   });
   document.addEventListener('mouseout', (ev) => {
-    const q = ev.target.closest && ev.target.closest('.help-q');
+    const q = ev.target.closest && ev.target.closest(TIP_SEL);
     if (q && !bubble.pinned && !(ev.relatedTarget && q.contains(ev.relatedTarget))) hideTip();
   });
   document.addEventListener('focusin', (ev) => { if (ev.target.classList && ev.target.classList.contains('help-q')) showTip(ev.target, false); });
@@ -1322,7 +1450,8 @@
   window.addEventListener('resize', () => { if (bubble.for) hideTip(); });
 
   document.addEventListener('click', (ev) => {
-    const q = ev.target.closest('.help-q');
+    let q = ev.target.closest(TIP_SEL);
+    if (q && q.classList.contains('tipped') && q.closest('[data-a]')) q = null; // dans un bouton : le bouton d'abord
     if (q) {
       ev.preventDefault();
       if (bubble.for === q && bubble.pinned) hideTip();
