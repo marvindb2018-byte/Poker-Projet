@@ -43,6 +43,8 @@ En mode Auto, c'est Claude qui retient le style des joueurs au fil des captures.
 
 **Positions** : survole (ou touche) une position (UTG, MP, CO, BTN…) pour voir ce qu'elle veut dire.
 
+**Onglet Apprendre** : toutes les notions du poker utilisées dans l'appli et par Claude (déroulement d'une main, places, actions, écriture des cartes comme AKo / AKs, combinaisons, tirages, calculs, styles de joueurs, code des messages), expliquées simplement avec des exemples. Une recherche, une case « Je connais » avec la progression, et « Teste-toi » pour réviser les notions pas encore connues. Le contenu est dans `learn.js` : facile d'y ajouter une notion.
+
 **Onglet Mains** : les tableaux des mains de départ (13 × 13) pour chaque place, la défense en grosse blinde et « face à une relance », avec ta main encadrée. Pour les apprendre petit à petit.
 
 **Entre deux mains** : l'onglet Table sert quand un joueur arrive, part, se met en pause ou recave, pour corriger des jetons d'après le site, ou pour déplacer le jeton D.
@@ -105,6 +107,7 @@ Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blin
 | `engine.js` | Règles de la partie : positions, ordre de parole, mises, pots annexes, texte des messages et du prompt (`buildPrompt`, `buildMessage`) |
 | `hands.js` | Les combinaisons du poker et le calcul de « ta main » |
 | `odds.js` | Probabilité de gagner (au hasard et contre les mains probables), cote du pot, tableaux des mains de départ (`RANGES`) et conseil avant le flop |
+| `learn.js` | Les notions de l'onglet Apprendre (mot, explication, exemple) |
 | `profiles.js` | Profils des joueurs : statistiques par pseudo, style en mots simples, ligne pour Claude |
 | `app.js` | Les écrans, les boutons et les raccourcis clavier |
 | `style.css` | L'apparence (couleurs en haut du fichier, affichage PC à la fin) |

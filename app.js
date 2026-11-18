@@ -6,12 +6,14 @@
   const HANDS = window.PokerHands;
   const ODDS = window.PokerOdds;
   const PROF = window.PokerProfiles;
+  const LEARN = window.PokerLearn;
   const KEY = 'pokercode:v1';
   const HKEY = 'pokercode:hist:v1';
   const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
   const CKEY = 'pokercode:crop'; // recadrage de la capture (fractions de l'image)
   const PKEY = 'pokercode:profiles:v1'; // façon de jouer de chaque pseudo, gardée d'une partie à l'autre
   const XKEY = 'pokercode:plain'; // 'off' = explications « En clair » masquées
+  const LKEY = 'pokercode:learned'; // notions que je connais (onglet Apprendre)
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
   const SUIT_NAME = { p: 'pique', c: 'cœur', k: 'carreau', t: 'trèfle' };
@@ -37,6 +39,8 @@
 
   let mode = store.get(MKEY) === 'auto' ? 'auto' : 'manuel';
   let plainOn = store.get(XKEY) !== 'off';
+  const learned = new Set(parse(store.get(LKEY)) || []);
+  const saveLearned = () => store.set(LKEY, JSON.stringify([...learned]));
   let crop = parse(store.get(CKEY));
 
   function save() {
@@ -257,10 +261,12 @@
     else if (ui.tab === 'prompt') html = viewPrompt();
     else if (ui.tab === 'settings') html = viewSettings();
     else if (ui.tab === 'charts') html = viewCharts();
+    else if (ui.tab === 'learn') html = viewLearn();
     else html = viewMain();
     if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
     $('view').innerHTML = html;
     $('side').innerHTML = viewSide();
+    if (ui.tab === 'learn') filterLearn();
   }
 
   /* ---- nouvelle partie */
@@ -693,6 +699,110 @@
     }
     out += `<button type="button" class="link-btn" data-a="toggle-plain">${plainOn ? 'Masquer les explications « En clair »' : 'Afficher les explications « En clair »'}</button>`;
     return out + '</section>';
+  }
+
+  /* ---- onglet Apprendre : toutes les notions, avec recherche, « Je connais » et « Teste-toi » */
+
+  const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  function learnProgress() {
+    const total = LEARN.all().length;
+    const known = LEARN.all().filter((it) => learned.has(it.id)).length;
+    return { total, known, pct: Math.round((known / total) * 100) };
+  }
+
+  function learnItem(it) {
+    const known = learned.has(it.id);
+    const cards = it.cards ? `<div class="lr-cards">${it.cards.map((c) => cardHtml(c, 'sm')).join('')}</div>` : '';
+    const text = norm([it.t, it.a, it.d, it.ex].join(' '));
+    return `<li class="lr-item ${known ? 'known' : ''}" data-id="${it.id}" data-text="${esc(text)}">
+      <div class="lr-head"><b class="lr-term">${esc(it.t)}</b>${it.a ? `<span class="lr-alias">${esc(it.a)}</span>` : ''}
+        <label class="lr-know"><input type="checkbox" data-know="${it.id}" ${known ? 'checked' : ''}> Je connais</label></div>
+      ${cards}<p class="lr-def">${esc(it.d)}</p>${it.ex ? `<p class="lr-ex"><b>Exemple :</b> ${esc(it.ex)}</p>` : ''}
+    </li>`;
+  }
+
+  function quizCard() {
+    const q = ui.quiz;
+    const it = LEARN.all().find((x) => x.id === q.id);
+    if (!it) return '';
+    const left = LEARN.all().filter((x) => !learned.has(x.id)).length;
+    return `<section class="panel quiz">
+      <div class="quiz-top"><span class="muted">Teste-toi · ${left} notion${left > 1 ? 's' : ''} à apprendre</span><button class="link-btn" data-a="quiz-stop">Arrêter</button></div>
+      <div class="quiz-q">Que veut dire <b>« ${esc(it.t)} »</b>${it.a ? ` <span class="lr-alias">${esc(it.a)}</span>` : ''} ?</div>
+      ${q.shown ? `<div class="quiz-a">${it.cards ? `<div class="lr-cards">${it.cards.map((c) => cardHtml(c, 'sm')).join('')}</div>` : ''}<p>${esc(it.d)}</p>${it.ex ? `<p class="lr-ex"><b>Exemple :</b> ${esc(it.ex)}</p>` : ''}</div>
+        <div class="row"><button class="btn primary" data-a="quiz-yes">Je savais ✓</button><button class="btn" data-a="quiz-no">À revoir</button></div>`
+      : `<p class="hint">Réfléchis à la réponse, puis vérifie.</p><button class="btn primary wide" data-a="quiz-show">Voir l'explication</button>`}
+    </section>`;
+  }
+
+  function pickQuiz(prev) {
+    const pool = LEARN.all().filter((x) => !learned.has(x.id) && x.id !== prev);
+    const list = pool.length ? pool : LEARN.all().filter((x) => x.id !== prev);
+    return { id: list[Math.floor(Math.random() * list.length)].id, shown: false };
+  }
+
+  function viewLearn() {
+    const pr = learnProgress();
+    let out = `<section class="panel">
+      <h2>Apprendre</h2>
+      <p class="hint">Tous les mots du poker utilisés dans l'appli et par Claude, expliqués simplement. Coche « Je connais » au fur et à mesure, et utilise « Teste-toi » pour réviser.</p>
+      <div class="lr-progress"><div class="lr-bar"><i style="width:${pr.pct}%"></i></div><span><b>${pr.known}</b> / ${pr.total} notions connues</span></div>
+      <div class="row lr-tools">
+        <input class="in" id="learn-q" type="search" placeholder="Chercher : AKo, CO, tapis…" value="${esc(ui.learnQ || '')}" autocomplete="off">
+        ${ui.quiz ? '' : '<button class="btn primary" data-a="quiz-start">Teste-toi</button>'}
+      </div>
+      <p class="hint lr-none" hidden>Aucune notion ne correspond.</p>
+    </section>`;
+    if (ui.quiz) out += quizCard();
+    LEARN.SECTIONS.forEach((sec) => {
+      const known = sec.items.filter((it) => learned.has(it.id)).length;
+      let combos = '';
+      if (sec.combos) {
+        combos = `<ol class="lr-combos">${HANDS.CATEGORIES.slice().reverse().map((c) => `<li><b>${esc(c.name)}</b><span class="lr-cards">${c.ex.map((x) => cardHtml(x, 'xs')).join('')}</span><small>${esc(c.desc)}</small></li>`).join('')}</ol>`;
+      }
+      const open = ui.learnOpen && ui.learnOpen.has(sec.id);
+      out += `<details class="panel lr-sec" data-sec="${sec.id}" ${open ? 'open' : ''}>
+        <summary><span>${esc(sec.title)}</span><span class="lr-count" data-count="${sec.id}">${known}/${sec.items.length}</span></summary>
+        <p class="hint">${esc(sec.intro)}</p>${combos}
+        <ul class="lr-list">${sec.items.map(learnItem).join('')}</ul>
+      </details>`;
+    });
+    return out;
+  }
+
+  // Filtre sans redessiner (pour garder le curseur dans la recherche)
+  function filterLearn() {
+    const q = norm(ui.learnQ || '').trim();
+    let any = false;
+    document.querySelectorAll('.lr-sec').forEach((sec) => {
+      let n = 0;
+      sec.querySelectorAll('.lr-item').forEach((li) => {
+        const hit = !q || li.dataset.text.includes(q);
+        li.hidden = !hit;
+        if (hit) n++;
+      });
+      const combos = sec.querySelector('.lr-combos');
+      if (combos) combos.hidden = !!q;
+      sec.hidden = !!q && n === 0;
+      if (q && n) sec.open = true;
+      else if (!q) sec.open = !!(ui.learnOpen && ui.learnOpen.has(sec.dataset.sec)); // recherche effacée : comme avant
+      if (n) any = true;
+    });
+    const none = document.querySelector('.lr-none');
+    if (none) none.hidden = any || !q;
+  }
+
+  function updateLearnCounts() {
+    const pr = learnProgress();
+    const bar = document.querySelector('.lr-bar i');
+    if (bar) bar.style.width = pr.pct + '%';
+    const lbl = document.querySelector('.lr-progress span');
+    if (lbl) lbl.innerHTML = `<b>${pr.known}</b> / ${pr.total} notions connues`;
+    LEARN.SECTIONS.forEach((sec) => {
+      const el = document.querySelector(`[data-count="${sec.id}"]`);
+      if (el) el.textContent = sec.items.filter((it) => learned.has(it.id)).length + '/' + sec.items.length;
+    });
   }
 
   /* ---- onglet Mains : tableaux des mains de départ */
@@ -1345,6 +1455,11 @@
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
     chart(d) { ui.chart = d.v; render(); },
+    'quiz-start'() { ui.quiz = pickQuiz(null); render(); window.scrollTo(0, 0); },
+    'quiz-show'() { if (ui.quiz) { ui.quiz.shown = true; render(); } },
+    'quiz-yes'() { if (!ui.quiz) return; learned.add(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },
+    'quiz-no'() { if (!ui.quiz) return; learned.delete(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },
+    'quiz-stop'() { ui.quiz = null; render(); },
     'toggle-plain'() { plainOn = !plainOn; store.set(XKEY, plainOn ? 'on' : 'off'); render(); },
     'prof-clear'() {
       if (!window.confirm('Oublier la façon de jouer de tous les joueurs ?')) return;
@@ -1476,6 +1591,10 @@
   window.addEventListener('scroll', () => { if (bubble.for) hideTip(); }, { passive: true });
   document.addEventListener('toggle', (ev) => {
     if (ev.target.classList && ev.target.classList.contains('history') && ev.target.closest('.col-b')) ui.histOpen = ev.target.open;
+    if (ev.target.classList && ev.target.classList.contains('lr-sec') && !ui.learnQ) {
+      ui.learnOpen = ui.learnOpen || new Set();
+      if (ev.target.open) ui.learnOpen.add(ev.target.dataset.sec); else ui.learnOpen.delete(ev.target.dataset.sec);
+    }
   }, true);
   window.addEventListener('resize', () => { if (bubble.for) hideTip(); });
 
@@ -1505,6 +1624,7 @@
       document.querySelectorAll(`[data-setup-sel] option[value="${i}"]`).forEach((o) => { o.textContent = (i + 1) + '. ' + t.value; });
     } else if (t.dataset.setupStack != null) ui.setup.stacks[Number(t.dataset.setupStack)] = t.value;
     else if (t.dataset.setup) ui.setup[t.dataset.setup] = t.value;
+    else if (t.id === 'learn-q') { ui.learnQ = t.value; filterLearn(); }
     else if (t.id === 'amt') {
       ui.amount = t.value;
       const b = $('amt-go');
@@ -1516,6 +1636,14 @@
     const t = ev.target;
     if (t.dataset.setupSel) { ui.setup[t.dataset.setupSel] = Number(t.value); return; }
     if (t.dataset.setupStr) { ui.setup[t.dataset.setupStr] = t.value; return; }
+    if (t.dataset.know) {
+      if (t.checked) learned.add(t.dataset.know); else learned.delete(t.dataset.know);
+      saveLearned();
+      const li = t.closest('.lr-item');
+      if (li) li.classList.toggle('known', t.checked);
+      updateLearnCounts();
+      return;
+    }
     const k = t.dataset.set;
     if (!k || !state) return;
     // sans redessiner l'écran, pour ne pas perdre le champ suivant que l'on vient de toucher
