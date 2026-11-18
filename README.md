@@ -12,6 +12,7 @@ L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode �
   - **Copier le prompt Auto** : à coller une fois dans une conversation Claude, ou dans les instructions d'un Projet Claude.
   - **Capture depuis l'appli (PC, Edge/Chrome)** : « Choisir la fenêtre du jeu » une seule fois, éventuellement « Recadrer sur la table », puis un clic sur « Capturer la table » (ou **Espace**) copie l'image ; **Ctrl+V** dans Claude. L'image reste sur ton ordinateur (presse-papiers).
   - Sur téléphone : capture d'écran classique, partagée à Claude.
+  - **Apprendre à l'appli à lire ta table** (en préparation) : pendant une partie, « Démarrer l'enregistrement » garde une image de la fenêtre partagée à chaque changement à la table (une fois l'image stabilisée), jusqu'à 250 images, puis « Télécharger » les rassemble dans un fichier zip. Ces images serviront à faire lire la table Zynga par l'appli elle-même, pour qu'elle prépare seule le message pour Claude.
 
 ## Utilisation (mode Manuel)
 

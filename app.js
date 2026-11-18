@@ -1042,6 +1042,7 @@
         ${cap.lastUrl ? `<div class="cap-last"><img src="${cap.lastUrl}" alt="Dernière capture"><span>Copiée à ${cap.lastAt} : colle-la dans Claude avec <kbd>Ctrl</kbd>+<kbd>V</kbd></span></div>` : ''}
       </section>`;
     }
+    if (canCapture()) capture += recPanel();
     return `<div class="hand-grid auto-grid"><div class="col-a">${steps}</div><div class="col-b">${capture}</div></div>`;
   }
 
@@ -1145,6 +1146,164 @@
       })
       .catch(() => toast('Copie impossible : clique dans l\'appli puis réessaie'))
       .finally(() => { cap.busy = false; });
+  }
+
+  /* ---- enregistrement de captures : pour apprendre à l'appli à lire ta table Zynga.
+   * Pendant que la fenêtre est partagée, l'appli garde une image à chaque changement à la table
+   * (une fois l'image stabilisée, pour éviter les animations), puis les rassemble dans un fichier zip.
+   * Les images restent sur l'ordinateur tant que tu ne les envoies pas. */
+
+  const REC_MAX = 250;
+  const rec = { on: false, frames: [], bytes: 0, timer: null, prev: null, saved: null, lastSave: 0, changedAt: 0, busy: false };
+  const SW = 320, SH = 180; // image réduite pour repérer les changements
+  let recCanvas = null;
+
+  function recSample() {
+    const v = cap.video;
+    if (!v || !v.videoWidth) return null;
+    recCanvas = recCanvas || Object.assign(document.createElement('canvas'), { width: SW, height: SH });
+    const g = recCanvas.getContext('2d', { willReadFrequently: true });
+    g.drawImage(v, 0, 0, SW, SH);
+    const d = g.getImageData(0, 0, SW, SH).data;
+    const out = new Uint8Array(SW * SH);
+    for (let i = 0, j = 0; j < out.length; i += 4, j++) out[j] = (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10;
+    return out;
+  }
+  // nombre de points qui ont nettement changé entre deux images réduites
+  function recDiff(a, b) {
+    let n = 0;
+    for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 24) n++;
+    return n;
+  }
+
+  function recSave(now) {
+    const v = cap.video;
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    rec.busy = true;
+    c.toBlob((blob) => {
+      rec.busy = false;
+      if (!blob || !rec.on) return;
+      const d = new Date();
+      const hms = [d.getHours(), d.getMinutes(), d.getSeconds()].map((x) => String(x).padStart(2, '0')).join('');
+      rec.frames.push({ name: `table-${String(rec.frames.length + 1).padStart(3, '0')}-${hms}.jpg`, blob });
+      rec.bytes += blob.size;
+      rec.lastSave = now;
+      if (rec.frames.length >= REC_MAX) { recStop(); toast(REC_MAX + ' captures : enregistrement arrêté. Télécharge le fichier.'); }
+      recUpdate();
+    }, 'image/jpeg', 0.9);
+  }
+
+  function recTick() {
+    if (!rec.on || rec.busy) return;
+    if (!capLive()) { recStop(); return; }
+    const s = recSample();
+    if (!s) return;
+    const now = Date.now();
+    const moving = rec.prev ? recDiff(s, rec.prev) : 0;
+    rec.prev = s;
+    const changed = !rec.saved || recDiff(s, rec.saved) > 30;
+    if (!changed) { rec.changedAt = 0; return; }
+    if (!rec.changedAt) rec.changedAt = now;
+    // on attend que l'image se pose (fin d'animation), au plus 3 s, et au moins 1,5 s entre deux images
+    const settled = moving < 120 || now - rec.changedAt > 3000;
+    if (settled && now - rec.lastSave >= 1500) {
+      rec.saved = s;
+      rec.changedAt = 0;
+      recSave(now);
+    }
+  }
+
+  function recStart() {
+    if (!capLive()) return toast("Choisis d'abord la fenêtre du jeu");
+    rec.on = true;
+    rec.prev = rec.saved = null;
+    rec.changedAt = 0;
+    clearInterval(rec.timer);
+    rec.timer = setInterval(recTick, 500);
+    render();
+    toast('Enregistrement lancé : joue normalement');
+  }
+  function recStop() {
+    rec.on = false;
+    clearInterval(rec.timer);
+    rec.timer = null;
+    render();
+  }
+  function recUpdate() {
+    const el = $('rec-count');
+    if (el) el.textContent = recCountText();
+    const dl = $('rec-dl');
+    if (dl) dl.disabled = !rec.frames.length;
+  }
+  const recCountText = () => `${rec.frames.length} capture${rec.frames.length > 1 ? 's' : ''} · ${(rec.bytes / 1048576).toFixed(1)} Mo`;
+
+  function recPanel() {
+    return `<section class="panel rec">
+      <h2>Apprendre à l'appli à lire ta table ${rec.on ? '<span class="rec-dot">enregistrement</span>' : ''}</h2>
+      <p class="hint">Pour que l'appli lise un jour la table toute seule, il me faut des images de ta table Zynga. Lance l'enregistrement, joue normalement une vingtaine de mains : l'appli garde une image à chaque changement à la table. Ensuite, télécharge le fichier et envoie-le moi dans la conversation. Les images restent sur ton ordinateur tant que tu ne les envoies pas.</p>
+      <div class="row">
+        ${rec.on ? '<button class="btn danger" data-a="rec-stop">Arrêter l\'enregistrement</button>'
+          : `<button class="btn primary" data-a="rec-start" ${capLive() ? '' : 'disabled'}>Démarrer l'enregistrement</button>`}
+        <span class="rec-count" id="rec-count">${recCountText()}</span>
+      </div>
+      <div class="row">
+        <button class="btn" id="rec-dl" data-a="rec-dl" ${rec.frames.length ? '' : 'disabled'}>Télécharger (fichier zip)</button>
+        ${rec.frames.length && !rec.on ? '<button class="btn ghost" data-a="rec-clear">Effacer</button>' : ''}
+      </div>
+      ${capLive() ? '' : '<p class="hint">Partage d\'abord la fenêtre du jeu (bouton plus haut).</p>'}
+      <p class="hint">Partage bien la fenêtre ou l'onglet de Zynga (pas tout l'écran), pour qu'on ne voie que la table.</p>
+    </section>`;
+  }
+
+  // Petit fichier zip sans compression (les images JPEG sont déjà compressées).
+  const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  async function makeZip(files) {
+    const enc = new TextEncoder();
+    const parts = [], central = [];
+    let offset = 0;
+    const d = new Date();
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    for (const f of files) {
+      const data = new Uint8Array(await f.blob.arrayBuffer());
+      const name = enc.encode(f.name);
+      const crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(lh.buffer, name, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true);
+      ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint16(30, 0, true); ch.setUint16(32, 0, true); ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true);
+      ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+      offset += 30 + name.length + data.length;
+    }
+    const csize = central.reduce((a, x) => a + x.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, csize, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+  }
+
+  async function recDownload() {
+    if (!rec.frames.length) return;
+    const zip = await makeZip(rec.frames);
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}h${String(d.getMinutes()).padStart(2, '0')}`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zip);
+    a.download = `captures-table-${stamp}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    toast('Fichier téléchargé : envoie-le moi dans la conversation');
   }
 
   // Recadrage : tracer un rectangle sur l'aperçu
@@ -1322,7 +1481,11 @@
     'copy-auto-prompt'() { copy(E.buildAutoPrompt(), 'Prompt Auto copié : colle-le dans une nouvelle conversation Claude'); },
     'toggle-auto-prompt'() { ui.showAutoPrompt = !ui.showAutoPrompt; render(); },
     'cap-start'() { startCapture(); },
-    'cap-stop'() { stopCapture(); toast('Partage arrêté'); },
+    'cap-stop'() { recStop(); stopCapture(); toast('Partage arrêté'); },
+    'rec-start'() { recStart(); },
+    'rec-stop'() { recStop(); toast(recCountText() + ' gardées'); },
+    'rec-dl'() { recDownload(); },
+    'rec-clear'() { if (!window.confirm('Effacer les captures enregistrées ?')) return; rec.frames = []; rec.bytes = 0; render(); },
     'cap-shot'() { shoot(); },
     'cap-crop'() { ui.cropping = !ui.cropping; render(); },
     'cap-uncrop'() { crop = null; store.del(CKEY); render(); },

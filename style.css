@@ -684,3 +684,10 @@ body.auto .layout { grid-template-columns: minmax(0, 1fr); }
 .quiz-q { font-size: 18px; margin: 8px 0 10px; }
 .quiz-a { padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: rgba(60, 196, 127, .07); border-left: 3px solid var(--accent); }
 .quiz-a p { margin: 0 0 6px; line-height: 1.5; }
+
+/* ---------- enregistrement de captures */
+.rec .row { align-items: center; margin-top: 8px; }
+.rec-count { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.rec-dot { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font: 700 11px var(--sans); color: #ff8a8a; text-transform: uppercase; letter-spacing: .06em; vertical-align: middle; }
+.rec-dot::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #ff5a5a; animation: recblink 1s infinite; }
+@keyframes recblink { 50% { opacity: .25; } }
