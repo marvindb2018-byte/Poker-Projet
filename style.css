@@ -738,3 +738,6 @@ details.plain > div p + p { margin-top: 6px; }
   background: #1b2a22; border: 2px solid var(--gold); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
   font-size: 14.5px; max-width: calc(100vw - 24px);
 }
+
+/* ---------- bulles sur les onglets et les boutons du haut (sans soulignement) */
+.nav .tipped, .top-right .tipped { text-decoration: none; cursor: pointer; }

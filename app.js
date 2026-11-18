@@ -99,6 +99,15 @@
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
     instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains), adapté au relanceur quand on connaît sa façon de jouer. La probabilité de gagner est calculée contre les mains probables de chacun : un joueur qui a relancé a surtout de bonnes mains, et un joueur qui mise après le flop a souvent touché quelque chose. Plus l'appli a vu jouer un joueur, plus l'estimation est juste. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
+    'tab-main': "Main : la partie en cours. Tes cartes, ce que fait chaque joueur, le message à envoyer à Claude et l'aide instantanée.",
+    'tab-table': "Table : les joueurs assis. Ajouter quelqu'un qui arrive, retirer quelqu'un qui part, corriger des jetons ou déplacer le jeton D.",
+    'tab-charts': "Mains : les tableaux des mains de départ, quoi faire avant le flop selon ta place. À étudier pour progresser.",
+    'tab-learn': "Apprendre : toutes les notions du poker expliquées simplement, avec une recherche et un mode « Teste-toi ».",
+    'tab-prompt': "Prompt : le texte de départ à coller dans une nouvelle conversation Claude, pour qu'il comprenne les messages de l'appli.",
+    'tab-settings': "Réglages : blindes et ante, profils des joueurs observés, nouvelle partie.",
+    'mode-manuel': "Mode Manuel : tu saisis la partie dans l'appli, qui prépare les messages pour Claude et calcule l'aide instantanée.",
+    'mode-auto': "Mode Auto : tu envoies des captures d'écran de la table à Claude, qui lit tout lui-même. Rien à saisir dans l'appli.",
+    undo: "Annuler : revient en arrière d'une action, en cas d'erreur de saisie (Ctrl+Z).",
     vsraise: "Face à une relance : ce que tu fais quand un joueur a déjà relancé avant toi, à une autre place que la grosse blinde.",
     shown: "Si des joueurs montrent leurs cartes à la fin, tape-les : la valeur puis la couleur (p pique, c cœur, k carreau, t trèfle), ex : « ac kk » = A♥ K♦. Quand toutes les mains sont connues, l'appli trouve seule le gagnant. Surtout, elle vérifie ses prévisions : ce joueur bluffait-il ? Relance-t-il avec des mains plus faibles que prévu ? C'est ce qui affine le plus ses conseils.",
     profiles: "L'appli retient ce que fait chaque joueur à chaque main saisie : combien de mains il joue, combien il en relance, s'il se couche souvent face à une mise. Après 8 mains, son style s'affiche (serré = joue peu de mains, large = en joue beaucoup ; passif = suit plus qu'il ne relance, agressif = relance souvent). Les profils sont rangés par pseudo et gardés d'une partie à l'autre, sur ce navigateur.",
@@ -1759,9 +1768,14 @@
   }
 
   const TIP_SEL = '.help-q, .tipped';
+  // En haut et dans la barre des onglets, la bulle attend un court instant : pas de bulle en passant juste la souris dessus.
+  let tipTimer = null;
   document.addEventListener('mouseover', (ev) => {
     const q = ev.target.closest && ev.target.closest(TIP_SEL);
-    if (q && !bubble.pinned) showTip(q, false);
+    clearTimeout(tipTimer);
+    if (!q || bubble.pinned) return;
+    if (q.closest('.nav, .top-right')) tipTimer = setTimeout(() => { if (q.matches(':hover') && !bubble.pinned) showTip(q, false); }, 350);
+    else showTip(q, false);
   });
   document.addEventListener('mouseout', (ev) => {
     const q = ev.target.closest && ev.target.closest(TIP_SEL);

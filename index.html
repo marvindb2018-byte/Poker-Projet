@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="app-version" content="20261118-170300">
+  <meta name="app-version" content="20261118-184142">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1511">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,17 +14,17 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
-  <link rel="stylesheet" href="style.css?v=20261118-170300">
+  <link rel="stylesheet" href="style.css?v=20261118-184142">
 </head>
 <body>
   <header class="top">
     <div class="brand"><span class="suit">♠</span> Poker <span class="arrow">→</span> Claude</div>
     <div class="top-right">
       <div class="mode-switch" role="group" aria-label="Mode">
-        <button data-a="mode" data-v="manuel" title="Tu saisis la partie dans l'appli (parties en vrai)">Manuel</button>
-        <button data-a="mode" data-v="auto" title="Claude lit tes captures d'écran (parties en ligne)">Auto</button>
+        <button class="tipped" data-a="mode" data-v="manuel" data-tip="mode-manuel">Manuel</button>
+        <button class="tipped" data-a="mode" data-v="auto" data-tip="mode-auto">Auto</button>
       </div>
-      <button id="undo" class="undo" data-a="undo" title="Annuler la dernière action" disabled>↶ Annuler</button>
+      <button id="undo" class="undo tipped" data-a="undo" data-tip="undo" disabled>↶ Annuler</button>
     </div>
   </header>
 
@@ -34,23 +34,23 @@
   </div>
 
   <nav class="nav" hidden>
-    <button data-a="tab" data-tab="main">Main</button>
-    <button data-a="tab" data-tab="table">Table</button>
-    <button data-a="tab" data-tab="charts">Mains</button>
-    <button data-a="tab" data-tab="learn">Apprendre</button>
-    <button data-a="tab" data-tab="prompt">Prompt</button>
-    <button data-a="tab" data-tab="settings">Réglages</button>
+    <button class="tipped" data-a="tab" data-tab="main" data-tip="tab-main">Main</button>
+    <button class="tipped" data-a="tab" data-tab="table" data-tip="tab-table">Table</button>
+    <button class="tipped" data-a="tab" data-tab="charts" data-tip="tab-charts">Mains</button>
+    <button class="tipped" data-a="tab" data-tab="learn" data-tip="tab-learn">Apprendre</button>
+    <button class="tipped" data-a="tab" data-tab="prompt" data-tip="tab-prompt">Prompt</button>
+    <button class="tipped" data-a="tab" data-tab="settings" data-tip="tab-settings">Réglages</button>
   </nav>
 
   <div id="toast" class="toast" hidden></div>
   <div id="tip" class="tip-bubble" role="tooltip" hidden></div>
 
-  <script src="engine.js?v=20261118-170300"></script>
-  <script src="hands.js?v=20261118-170300"></script>
-  <script src="odds.js?v=20261118-170300"></script>
-  <script src="profiles.js?v=20261118-170300"></script>
-  <script src="learn.js?v=20261118-170300"></script>
-  <script src="advisor.js?v=20261118-170300"></script>
-  <script src="app.js?v=20261118-170300"></script>
+  <script src="engine.js?v=20261118-184142"></script>
+  <script src="hands.js?v=20261118-184142"></script>
+  <script src="odds.js?v=20261118-184142"></script>
+  <script src="profiles.js?v=20261118-184142"></script>
+  <script src="learn.js?v=20261118-184142"></script>
+  <script src="advisor.js?v=20261118-184142"></script>
+  <script src="app.js?v=20261118-184142"></script>
 </body>
 </html>
