@@ -624,7 +624,8 @@
 
   // « ac kk », « A♥ K♦ », « 10p 9p » → ['Ac', 'Kk'] / ['Tp', '9p']
   function parseCardsText(txt) {
-    const t = String(txt || '').replace(/10/g, 'T').replace(/♠/g, 'p').replace(/♥/g, 'c').replace(/♦/g, 'k').replace(/♣/g, 't');
+    const AZ = { '&': '1', 'é': '2', '"': '3', "'": '4', '(': '5', '-': '6', 'è': '7', '_': '8', 'ç': '9', 'à': '0' }; // chiffres AZERTY sans Maj
+    const t = String(txt || '').replace(/[&é"'(\-è_çà]/g, (c) => AZ[c]).replace(/10/g, 'T').replace(/♠/g, 'p').replace(/♥/g, 'c').replace(/♦/g, 'k').replace(/♣/g, 't');
     return [...t.matchAll(/([AKQJT2-9])\s*([pckt])/gi)].map((m) => m[1].toUpperCase() + m[2].toLowerCase());
   }
 
@@ -977,7 +978,7 @@
         <dt><kbd>C</kbd></dt><dd>Copier le message pour Claude</dd>
         <dt><kbd>G</kbd></dt><dd>Jouer le conseil du tableau (avant le flop)</dd>
         <dt>Cartes</dt><dd>La valeur puis la couleur : <kbd>A</kbd> puis <kbd>C</kbd> = A♥.<br>Valeurs A K Q J T 9…2 · couleurs <kbd>P</kbd> ♠ <kbd>C</kbd> ♥ <kbd>K</kbd> ♦ <kbd>T</kbd> ♣ · <kbd>⌫</kbd> efface</dd>
-        <dt><kbd>1</kbd> <kbd>2</kbd>…</dt><dd>Qui gagne : choisir le joueur</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd>…</dt><dd>Qui gagne : choisir le joueur (touches du haut du clavier, avec ou sans Maj)</dd>
         <dt><kbd>Entrée</kbd></dt><dd>Distribuer, valider, main suivante</dd>
         <dt><kbd>Ctrl</kbd>+<kbd>Z</kbd></dt><dd>Annuler la dernière action</dd>
         <dt><kbd>Échap</kbd></dt><dd>Fermer le montant ou la valeur choisie</dd>
@@ -1839,8 +1840,25 @@
 
   function onKey(ev) {
     const t = ev.target;
-    const k = ev.key;
+    // Clavier AZERTY sans pavé numérique : la touche « 1 » sans Maj donne « & », « 2 » donne « é »…
+    // On se fie à la touche physique (ev.code) : les chiffres marchent avec ou sans Maj, sur tous les claviers.
+    const dm = /^Digit(\d)$/.exec(ev.code || '');
+    const digit = dm && !ev.ctrlKey && !ev.metaKey && !ev.altKey ? dm[1] : null;
+    const k = digit || ev.key;
     const inField = /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName);
+    // dans un champ de montant (ou de cartes montrées), on écrit le chiffre même sans Maj
+    if (inField && digit && ev.key !== digit && (t.type === 'number' || t.dataset.show)) {
+      ev.preventDefault();
+      // comme une vraie frappe : remplace le texte sélectionné (le montant proposé est présélectionné)
+      let done = false;
+      try { done = document.execCommand('insertText', false, digit); } catch (e) { done = false; }
+      if (!done) {
+        if (t.type === 'number') t.value += digit;
+        else t.setRangeText(digit, t.selectionStart, t.selectionEnd, 'end');
+        t.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return;
+    }
     if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && k.toLowerCase() === 'z' && !inField) {
       ev.preventDefault();
       return handlers.undo();

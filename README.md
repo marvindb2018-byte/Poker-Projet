@@ -76,6 +76,8 @@ En mode Auto, c'est Claude qui retient le style des joueurs au fil des captures.
 | `G` | Jouer le conseil du tableau (avant le flop) |
 | Cartes | la valeur puis la couleur : `A` puis `C` = A♥ (couleurs `P` ♠ `C` ♥ `K` ♦ `T` ♣), `⌫` efface |
 | `1` `2`… | Qui gagne : choisir le joueur |
+
+Sur un clavier AZERTY sans pavé numérique, les chiffres marchent avec ou sans Maj (« & » = 1, « é » = 2…), pour le gagnant, les cartes et les montants.
 | `Entrée` | Distribuer, valider, main suivante |
 | `Ctrl`+`Z` | Annuler la dernière action |
 
