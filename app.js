@@ -825,7 +825,6 @@
       <h2>Mains de départ</h2>
       <p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c'est ce qui fait le plus progresser un débutant.</p>
       <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : 'pos:' + k}">${l}</button>`).join('')}</div>
-      <p class="pos-desc">${v === 'vs' ? esc(TIPS.vsraise) : esc(POS_TIPS[v])}</p>
       <div class="hc-grid">${grid}</div>
       <div class="hc-legend">${legend.map(([c, l]) => `<span><i class="hc ${c}"></i>${l}</span>`).join('')}${myClass ? `<span><i class="hc mine"></i>Ta main (${myClass})</span>` : ''}</div>
       <p class="hint">${text}</p>
@@ -1621,7 +1620,15 @@
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
-    chart(d) { ui.chart = d.v; render(); },
+    chart(d) {
+      ui.chart = d.v;
+      render();
+      // téléphone (pas de survol) : la bulle de la place touchée s'ouvre, jusqu'au prochain toucher
+      if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
+        const el = document.querySelector(`[data-a="chart"][data-v="${d.v}"]`);
+        if (el) showTip(el, true);
+      }
+    },
     'quiz-start'() { ui.quiz = pickQuiz(null); render(); window.scrollTo(0, 0); },
     'quiz-show'() { if (ui.quiz) { ui.quiz.shown = true; render(); } },
     'quiz-yes'() { if (!ui.quiz) return; learned.add(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },

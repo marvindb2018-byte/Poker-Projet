@@ -730,7 +730,6 @@ details.plain > div p + p { margin-top: 6px; }
 
 /* ---------- onglet Mains : bulle sur les places, phrase sous les boutons */
 .chip.tipped { text-decoration: none; }
-.pos-desc { margin: -4px 0 12px; font-size: 14px; color: #dfe8e3; line-height: 1.45; }
 
 /* ---------- nouvelle version en ligne */
 .update-bar {
