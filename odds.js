@@ -774,7 +774,7 @@
         if (draw && fp >= 25) {
           res.why = `semi-bluff : ${fp} % de chances qu'ils se couchent, et ton tirage peut rentrer`;
           res.plain = `Semi-bluff : tu n'as pas encore de grosse main, mais ${who} se couchera environ ${fp} fois sur 100, et s'il paie, ton tirage peut encore rentrer. En moyenne, ${verb} rapporte plus que ${than}.`;
-        } else if (fp >= 35) {
+        } else if (fp >= 35 || (o.eqCalled || 0) < 0.4) {
           res.why = `bluff : ils se couchent ≈ ${fp} % du temps`;
           res.plain = `${o.k === 'raise' ? 'Relance' : 'Mise'} pour faire coucher : ${chances}, et ${who} se couchera environ ${fp} fois sur 100 face à ${o.k === 'raise' ? 'une relance' : 'cette mise'}. En moyenne, ${verb} rapporte plus que ${than}.`;
         } else {

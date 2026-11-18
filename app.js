@@ -13,7 +13,7 @@
   const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
   const CKEY = 'pokercode:crop'; // recadrage de la capture (fractions de l'image)
   const PKEY = 'pokercode:profiles:v1'; // façon de jouer de chaque pseudo, gardée d'une partie à l'autre
-  const XKEY = 'pokercode:plain'; // 'off' = explications « En clair » masquées
+  const XKEY = 'pokercode:plainOpen'; // explications « En clair » que j'ai laissées ouvertes (par sorte)
   const LKEY = 'pokercode:learned'; // notions que je connais (onglet Apprendre)
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
@@ -39,7 +39,7 @@
   if (!profDb || !profDb.p) profDb = { v: 1, p: {}, recent: [] };
 
   let mode = store.get(MKEY) === 'auto' ? 'auto' : 'manuel';
-  let plainOn = store.get(XKEY) !== 'off';
+  const plainOpen = new Set(parse(store.get(XKEY)) || []);
   const learned = new Set(parse(store.get(LKEY)) || []);
   const saveLearned = () => store.set(LKEY, JSON.stringify([...learned]));
   let crop = parse(store.get(CKEY));
@@ -605,11 +605,18 @@
   function adviceLine(a, applicable) {
     const btn = applicable ? ` <button class="chip apply" data-a="apply-advice" data-act="${a.action}" data-to="${a.to || ''}">Jouer ça ${K('G')}</button>` : '';
     const close = a.close ? ' <span class="close-tag">décision serrée</span>' : '';
-    return `<div class="ins-adv"><b>${a.text}</b>${btn}${close}<small>${esc(a.why)}</small></div>${plain(a.plain)}${a.gains ? `<p class="ins-gains">${esc(a.gains)}</p>` : ''}`;
+    return `<div class="ins-adv"><b>${a.text}</b>${btn}${close}<small>${esc(a.why)}</small></div>${plain(a.plain, 'advice', 'En clair', a.gains)}`;
   }
 
-  // Explication « En clair » pour un débutant (masquable)
-  const plain = (text) => (plainOn && text ? `<p class="plain"><b>En clair :</b> ${esc(text)}</p>` : '');
+  // Explication « En clair » pour un débutant : un menu déroulant sous ce qu'elle explique, fermé par défaut.
+  // Une sorte d'explication ouverte (le conseil, la cote du pot…) reste ouverte aux coups suivants, jusqu'à ce que je la referme.
+  function plain(text, kind, summary, extra) {
+    if (!text) return '';
+    const t = String(text);
+    const body = esc(t.charAt(0).toUpperCase() + t.slice(1));
+    return `<details class="plain" data-kind="${kind}" ${plainOpen.has(kind) ? 'open' : ''}><summary>${esc(summary || 'En clair')}</summary>
+      <div><p>${body}</p>${extra ? `<p class="ins-gains">${esc(extra)}</p>` : ''}</div></details>`;
+  }
 
   // « ac kk », « A♥ K♦ », « 10p 9p » → ['Ac', 'Kk'] / ['Tp', '9p']
   function parseCardsText(txt) {
@@ -636,7 +643,8 @@
           ['Si une relance', ODDS.preflopAdvice(preflopCtx(h, { raises: 1, limpers: 0, cb: h.bb * 3, iRaised: false }))],
           ['Si deux relances', ODDS.preflopAdvice(preflopCtx(h, { raises: 2, limpers: 0, cb: h.bb * 9, iRaised: false }))],
         ];
-        out += `${plainOn ? '<p class="plain">Ce n\'est pas encore à toi. Selon ce que feront les joueurs qui parlent avant toi, voici ce que tu joueras :</p>' : ''}<ul class="ins-plan">${plan.map(([k, a]) => `<li><span>${k}</span> → <b>${a.text}</b></li>`).join('')}</ul>`;
+        out += `<div class="ins-sub">Pas encore à toi. Selon ce que font les joueurs avant toi :</div><ul class="ins-plan">${plan.map(([k, a]) => `<li><span>${k}</span> → <b>${a.text}</b></li>`).join('')}</ul>`
+          + plain("le tableau des mains de départ te dit déjà quoi faire dans chaque cas. Regarde ce que font les joueurs qui parlent avant toi : quand ce sera ton tour, le conseil exact s'affichera, avec le bouton « Jouer ça ».", 'plan');
       }
     }
     // Avant le flop, c'est le tableau qui décide : le calcul compterait comme adversaires
@@ -644,7 +652,7 @@
     const e = h.street > 0 ? myEquity(h, mine) : null;
     if (e && e.advice) out += adviceLine(e.advice, true);
     if (h.street === 0) {
-      out += plain("tes chances de gagner et le calcul « suivre est rentable » s'affichent à partir du flop. Avant le flop, c'est le tableau des mains de départ qui décide : il tient déjà compte de ta place et de ce qu'ont fait les autres.");
+      out += plain("tes chances de gagner et le calcul « suivre est rentable » s'affichent à partir du flop. Avant le flop, c'est le tableau des mains de départ qui décide : il tient déjà compte de ta place et de ce qu'ont fait les autres.", 'preflop', 'Et mes chances de gagner ?');
     }
     const opps = e ? e.opps : oppModels(h);
     if (e) {
@@ -660,16 +668,15 @@
           + `Il te suffit de gagner ${oneIn(need)} (${Math.round(need * 100)} %) pour ne pas perdre de jetons sur la durée. `
           + `Ici tu gagnes environ ${eqPct} fois sur 100 : ${good ? `c'est plus que ${Math.round(need * 100)} %, donc suivre est rentable.` : `c'est moins que ${Math.round(need * 100)} %, donc suivre n'est pas rentable.`}`
           + (e.advice && (good ? e.advice.action === 'fold' : e.advice.action !== 'fold')
-            ? ' Le conseil au-dessus va plus loin que ce calcul : il compare aussi ce que rapporteraient une mise ou une relance (qui peuvent faire coucher l\'adversaire), et tient compte de ta place.' : ''));
+            ? ' Le conseil au-dessus va plus loin que ce calcul : il compare aussi ce que rapporteraient une mise ou une relance (qui peuvent faire coucher l\'adversaire), et tient compte de ta place.' : ''), 'odds');
       } else {
-        out += plain(`si personne ne se couchait jusqu'à la fin de la main, tu gagnerais environ ${eqPct} fois sur 100.`);
+        out += plain(`si personne ne se couchait jusqu'à la fin de la main, tu gagnerais environ ${eqPct} fois sur 100. Le chiffre « au hasard » est celui qu'on aurait si les adversaires avaient n'importe quelles cartes.`, 'eq');
       }
     }
     if (opps.length) {
-      if (plainOn) out += '<p class="plain ins-opps-intro">Ce que l\'appli suppose que chacun a en main, d\'après ce qu\'il a joué :</p>';
+      out += '<div class="ins-sub ins-opps-intro">Mains probables des adversaires</div>';
       out += `<ul class="ins-opps">${opps.map((x) => `<li><b>${esc(x.name)}</b> ${posTag(x.pos, 'pos-inline')} ${styleTag(x.name, 'style-tag') || '<span class="style-tag unknown">pas encore observé</span>'}${x.range || x.acts.length ? `<small>${x.range ? 'Mains probables : ' + x.text : 'N\'importe quelle main au départ'}${x.acts.length ? `, surtout celles qui ont touché le tableau, puisqu'il a ${x.acts.some((y) => y.kind !== 'call') ? 'misé' : 'suivi'}` : ''}</small>` : ''}</li>`).join('')}</ul>`;
     }
-    out += `<button type="button" class="link-btn" data-a="toggle-plain">${plainOn ? 'Masquer les explications « En clair »' : 'Afficher les explications « En clair »'}</button>`;
     return out + '</section>';
   }
 
@@ -821,7 +828,7 @@
 
   function actionPanel(h, id, mine, meLive) {
     const o = E.options(h, id);
-    const head = (mine ? '<b>Ce que tu joues</b>' : `À <b>${esc(h.names[id])}</b> ${posTag(h.pos[id], 'pos-inline')}`) + ' ' + tip('actions');
+    const head = (mine ? '<span class="mt-label">À toi · ce que tu joues</span>' : `À <b>${esc(h.names[id])}</b> ${posTag(h.pos[id], 'pos-inline')}`) + ' ' + tip('actions');
     const call = o.canCheck
       ? `<button class="btn" data-a="act" data-t="x">Check ${K('X')}</button>`
       : `<button class="btn" data-a="act" data-t="s">${o.toCall >= o.st ? 'Suit (tapis)' : 'Suit ' + o.toCall} ${K('S')}</button>`;
@@ -1609,7 +1616,6 @@
     'quiz-yes'() { if (!ui.quiz) return; learned.add(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },
     'quiz-no'() { if (!ui.quiz) return; learned.delete(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },
     'quiz-stop'() { ui.quiz = null; render(); },
-    'toggle-plain'() { plainOn = !plainOn; store.set(XKEY, plainOn ? 'on' : 'off'); render(); },
     'prof-clear'() {
       if (!window.confirm('Oublier la façon de jouer de tous les joueurs ?')) return;
       profDb = { v: 1, p: {}, recent: [] };
@@ -1748,6 +1754,10 @@
   window.addEventListener('scroll', () => { if (bubble.for) hideTip(); }, { passive: true });
   document.addEventListener('toggle', (ev) => {
     if (ev.target.classList && ev.target.classList.contains('history') && ev.target.closest('.col-b')) ui.histOpen = ev.target.open;
+    if (ev.target.classList && ev.target.classList.contains('plain') && ev.target.dataset.kind) {
+      if (ev.target.open) plainOpen.add(ev.target.dataset.kind); else plainOpen.delete(ev.target.dataset.kind);
+      store.set(XKEY, JSON.stringify([...plainOpen]));
+    }
     if (ev.target.classList && ev.target.classList.contains('lr-sec') && !ui.learnQ) {
       ui.learnOpen = ui.learnOpen || new Set();
       if (ev.target.open) ui.learnOpen.add(ev.target.dataset.sec); else ui.learnOpen.delete(ev.target.dataset.sec);

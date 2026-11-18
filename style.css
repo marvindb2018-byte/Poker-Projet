@@ -230,7 +230,9 @@ select.in { appearance: auto; }
 
 /* ---------- saisie d'une action */
 .act { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
-.act.mine { border-color: rgba(241, 195, 95, .5); }
+/* à moi de jouer : même cadre doré que « Envoie ceci à Claude » */
+.act.mine { border: 2px solid var(--gold); background: rgba(241, 195, 95, .07); box-shadow: 0 0 0 4px rgba(241, 195, 95, .08); }
+.act.mine .act-head .mt-label { font-size: 13px; }
 .act-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .pos-inline { font: 800 12px var(--mono); color: var(--accent); margin-left: 2px; }
 .act-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -641,10 +643,21 @@ body.auto .layout { grid-template-columns: minmax(0, 1fr); }
 .prof-list .stk { text-align: right; color: var(--muted); font-size: 13px; }
 
 /* ---------- explications « En clair » */
-.plain { margin: 6px 0 2px; padding: 6px 10px; border-left: 3px solid var(--accent); background: rgba(60, 196, 127, .07); border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.45; color: #dfe8e3; }
-.plain b { color: var(--accent); }
-.ins-opps-intro { margin-top: 10px; }
-.ins-opps-intro + .ins-opps { border-top: 0; margin-top: 4px; padding-top: 0; }
+details.plain { margin: 6px 0 4px; }
+details.plain > summary {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; user-select: none;
+  font: 700 12.5px var(--sans); color: var(--accent); padding: 3px 11px; border: 1px solid rgba(60, 196, 127, .35); border-radius: 999px;
+}
+details.plain > summary::-webkit-details-marker { display: none; }
+details.plain > summary::before { content: '▸'; font-size: 10px; transition: transform .15s; }
+details.plain[open] > summary::before { transform: rotate(90deg); }
+details.plain > summary:hover { background: rgba(60, 196, 127, .1); }
+details.plain > div { margin-top: 6px; padding: 7px 11px; border-left: 3px solid var(--accent); background: rgba(60, 196, 127, .07); border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.45; color: #dfe8e3; }
+details.plain > div p { margin: 0; }
+details.plain > div p + p { margin-top: 6px; }
+.ins-sub { margin: 4px 0 2px; font-size: 13px; color: var(--muted); }
+.ins-opps-intro { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ins-opps-intro + .ins-opps { border-top: 0; margin-top: 2px; padding-top: 0; }
 .link-btn { display: block; margin: 10px 0 0 auto; padding: 4px 0; background: none; border: 0; color: var(--muted); font: 600 12.5px var(--sans); text-decoration: underline; cursor: pointer; }
 
 /* ---------- onglet Apprendre */
