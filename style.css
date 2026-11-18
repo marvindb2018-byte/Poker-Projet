@@ -818,3 +818,56 @@ details.plain > div p + p { margin-top: 6px; }
 .v-r3 { border-color: #b98a2a; background: rgba(185, 138, 42, .16); } .v-r3 b { color: var(--gold); }
 .v-fold { border-color: #4a5a52; background: rgba(255, 255, 255, .04); } .v-fold b { color: #c9d3cd; }
 .v-empty { margin: 4px 0 12px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); }
+
+/* ---------- une table plus jolie (partie normale et partie rapide) */
+.pt-felt {
+  inset: 15% 9%;
+  border: 16px solid transparent;
+  background:
+    radial-gradient(ellipse at 50% 42%, #2f9a68 0%, #1f7d51 36%, #145e3d 68%, #0c4129 100%) padding-box,
+    linear-gradient(160deg, #8a5d39 0%, #553520 30%, #2e1c0f 58%, #74492a 100%) border-box; /* rail en bois */
+  box-shadow:
+    0 0 0 3px #150d07,
+    0 0 0 5px rgba(241, 195, 95, .22),           /* liseré doré autour du rail */
+    0 24px 54px rgba(0, 0, 0, .65),
+    inset 0 0 0 2px rgba(0, 0, 0, .35),
+    inset 0 16px 44px rgba(0, 0, 0, .42),
+    inset 0 -12px 34px rgba(255, 255, 255, .05);
+}
+.pt-felt::before { /* grain du tapis */
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .5;
+  background: repeating-radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
+}
+.pt-felt::after { /* ligne de mise */
+  content: ''; position: absolute; inset: 12% 9%; border-radius: inherit; pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, .1);
+}
+.seat-box {
+  background: linear-gradient(180deg, #1d2d25 0%, #0e1813 100%);
+  border: 1px solid rgba(255, 255, 255, .13); border-radius: 14px; padding: 6px 8px 7px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.seat-pos { display: inline-block; padding: 0 7px; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #b5c4bc; font-size: 9.5px; line-height: 1.6; }
+.seat-name { font-weight: 700; margin-top: 2px; }
+.seat.me .seat-box { background: linear-gradient(180deg, #2c2817 0%, #15130c 100%); border-color: rgba(241, 195, 95, .75); }
+.seat.me .seat-pos { background: rgba(241, 195, 95, .16); color: var(--gold); }
+/* dos de cartes : motif et cartes en éventail, comme une vraie main */
+.cb {
+  border: 2px solid #f4efe4; border-radius: 5px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .28) 0 1.5px, transparent 2px) 0 0 / 6px 6px,
+    linear-gradient(135deg, #c04545 0%, #8a2230 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(0, 0, 0, .2);
+}
+.seat-cards .cb:first-child, .seat-cards .card.xs:first-child { transform: rotate(-7deg) translate(3px, 1px); }
+.seat-cards .cb:last-child, .seat-cards .card.xs:last-child { transform: rotate(7deg) translate(-3px, 1px); }
+/* jeton D : un vrai bouton de donneur */
+.dealer-badge {
+  background: radial-gradient(circle at 50% 38%, #ffffff 0 52%, #e6e0d2 53% 100%); color: #1a1a1a;
+  border: 2px solid #cfc7b5; font: 900 11px var(--sans);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, .6), 0 0 0 2px #0f1a15;
+}
+/* mises et pot */
+.pt-bet { background: rgba(0, 0, 0, .5); border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 3px 8px rgba(0, 0, 0, .4); }
+.pt-bet i { width: 17px; height: 17px; background: radial-gradient(circle, #f3c75e 0 28%, #fff 29% 38%, #c8952e 39% 60%, #fff 61% 68%, #a87a20 69%); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+.pt-pot { background: rgba(0, 0, 0, .45); border: 1px solid rgba(241, 195, 95, .35); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
