@@ -99,6 +99,7 @@
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
     instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains), adapté au relanceur quand on connaît sa façon de jouer. La probabilité de gagner est calculée contre les mains probables de chacun : un joueur qui a relancé a surtout de bonnes mains, et un joueur qui mise après le flop a souvent touché quelque chose. Plus l'appli a vu jouer un joueur, plus l'estimation est juste. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
+    vsraise: "Face à une relance : ce que tu fais quand un joueur a déjà relancé avant toi, à une autre place que la grosse blinde.",
     shown: "Si des joueurs montrent leurs cartes à la fin, tape-les : la valeur puis la couleur (p pique, c cœur, k carreau, t trèfle), ex : « ac kk » = A♥ K♦. Quand toutes les mains sont connues, l'appli trouve seule le gagnant. Surtout, elle vérifie ses prévisions : ce joueur bluffait-il ? Relance-t-il avec des mains plus faibles que prévu ? C'est ce qui affine le plus ses conseils.",
     profiles: "L'appli retient ce que fait chaque joueur à chaque main saisie : combien de mains il joue, combien il en relance, s'il se couche souvent face à une mise. Après 8 mains, son style s'affiche (serré = joue peu de mains, large = en joue beaucoup ; passif = suit plus qu'il ne relance, agressif = relance souvent). Les profils sont rangés par pseudo et gardés d'une partie à l'autre, sur ce navigateur.",
     sidepot: "Pot annexe : un joueur à tapis ne peut gagner, chez chaque adversaire, que ce qu'il a lui-même misé. Le reste forme un pot annexe, disputé seulement entre les joueurs qui avaient plus de jetons. L'appli fait le calcul : désigne juste la meilleure main.",
@@ -823,7 +824,8 @@
     return `<section class="panel">
       <h2>Mains de départ</h2>
       <p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c'est ce qui fait le plus progresser un débutant.</p>
-      <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}">${l}</button>`).join('')}</div>
+      <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : 'pos:' + k}">${l}</button>`).join('')}</div>
+      <p class="pos-desc">${v === 'vs' ? esc(TIPS.vsraise) : esc(POS_TIPS[v])}</p>
       <div class="hc-grid">${grid}</div>
       <div class="hc-legend">${legend.map(([c, l]) => `<span><i class="hc ${c}"></i>${l}</span>`).join('')}${myClass ? `<span><i class="hc mine"></i>Ta main (${myClass})</span>` : ''}</div>
       <p class="hint">${text}</p>
@@ -876,7 +878,7 @@
       <ul class="pots">${pots}</ul>
       ${h.pots.filter((x) => !x.refund).length > 1 ? `<p class="hint">Il y a un pot annexe ${tip('sidepot')}</p>` : ''}
       <p class="hint">Touche la meilleure main. Plusieurs joueurs = partage du pot.</p>
-      <div class="cands">${cand.map((id, i) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}"><span class="pos">${h.pos[id]}</span>${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}${i < 9 ? `<kbd class="k right">${i + 1}</kbd>` : ''}</button>`).join('')}</div>
+      <div class="cands">${cand.map((id, i) => `<button class="cand ${ui.sel.includes(id) ? 'on' : ''}" data-a="sel" data-id="${id}">${posTag(h.pos[id], 'pos')}${esc(h.names[id])}${id === h.meId ? ' <em>moi</em>' : ''}${i < 9 ? `<kbd class="k right">${i + 1}</kbd>` : ''}</button>`).join('')}</div>
       <button class="btn primary big" data-a="declare" ${ui.sel.length ? '' : 'disabled'}>Valider ${K('Entrée')}</button>
       ${showCardsBox(h, cand)}
     </section>`;
@@ -1735,8 +1737,8 @@
     el.style.left = left + 'px';
     el.style.top = top + 'px';
     el.style.setProperty('--ax', (r.left + r.width / 2 - left) + 'px');
-    document.querySelectorAll('.help-q.on, .tipped.on').forEach((b) => b.classList.remove('on'));
-    btn.classList.add('on');
+    document.querySelectorAll('.tip-on').forEach((b) => b.classList.remove('tip-on'));
+    btn.classList.add('tip-on'); // pas « on » : sur les boutons de l'onglet Mains, « on » veut dire « choisi »
     bubble.for = btn;
     bubble.pinned = !!pinned;
   }
@@ -1744,7 +1746,7 @@
   function hideTip() {
     const el = $('tip');
     if (el) el.hidden = true;
-    if (bubble.for) bubble.for.classList.remove('on');
+    if (bubble.for) bubble.for.classList.remove('tip-on');
     bubble.for = null;
     bubble.pinned = false;
   }

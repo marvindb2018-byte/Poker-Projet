@@ -475,7 +475,7 @@ kbd {
   font: 800 11px/1 var(--sans); cursor: help; text-transform: none; letter-spacing: 0;
 }
 .help-q::before { content: ''; position: absolute; inset: -10px; } /* zone de toucher plus grande */
-.help-q:hover, .help-q.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.help-q:hover, .help-q.tip-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 h2 .help-q, h3 .help-q { vertical-align: 3px; }
 .tip-bubble {
   position: fixed; z-index: 30; max-width: min(320px, calc(100vw - 16px));
@@ -609,7 +609,7 @@ body.auto .layout { grid-template-columns: minmax(0, 1fr); }
   display: flex; align-items: center; justify-content: center; aspect-ratio: 1;
   border-radius: 3px; font: 700 clamp(8.5px, 2.4vw, 12px)/1 var(--sans); color: #c9d3cd; background: #1c2b24;
 }
-.hc small { font-size: .8em; font-weight: 600; opacity: .8; }
+.hc small { font-size: 1em; font-weight: 800; opacity: 1; margin-left: .5px; } /* le « s » / « o » bien lisible */
 .hc.raise { background: #2c8f5c; color: #eafff3; }
 .hc.call { background: #2b5e9b; color: #e8f1ff; }
 .hc.r3 { background: #b98a2a; color: #1b1a17; }
@@ -617,11 +617,11 @@ body.auto .layout { grid-template-columns: minmax(0, 1fr); }
 .hc.mine { outline: 2px solid var(--paper); outline-offset: -1px; }
 .hc-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
 .hc-legend i.hc { display: inline-block; width: 14px; height: 14px; aspect-ratio: auto; vertical-align: -2px; margin-right: 6px; }
-@media (min-width: 1000px) { .hc { font-size: 12px; } }
+@media (min-width: 1000px) { .hc { font-size: 13px; } }
 
 /* ---------- bulles sur les positions et les styles de jeu */
 .tipped { cursor: help; text-decoration: underline dotted rgba(255, 255, 255, .28); text-underline-offset: 3px; }
-.tipped.on { text-decoration-color: var(--gold); }
+.tipped.tip-on { text-decoration-color: var(--gold); }
 
 /* ---------- profils des joueurs */
 .style-tag, .seat-style {
@@ -727,3 +727,7 @@ details.plain > div p + p { margin-top: 6px; }
   to { box-shadow: 0 0 0 4px rgba(241, 195, 95, .08); }
 }
 @media (prefers-reduced-motion: reduce) { .todo { animation: none; } }
+
+/* ---------- onglet Mains : bulle sur les places, phrase sous les boutons */
+.chip.tipped { text-decoration: none; }
+.pos-desc { margin: -4px 0 12px; font-size: 14px; color: #dfe8e3; line-height: 1.45; }
