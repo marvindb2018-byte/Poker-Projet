@@ -953,32 +953,45 @@
     });
   }
 
-  // Partie rapide (onglet Mains) : je joue avec mes potes, l'appli suit seulement le jeton D et me dit ma place
+  // Partie rapide (onglet Mains) : je joue avec mes potes, l'appli suit seulement le jeton D et me dit ma place.
+  // Même table que la partie normale (sièges, dos de cartes, jeton D), affichée aussi sur téléphone.
   function quickTable() {
     const n = qg.n, b = qg.btn;
     const pos = b == null ? null : seatPositions(n, b);
-    const seats = Array.from({ length: n }, (_, k) => {
-      const a = ((90 + (k * 360) / n) * Math.PI) / 180;
-      const style = `left:${(50 + 43 * Math.cos(a)).toFixed(2)}%;top:${(50 + 41 * Math.sin(a)).toFixed(2)}%`;
-      return `<button type="button" class="q-seat ${k === 0 ? 'me' : ''} ${k === b ? 'is-btn' : ''}" style="${style}" data-a="qg-btn" data-i="${k}" title="Le jeton D est ici">
-        ${pos ? `<span class="q-pos">${pos[k]}</span>` : ''}<b>${k === 0 ? 'Toi' : 'Joueur ' + (k + 1)}</b>${k === b ? '<span class="q-d">D</span>' : ''}</button>`;
-    }).join('');
+    const RX = 44, RY = 43;
+    const at = (r, deg) => {
+      const a = (deg * Math.PI) / 180;
+      return `left:${(50 + RX * r * Math.cos(a)).toFixed(2)}%;top:${(50 + RY * r * Math.sin(a)).toFixed(2)}%`;
+    };
+    const dealerCorner = (deg) => { // comme la table normale : sur le coin tourné vers le centre
+      const a = (deg * Math.PI) / 180;
+      if (Math.abs(Math.cos(a)) < 0.2) return 'd-mr';
+      return 'd-' + (Math.sin(a) < -0.2 ? 'b' : 't') + (Math.cos(a) > 0.2 ? 'l' : 'r');
+    };
+    const back = '<span class="cb"></span><span class="cb"></span>';
+    let seats = '';
+    for (let k = 0; k < n; k++) {
+      const deg = 90 + (k * 360) / n;
+      const me = k === 0;
+      const cards = me ? (qg.cls ? `<span class="seat-hand">${qg.cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>` : '') : back;
+      seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="Le jeton D est ici">
+        <div class="seat-cards">${cards}</div>
+        <div class="seat-box">${k === b ? `<span class="dealer-badge ${dealerCorner(deg)}">D</span>` : ''}<span class="seat-pos">${pos ? pos[k] : '—'}</span><b class="seat-name">${me ? 'Toi' : 'Joueur ' + (k + 1)}</b></div>
+      </div>`;
+    }
     const mine = pos ? pos[0] : null;
+    const center = mine ? `<div class="qg-you">Tu es <b>${mine}</b></div>` : '<div class="qg-you qg-ask">Touche le joueur<br>qui a le jeton D</div>';
     return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
-      <div class="qg-head"><div class="mt-label">${b == null ? 'À faire · touche le joueur qui a le jeton D' : '🎯 Partie rapide'}</div><button class="link-btn" data-a="qg-stop">Arrêter</button></div>
-      <div class="field-row">
-        <span class="lbl">Joueurs à la table</span>
-        <div class="stepper">
-          <button data-a="qg-n" data-d="-1" aria-label="Un joueur de moins">−</button>
-          <b>${n}</b>
-          <button data-a="qg-n" data-d="1" aria-label="Un joueur de plus">+</button>
-        </div>
-      </div>
-      <div class="qtable"><div class="q-felt"></div>${seats}</div>
-      ${mine ? `<div class="q-me">Tu es <span class="q-me-pos">${mine}</span><span class="q-me-txt">${esc(POS_TIPS[mine] || '')}</span></div>
+      <div class="qg-head"><div class="mt-label">${b == null ? 'À faire · touche le joueur qui a le jeton D' : '🎯 Partie rapide'}</div>
+        <div class="qg-n"><span class="lbl">Joueurs</span><div class="stepper">
+          <button data-a="qg-n" data-d="-1" aria-label="Un joueur de moins">−</button><b>${n}</b><button data-a="qg-n" data-d="1" aria-label="Un joueur de plus">+</button>
+        </div></div>
+        <button class="link-btn" data-a="qg-stop">Arrêter</button></div>
+      <div class="ptable qg-pt"><div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
+      ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">Touche ta main dans le tableau${wide() ? ' à droite' : ' en dessous'} pour savoir si tu la joues. Quelqu'un a relancé avant toi ? Choisis « Face à une relance ».</p>`
-        : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre. Touche le joueur qui a le jeton D sur votre table.</p>'}
+        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'} pour savoir si tu la joues. Quelqu'un a relancé avant toi ? Choisis « Face à une relance ».</p>`
+        : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
   }
 

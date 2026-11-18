@@ -781,36 +781,31 @@ details.plain > div p + p { margin-top: 6px; }
 /* ---------- passer le tour (main pas suivie) */
 .hh-line .skip { margin-left: 8px; min-height: 30px; padding: 0 10px; font-size: 13px; text-decoration: none; }
 
-/* ---------- onglet Mains : partie rapide (table, ma place, main suivante) et main touchée dans le tableau */
+/* ---------- onglet Mains : partie rapide (table au centre, ma place, main suivante) et main touchée dans le tableau */
 .charts-play { display: grid; gap: 14px; }
-@media (min-width: 1000px) { .charts-play { grid-template-columns: minmax(340px, 1fr) minmax(440px, 600px); gap: 20px; align-items: start; } }
-.qg-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+@media (min-width: 1000px) {
+  /* comme la page Main : le tableau à gauche, la table au centre */
+  .charts-play { grid-template-columns: minmax(400px, 520px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .charts-play .cp-b { order: -1; }
+}
+.qg-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 14px; }
 .qg-head .link-btn { margin: 0; }
-.qtable { position: relative; width: 100%; aspect-ratio: 4 / 3; margin: 8px 0 12px; }
-.q-felt {
-  position: absolute; inset: 14% 11%; border-radius: 9999px;
-  background: radial-gradient(ellipse at 50% 38%, #23774f 0%, #165a3b 55%, #0f4430 100%);
-  border: 10px solid #3b2a1d; box-shadow: inset 0 0 30px rgba(0, 0, 0, .45);
-}
-.q-seat {
-  position: absolute; transform: translate(-50%, -50%); z-index: 2; white-space: nowrap;
-  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: clamp(62px, 19%, 104px);
-  padding: 6px 8px; border-radius: 12px; border: 1px solid var(--line); background: #0f1a15; color: var(--paper);
-  font: 600 clamp(11px, 2.9vw, 14px) var(--sans); cursor: pointer; box-shadow: 0 6px 14px rgba(0, 0, 0, .45);
-}
-.q-seat:hover { border-color: rgba(241, 195, 95, .7); }
-.q-seat.me { border-color: var(--gold); }
-.q-seat.me b { color: var(--gold); }
-.q-seat.is-btn { border: 2px solid var(--accent); }
-.q-pos { font: 800 10px var(--mono); color: var(--muted); letter-spacing: .04em; }
-.q-seat.me .q-pos { color: var(--gold); font-size: 12px; }
-.q-d {
-  position: absolute; top: -9px; right: -9px; width: 22px; height: 22px; border-radius: 50%;
-  display: grid; place-items: center; background: #fff; color: #111; font: 800 12px var(--sans); box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
-}
-.q-me { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: rgba(60, 196, 127, .1); font-size: 17px; }
-.q-me-pos { font: 800 26px var(--sans); color: var(--accent); }
-.q-me-txt { flex-basis: 100%; font-size: 14px; color: #dfe8e3; line-height: 1.45; }
+.qg-n { display: flex; align-items: center; gap: 10px; }
+.qg-n .lbl { font-weight: 650; font-size: 14px; color: var(--muted); }
+/* la table de la partie normale, affichée aussi sur téléphone */
+.ptable.qg-pt { display: block; position: relative; width: 100%; aspect-ratio: 4 / 3.2; margin: 26px 0 34px; container-type: inline-size; }
+.qg-pt .seat { cursor: pointer; }
+.qg-pt .seat:hover .seat-box { border-color: rgba(241, 195, 95, .6); }
+.qg-pt .seat.me .seat-box { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(241, 195, 95, .25), 0 6px 14px rgba(0, 0, 0, .45); }
+.qg-pt .seat.is-btn:not(.me) .seat-box { border-color: rgba(255, 255, 255, .45); }
+.qg-pt .seat.me .seat-pos { color: var(--gold); font-size: 12px; }
+.qg-pt .seat-hand { display: inline-block; padding: 4px 10px; border-radius: 8px; background: var(--paper); color: var(--ink); font: 800 15px var(--sans); box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
+.qg-pt .seat-hand small { font-size: 1em; }
+.qg-you { font: 600 clamp(14px, 3.4cqw, 20px) var(--sans); color: #e8f5ee; text-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+.qg-you b { display: block; font: 800 clamp(30px, 9cqw, 58px)/1.05 var(--sans); color: var(--gold); }
+.qg-you.qg-ask { font-size: clamp(13px, 3.2cqw, 18px); line-height: 1.35; white-space: normal; }
+.q-me-txt { margin: 0 0 12px; font-size: 14px; color: #dfe8e3; line-height: 1.45; text-align: center; }
+@media (max-width: 999px) { .qg-pt .seat { width: clamp(64px, 20.5cqw, 104px); } }
 .hc[data-a] { cursor: pointer; }
 .hc[data-a]:hover { filter: brightness(1.25); }
 .verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 4px 0 12px; padding: 10px 14px; border-radius: 12px; border: 2px solid; }
