@@ -111,6 +111,10 @@ Quand la table change : `table 7 joueurs (UTG, UTG+1, MP, CO, BTN, SB, BB), blin
 - **Depuis GitHub (recommandé)** : sur Netlify, « Add new project → Import an existing project → GitHub », choisir ce dépôt. Il n'y a pas de commande de build, et le dossier publié est `.` (déjà réglé dans `netlify.toml`). Ensuite, chaque modification poussée sur GitHub est mise en ligne automatiquement.
 - **Glisser-déposer** : glisser le dossier sur https://app.netlify.com/drop.
 
+## Mises à jour
+
+Avant chaque mise en ligne : `python3 tools/bump_version.py`. Il met une nouvelle étiquette de version sur les fichiers de la page et dans `version.json`. L'appli ouverte compare sa version à celle en ligne (au chargement, toutes les 3 minutes et quand on revient sur l'onglet) et affiche « Une nouvelle version de l'appli est en ligne · Mettre à jour » : un clic recharge la page, sans perdre la partie. En attendant, `Ctrl`+`F5` force aussi le rechargement.
+
 ## Modifier le code
 
 | Fichier | Contenu |

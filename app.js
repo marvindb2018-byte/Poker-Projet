@@ -1938,5 +1938,33 @@
 
   document.addEventListener('keydown', onKey);
 
+  /* ------------------------------------------------------------ nouvelle version en ligne */
+
+  // Le navigateur garde parfois l'ancienne version de l'appli quelques minutes. On compare la version de la page
+  // ouverte à celle en ligne (version.json, jamais gardée en mémoire) et on propose de mettre à jour d'un clic.
+  // Les données de la partie sont dans le navigateur : rien n'est perdu.
+  const meta = document.querySelector('meta[name="app-version"]');
+  const myVersion = meta ? meta.content : null;
+  async function checkVersion() {
+    if (!myVersion || $('update-bar')) return;
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const { v } = await r.json();
+      if (!v || v === myVersion) return;
+      const bar = document.createElement('div');
+      bar.id = 'update-bar';
+      bar.className = 'update-bar';
+      bar.innerHTML = '<span>Une nouvelle version de l\'appli est en ligne.</span><button class="btn primary small" type="button">Mettre à jour</button>';
+      bar.querySelector('button').addEventListener('click', () => {
+        location.replace(location.pathname + '?v=' + encodeURIComponent(v) + location.hash); // adresse nouvelle : la page est rechargée en entier
+      });
+      document.body.appendChild(bar);
+    } catch (e) { /* hors ligne : on réessaiera */ }
+  }
+  checkVersion();
+  setInterval(checkVersion, 3 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+
   render();
 })();
