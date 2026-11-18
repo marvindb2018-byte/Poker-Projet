@@ -66,7 +66,7 @@
 
   function defaultSetup() {
     return {
-      n: 6, sb: 10, bb: 20, ante: 0, anteType: 'chacun', me: 0, btn: 0,
+      n: 6, sb: 10, bb: 20, ante: 0, anteType: 'chacun', me: 0, btn: 0, paused: [],
       names: Array.from({ length: E.MAX_PLAYERS }, (_, i) => (i === 0 ? 'Moi' : 'Joueur ' + (i + 1))),
       stacks: Array.from({ length: E.MAX_PLAYERS }, () => ''),
     };
@@ -258,7 +258,9 @@
     $('undo').disabled = !state || !hist.length;
     $('undo').hidden = auto;
     const nav = document.querySelector('.nav');
-    nav.hidden = !state || auto;
+    nav.hidden = auto;
+    // sans partie en cours : Main (l'écran de départ), Mains et Apprendre restent accessibles ; Prompt et Réglages, non
+    nav.querySelectorAll('[data-tab="prompt"], [data-tab="settings"]').forEach((b) => { b.hidden = !state; });
     if (auto) {
       $('view').innerHTML = viewAuto();
       $('side').innerHTML = viewSide();
@@ -267,7 +269,7 @@
     }
     nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
     let html;
-    if (!state) html = viewSetup();
+    if (!state) html = ui.tab === 'charts' ? viewCharts() : ui.tab === 'learn' ? viewLearn() : viewSetup();
     else if (ui.tab === 'prompt') html = viewPrompt();
     else if (ui.tab === 'settings') html = viewSettings();
     else if (ui.tab === 'charts') html = viewCharts();
@@ -295,6 +297,7 @@
     return `<section class="panel todo">
       <div class="mt-label">À remplir</div>
       <h1>Nouvelle partie</h1>
+      ${quickStart()}
       <div class="field-row">
         <span class="lbl">Nombre de joueurs</span>
         <div class="stepper">
@@ -322,6 +325,53 @@
       <label class="field">Qui a le jeton « D » à côté de lui ? ${tip('dealer')}<select class="in" data-setup-sel="btn">${opts(s.btn)}</select></label>
       <button class="btn primary big" data-a="setup-go">Commencer la partie</button>
     </section>`;
+  }
+
+  // Démarrage rapide : une capture de la table → Claude répond par une ligne « TABLE … » → collée ici, elle remplit tout
+  function quickStart() {
+    if (!ui.quickOpen) {
+      return `<button class="btn quick-btn wide" data-a="quick-open">⚡ Démarrage rapide <small>une capture de la table, Claude remplit tout</small></button>
+        <p class="hint quick-or">ou remplis toi-même ci-dessous :</p>`;
+    }
+    const r = ui.quickResult;
+    let msg = '';
+    if (r && !r.ok) msg = `<p class="warn">${esc(r.err)}</p>`;
+    else if (r) {
+      const me = r.players.find((x) => x.me), btn = r.players.find((x) => x.btn);
+      msg = `<p class="quick-ok">✓ Lu : <b>${r.players.length} joueurs</b>${r.sb ? ` · blindes <b>${r.sb}/${r.bb}</b>` : ''}${r.ante ? ` · ante ${r.anteType === 'bb' ? 'BB ' : ''}${r.ante}` : ''} · toi : <b>${esc(me.name)}</b>${btn ? ` · jeton D : <b>${esc(btn.name)}</b>` : ''}${r.players.some((x) => x.paused) ? ` · en pause : ${r.players.filter((x) => x.paused).map((x) => esc(x.name)).join(', ')}` : ''}</p>`
+        + (r.warnings.length ? `<ul class="quick-warn">${r.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : '')
+        + `<p class="hint">Tout est rempli ci-dessous : jette un œil, puis lance la partie.</p>
+          <button class="btn primary big" data-a="setup-go">Commencer la partie</button>`;
+    }
+    return `<div class="quick">
+      <div class="quick-head"><b>⚡ Démarrage rapide</b><button class="link-btn" data-a="quick-close">Fermer</button></div>
+      <ol class="steps">
+        <li>Fais une capture de la table du site (sur PC : <kbd>Win</kbd>+<kbd>Maj</kbd>+<kbd>S</kbd>).</li>
+        <li>Copie ce prompt et colle-le dans Claude avec ta capture :
+          <button class="btn small" data-a="copy-table-prompt">Copier le prompt « lecture de table »</button></li>
+        <li>Colle ici la réponse de Claude (une ligne « TABLE … ») :</li>
+      </ol>
+      <textarea class="in" id="table-paste" rows="2" placeholder="TABLE blindes 10/20 | ante 0 | Marvin 2000 (moi) | Paul 1850 (D) | …">${esc(ui.tablePaste || '')}</textarea>
+      ${msg}
+    </div>`;
+  }
+
+  // La réponse de Claude collée : on remplit le formulaire de départ
+  function applyTableLine(text) {
+    ui.tablePaste = text;
+    if (!/TABLE/i.test(text) || !text.includes('|')) { ui.quickResult = text.trim().length > 20 ? E.parseTableLine(text) : null; return; }
+    const r = E.parseTableLine(text);
+    ui.quickResult = r;
+    if (!r.ok) return;
+    const s = ui.setup;
+    s.n = r.players.length;
+    r.players.forEach((x, i) => { s.names[i] = x.name; s.stacks[i] = x.stack > 0 ? String(x.stack) : ''; });
+    s.me = Math.max(0, r.players.findIndex((x) => x.me));
+    s.btn = Math.max(0, r.players.findIndex((x) => x.btn));
+    s.paused = r.players.map((x, i) => (x.paused ? i : -1)).filter((i) => i >= 0);
+    if (r.sb && r.bb) { s.sb = r.sb; s.bb = r.bb; }
+    s.ante = r.ante || 0;
+    s.anteType = r.anteType || 'chacun';
   }
 
   /* ---- onglet Main */
@@ -881,8 +931,8 @@
   /* ---- onglet Mains : tableaux des mains de départ */
 
   function viewCharts() {
-    const h = state.hand;
-    const n = h ? h.order.length : state.players.filter(E.isActive).length;
+    const h = state && state.hand;
+    const n = h ? h.order.length : state ? state.players.filter(E.isActive).length : 6;
     const myPos = h && h.meIn ? h.pos[h.meId] : null;
     const myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : null;
     const views = [['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['vs', 'Face à une relance']];
@@ -1536,11 +1586,15 @@
     'setup-n'(d) {
       const s = ui.setup;
       s.n = Math.max(2, Math.min(E.MAX_PLAYERS, s.n + Number(d.d)));
+      s.paused = (s.paused || []).filter((i) => i < s.n);
       if (s.me >= s.n) s.me = 0;
       if (s.btn >= s.n) s.btn = 0;
       render();
     },
     'setup-me'(d) { ui.setup.me = Number(d.i); render(); },
+    'quick-open'() { ui.quickOpen = true; render(); },
+    'quick-close'() { ui.quickOpen = false; render(); },
+    'copy-table-prompt'() { copy(E.buildTablePrompt(), 'Prompt copié : colle-le dans Claude avec ta capture'); },
 
     'setup-btn'(d) { ui.setup.btn = Number(d.i); render(); },
     'setup-go'() {
@@ -1553,6 +1607,8 @@
       const missing = stacks.findIndex((x) => !(x > 0));
       if (missing >= 0) return toast(`Indique les jetons de ${s.names[missing] || 'chaque joueur'}.`);
       state = E.newGame({ names: s.names.slice(0, s.n), stacks, meIndex: s.me, btnIndex: s.btn, sb, bb, ante, anteType: s.anteType });
+      (s.paused || []).filter((i) => i < s.n && i !== s.me).forEach((i) => E.togglePause(state, state.players[i].id));
+      ui.quickOpen = false; ui.quickResult = null; ui.tablePaste = '';
       hist = [];
       ui.tab = 'main';
       save();
@@ -1851,6 +1907,15 @@
     } else if (t.dataset.setupStack != null) ui.setup.stacks[Number(t.dataset.setupStack)] = t.value;
     else if (t.dataset.setup) ui.setup[t.dataset.setup] = t.value;
     else if (t.id === 'learn-q') { ui.learnQ = t.value; filterLearn(); }
+    else if (t.id === 'table-paste') {
+      const before = JSON.stringify(ui.quickResult);
+      applyTableLine(t.value);
+      if (JSON.stringify(ui.quickResult) !== before) {
+        render();
+        const el = $('table-paste');
+        if (el && !(ui.quickResult && ui.quickResult.ok)) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      }
+    }
     else if (t.id === 'amt') {
       ui.amount = t.value;
       const b = $('amt-go');

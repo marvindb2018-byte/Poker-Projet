@@ -17,6 +17,12 @@ L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode �
 ## Utilisation (mode Manuel)
 
 **Au départ (une fois)**
+
+Les onglets **Mains** et **Apprendre** sont accessibles même sans partie en cours, pour étudier avant de s'asseoir à une table.
+
+**⚡ Démarrage rapide** (bouton en haut de « Nouvelle partie ») : fais une capture de la table du site, copie le prompt « lecture de table » et colle-le dans Claude avec la capture. Claude répond par une ligne du type `TABLE blindes 10/20 | ante 0 | Marvin 2000 (moi) | Paul 1850 (D) | Léa 2300 | …` : colle-la dans l'appli, tout se remplit (joueurs dans l'ordre, jetons, blindes, ante, toi, jeton D, joueurs en pause). Vérifie, puis « Commencer la partie ». Les montants abrégés (12,5K, 1,2M) sont compris.
+
+Sinon, à la main :
 1. « Nouvelle partie » : nombre de joueurs, blindes, ante éventuelle (payée par chaque joueur ou par la grosse blinde pour toute la table), puis le pseudo et les jetons de chaque joueur tels qu'affichés sur le site (dans l'ordre des places), lequel est toi, et qui a le jeton « D ».
 2. « Copier le prompt », puis le coller dans une nouvelle conversation Claude.
 

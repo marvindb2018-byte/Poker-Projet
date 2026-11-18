@@ -904,6 +904,89 @@
     ].join('\n');
   }
 
+  /* --------------------------------------------------- départ rapide : lecture de la table par Claude */
+
+  // Prompt à coller dans Claude avec une capture d'écran de la table : il répond par une ligne « TABLE … »
+  function buildTablePrompt() {
+    return [
+      "Voici une capture d'écran d'une table de Texas Hold'em en ligne. Je suis le joueur en bas au centre.",
+      "Lis la table et réponds UNIQUEMENT par une ligne de ce format, sans aucun autre texte :",
+      'TABLE blindes PETITE/GROSSE | ante A | Pseudo jetons | Pseudo jetons | …',
+      '',
+      "- Liste tous les joueurs assis, dans le sens des aiguilles d'une montre, en commençant par moi (après moi : le joueur juste à ma gauche sur l'écran, puis on remonte).",
+      "- Ajoute (moi) après mes jetons, et (D) après les jetons du joueur qui a le jeton D (le bouton du donneur).",
+      "- Jetons : le nombre affiché près du pseudo, en chiffres sans espace (12500). Si le site abrège (12,5K ou 1,2M), recopie tel quel.",
+      "- Un joueur absent ou « assis-out » : ajoute (pause). Ignore les sièges vides.",
+      "- Blindes : petite et grosse blinde (souvent affichées en haut ou près du pot). Si tu ne les vois pas, écris « blindes ? ».",
+      "- Ante : 0 s'il n'y en a pas ; « ante BB 20 » si seule la grosse blinde la paie pour toute la table.",
+      '',
+      'Exemple :',
+      'TABLE blindes 10/20 | ante 0 | Marvin 2000 (moi) | Paul 1850 (D) | Léa 2300 | Marc 900 | Sophie 2000 (pause) | Hugo 2000',
+    ].join('\n');
+  }
+
+  // « 12500 », « 12 500 », « 12.500 », « 12,5K », « 1.2M » → nombre (ou null)
+  function chipAmount(txt) {
+    const t = String(txt).trim().replace(/ | /g, ' ');
+    let m = /^(\d{1,3}(?:[ .,]\d{3})+)$/.exec(t);
+    if (m) return Number(m[1].replace(/[ .,]/g, ''));
+    m = /^(\d+(?:[.,]\d+)?)\s*([kKmM])?$/.exec(t);
+    if (!m) return null;
+    const v = Number(m[1].replace(',', '.')) * (m[2] ? (/k/i.test(m[2]) ? 1e3 : 1e6) : 1);
+    return Math.round(v);
+  }
+
+  /*
+   * Lit la ligne « TABLE … » renvoyée par Claude (le reste du texte, les guillemets de code, etc. sont ignorés).
+   * Renvoie { ok, sb, bb, ante, anteType, players: [{ name, stack, me, btn, paused }], warnings } ou { ok: false, err }.
+   */
+  function parseTableLine(text) {
+    const lines = String(text || '').replace(/`/g, '').split(/\r?\n/);
+    const line = lines.find((l) => /^\s*TABLE\b/i.test(l) && l.includes('|'))
+      || lines.find((l) => /\bTABLE\b/.test(l) && l.includes('|'))
+      || lines.find((l) => /\bTABLE\b/i.test(l) && l.includes('|'));
+    if (!line) return fail('Je ne trouve pas la ligne « TABLE … » : colle la réponse de Claude telle quelle.');
+    const parts = line.slice(line.search(/\bTABLE\b/i) + 5).split('|').map((x) => x.trim()).filter(Boolean);
+    const out = { ok: true, sb: null, bb: null, ante: 0, anteType: 'chacun', players: [], warnings: [] };
+    parts.forEach((part) => {
+      const bl = /^blindes?\s*[:=]?\s*(.+)$/i.exec(part);
+      if (bl) {
+        const m = /([\d][\d .,]*[kKmM]?)\s*\/\s*([\d][\d .,]*[kKmM]?)/.exec(bl[1]);
+        if (m) { out.sb = chipAmount(m[1]); out.bb = chipAmount(m[2]); }
+        return;
+      }
+      const an = /^ante\s*(bb)?\s*[:=]?\s*([\d][\d .,]*[kKmM]?)?\s*$/i.exec(part);
+      if (an) {
+        out.ante = an[2] ? chipAmount(an[2]) || 0 : 0;
+        if (an[1]) out.anteType = 'bb';
+        return;
+      }
+      // joueur : « Pseudo 1850 (D) », « Marvin 2000 (moi) »
+      const tags = (part.match(/\(([^)]*)\)/g) || []).map((x) => x.slice(1, -1).trim().toLowerCase());
+      const body = part.replace(/\([^)]*\)/g, ' ').trim();
+      const m = /^(.*?)\s+(\d{1,3}(?:[ .,]\d{3})+|\d+(?:[.,]\d+)?\s*[kKmM]?)$/.exec(body);
+      const name = (m ? m[1] : body).trim().slice(0, 18);
+      const stack = m ? chipAmount(m[2]) : null;
+      if (!name) return;
+      out.players.push({
+        name, stack,
+        me: tags.some((x) => /^(moi|toi|me|you|hero)$/.test(x)),
+        btn: tags.some((x) => /^(d|bouton|dealer|btn|button)$/.test(x)),
+        paused: tags.some((x) => /pause|absent|sit/.test(x)),
+      });
+    });
+    const P = out.players;
+    if (P.length < 2) return fail('Il faut au moins 2 joueurs dans la ligne « TABLE ».');
+    if (P.length > MAX_PLAYERS) { out.warnings.push(`${P.length} joueurs lus : seuls les ${MAX_PLAYERS} premiers sont gardés.`); P.length = MAX_PLAYERS; }
+    if (!(out.sb > 0 && out.bb > 0)) { out.sb = out.bb = null; out.warnings.push('Blindes non lues : indique-les ci-dessous.'); }
+    if (!P.some((x) => x.me)) { P[0].me = true; out.warnings.push('Claude n\'a pas indiqué qui tu es : je t\'ai mis en 1er, vérifie « Lequel de ces joueurs est toi ? ».'); }
+    if (P.filter((x) => x.me).length > 1) { P.forEach((x, i) => { x.me = i === P.findIndex((y) => y.me); }); }
+    if (!P.some((x) => x.btn)) out.warnings.push('Jeton D non indiqué : vérifie « Qui a le jeton D ? ».');
+    const noStack = P.filter((x) => !(x.stack > 0)).map((x) => x.name);
+    if (noStack.length) out.warnings.push('Jetons non lus pour ' + noStack.join(', ') + ' : complète-les.');
+    return out;
+  }
+
   const api = {
     RANKS, SUITS, STREET_NAMES, POSITIONS, MAX_PLAYERS,
     defaultSettings, newGame, markConversationStart, updateSettings,
@@ -911,7 +994,7 @@
     planNextHand, startHand, chooseCards, options, sizeHints, applyAction, checkFoldUntilMe,
     addStreet, forceShowdown, showdownCandidates, declareWinners, computePots, showCards,
     endHand, abortHand, handSummary, handHistory, contestedPot,
-    buildMessage, buildPrompt, buildAutoPrompt, blindsText, cardText,
+    buildMessage, buildPrompt, buildAutoPrompt, buildTablePrompt, parseTableLine, chipAmount, blindsText, cardText,
     isActive, isCard, potOf, live, meLive,
   };
 
