@@ -389,7 +389,7 @@
         </div>
       </div>`;
     }
-    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle(state.promptCopied && !ui.edit && !ui.addOpen)}</div><div class="col-b">${ptable(null)}${wide() ? arrivalBox() : ''}</div></div>`;
+    if (!h) return `<div class="hand-grid"><div class="col-a">${out}${viewIdle(state.promptCopied && !ui.edit && !ui.addOpen)}</div><div class="col-b">${ptable(null)}</div></div>`;
     let a = handHead(h);
     if (h.phase === 'spectate') a += viewSpectate(h);
     else if (h.phase === 'cards') a += picker(2, `Tes cartes <span class="muted">(${h.pos[h.meId]})</span>`, [], null);
@@ -397,7 +397,9 @@
     else if (h.phase === 'action') a += viewAction(h);
     else if (h.phase === 'showdown') a += viewShowdown(h);
     else if (h.phase === 'done') a += viewDone(h);
-    let b = h.phase === 'spectate' ? '' : ptable(h) + (wide() ? '' : editorPanel()) + strip(h) + othersList(h) + arrivalBox();
+    // sur PC, on ajoute un joueur avec le « + » entre deux sièges de la table : pas de bouton en double
+    let b = '';
+    if (h.phase !== 'spectate') b = wide() ? ptable(h) + strip(h) : ptable(h) + editorPanel() + strip(h) + othersList(h) + arrivalBox();
     if (h.phase !== 'spectate') b += historyView(E.handHistory(h), true);
     if (!['done', 'spectate'].includes(h.phase)) {
       b += `<div class="row end"><button class="btn ghost danger small" data-a="abort" title="Efface la saisie de cette main : jetons et jeton D reviennent comme avant. Ce n'est pas se coucher.">Effacer cette main (erreur de saisie)</button></div>`;
@@ -627,7 +629,7 @@
     }
     out += `<p class="hint"><b>BTN</b> = joueur avec le jeton D · <b>SB</b> / <b>BB</b> = petite et grosse blinde (${S.sb}/${S.bb}${S.ante ? (S.anteType === 'bb' ? ', ante BB ' : ', ante ') + S.ante : ''}) · <b>UTG</b> parle en premier ${tip('positions')}.</p>
       <button class="btn primary big" data-a="deal" ${plan.ok ? '' : 'disabled'}>Distribuer la main #${n} ${K('Entrée')}</button>
-      <p class="hint">Un joueur part, recave ou n'a plus les mêmes jetons que sur le site ? Touche-le${wide() ? ' sur la table' : ' dans la liste'}.</p>
+      <p class="hint">Un joueur part, recave ou n'a plus les mêmes jetons que sur le site ? Touche-le${wide() ? ' sur la table' : ' dans la liste'}.${wide() ? ' Un joueur arrive ? Le « + » entre deux sièges.' : ''}</p>
     </section>`;
     if (!wide()) out += editorPanel() + othersList(null) + arrivalBox();
     if (state.last) out += lastHand(state.last);
@@ -1737,6 +1739,7 @@
     // table de poker (PC) : « + » et « − »
     'seat-add'(d) {
       ui.addAfter = ui.addAfter === d.id ? null : d.id;
+      ui.addOpen = false; ui.edit = null;
       render();
       const el = $('sa-name');
       if (el) el.focus();
