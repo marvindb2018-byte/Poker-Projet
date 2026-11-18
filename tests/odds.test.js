@@ -79,5 +79,15 @@ assert.strictEqual(adv({ cards: ['Jc', 'Jk'], pos: 'UTG', raises: 2, cb: 180 }).
 assert.ok(adv({ cards: ['Ac', 'Kk'], pos: 'UTG' }).why.includes('AKo'));
 assert.strictEqual(O.grid()[0][1], 'AKs');
 assert.strictEqual(O.grid()[1][0], 'AKo');
-console.log('✓ conseils avant le flop');
+// chaque conseil a son explication « en clair », dans toutes les situations
+const POSS = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+for (let i = 0; i < 5000; i++) {
+  const d = deck.slice().sort(() => Math.random() - 0.5);
+  const ctx = { cards: [d[0], d[1]], pos: POSS[i % 6], n: 6, bb: 20, sb: 10, cb: [20, 60, 200, 540][i % 4], myBet: 0,
+    myStack: [150, 2000][i % 2], raises: i % 3, limpers: i % 2, iRaised: i % 7 === 0,
+    raiser: i % 5 === 0 ? { name: 'Paul', pfr: [0.04, 0.15, 0.4][i % 3] } : null };
+  const a = O.preflopAdvice(ctx);
+  assert.ok(a.plain && a.plain.length > 30 && a.why, JSON.stringify(ctx) + ' → ' + JSON.stringify(a));
+}
+console.log('✓ conseils avant le flop (avec explication en clair)');
 console.log('\nTests probabilités OK');

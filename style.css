@@ -639,3 +639,10 @@ body.auto .layout { grid-template-columns: minmax(0, 1fr); }
 .prof-list { list-style: none; margin: 0 0 12px; padding: 0; }
 .prof-list li { display: grid; grid-template-columns: 1fr auto 70px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
 .prof-list .stk { text-align: right; color: var(--muted); font-size: 13px; }
+
+/* ---------- explications « En clair » */
+.plain { margin: 6px 0 2px; padding: 6px 10px; border-left: 3px solid var(--accent); background: rgba(60, 196, 127, .07); border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.45; color: #dfe8e3; }
+.plain b { color: var(--accent); }
+.ins-opps-intro { margin-top: 10px; }
+.ins-opps-intro + .ins-opps { border-top: 0; margin-top: 4px; padding-top: 0; }
+.link-btn { display: block; margin: 10px 0 0 auto; padding: 4px 0; background: none; border: 0; color: var(--muted); font: 600 12.5px var(--sans); text-decoration: underline; cursor: pointer; }

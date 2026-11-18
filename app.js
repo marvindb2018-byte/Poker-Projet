@@ -11,6 +11,7 @@
   const MKEY = 'pokercode:mode'; // 'manuel' ou 'auto'
   const CKEY = 'pokercode:crop'; // recadrage de la capture (fractions de l'image)
   const PKEY = 'pokercode:profiles:v1'; // façon de jouer de chaque pseudo, gardée d'une partie à l'autre
+  const XKEY = 'pokercode:plain'; // 'off' = explications « En clair » masquées
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
   const SUIT_NAME = { p: 'pique', c: 'cœur', k: 'carreau', t: 'trèfle' };
@@ -35,6 +36,7 @@
   if (!profDb || !profDb.p) profDb = { v: 1, p: {}, recent: [] };
 
   let mode = store.get(MKEY) === 'auto' ? 'auto' : 'manuel';
+  let plainOn = store.get(XKEY) !== 'off';
   let crop = parse(store.get(CKEY));
 
   function save() {
@@ -634,7 +636,17 @@
 
   function adviceLine(a, applicable) {
     const btn = applicable ? ` <button class="chip apply" data-a="apply-advice" data-act="${a.action}" data-to="${a.to || ''}">Jouer ça ${K('G')}</button>` : '';
-    return `<div class="ins-adv"><b>${a.text}</b>${btn}<small>${esc(a.why)}</small></div>`;
+    return `<div class="ins-adv"><b>${a.text}</b>${btn}<small>${esc(a.why)}</small></div>${plain(a.plain)}`;
+  }
+
+  // Explication « En clair » pour un débutant (masquable)
+  const plain = (text) => (plainOn && text ? `<p class="plain"><b>En clair :</b> ${esc(text)}</p>` : '');
+
+  // 0.19 → « un peu moins d'une fois sur 5 »
+  function oneIn(p) {
+    if (p >= 0.45) return p > 0.55 ? "plus d'une fois sur 2" : 'environ une fois sur 2';
+    const x = 1 / p, n = Math.round(x);
+    return (x > n + 0.15 ? "un peu moins d'" : x < n - 0.15 ? "un peu plus d'" : 'environ ') + 'une fois sur ' + n;
   }
 
   function instantHelp(h, mine) {
@@ -649,20 +661,37 @@
           ['Si une relance', ODDS.preflopAdvice(preflopCtx(h, { raises: 1, limpers: 0, cb: h.bb * 3, iRaised: false }))],
           ['Si deux relances', ODDS.preflopAdvice(preflopCtx(h, { raises: 2, limpers: 0, cb: h.bb * 9, iRaised: false }))],
         ];
-        out += `<ul class="ins-plan">${plan.map(([k, a]) => `<li><span>${k}</span> → <b>${a.text}</b></li>`).join('')}</ul>`;
+        out += `${plainOn ? '<p class="plain">Ce n\'est pas encore à toi. Selon ce que feront les joueurs qui parlent avant toi, voici ce que tu joueras :</p>' : ''}<ul class="ins-plan">${plan.map(([k, a]) => `<li><span>${k}</span> → <b>${a.text}</b></li>`).join('')}</ul>`;
       }
     }
-    const e = myEquity(h);
+    // Avant le flop, c'est le tableau qui décide : le calcul compterait comme adversaires
+    // les joueurs qui n'ont pas encore parlé (ils se coucheront souvent) et contredirait le conseil.
+    const e = h.street > 0 ? myEquity(h) : null;
+    if (h.street === 0) {
+      out += plain("tes chances de gagner et le calcul « suivre est rentable » s'affichent à partir du flop. Avant le flop, c'est le tableau des mains de départ qui décide : il tient déjà compte de ta place et de ce qu'ont fait les autres.");
+    }
+    const opps = e ? e.opps : oppModels(h);
     if (e) {
-      out += `<div class="ins-eq">≈ <b>${Math.round(e.eq * 100)} %</b> de gagner contre leurs mains probables <small>(contre des mains au hasard : ${Math.round(e.random * 100)} %)</small></div>`;
+      const eqPct = Math.round(e.eq * 100);
+      out += `<div class="ins-eq">≈ <b>${eqPct} %</b> de gagner contre leurs mains probables <small>(contre des mains au hasard : ${Math.round(e.random * 100)} %)</small></div>`;
       const o = E.options(h, h.meId);
       if (mine && o.toCall > 0) {
-        const need = ODDS.potOdds(o.toCall, E.potOf(h));
+        const pot = E.potOf(h);
+        const need = ODDS.potOdds(o.toCall, pot);
         const good = e.eq >= need;
         out += `<div class="ins-odds">Pour suivre ${o.toCall}, il faut gagner <b>${Math.round(need * 100)} %</b> du temps → <span class="${good ? 'good' : 'bad'}">${good ? 'suivre est rentable' : 'suivre n\'est pas rentable'}</span> <small>(d'après le seul calcul)</small></div>`;
+        out += plain(`il y a ${pot} dans le pot et on te demande ${o.toCall} pour suivre. Tu risques donc ${o.toCall} pour remporter un pot de ${pot + o.toCall}. `
+          + `Il te suffit de gagner ${oneIn(need)} (${Math.round(need * 100)} %) pour ne pas perdre de jetons sur la durée. `
+          + `Ici tu gagnes environ ${eqPct} fois sur 100 : ${good ? `c'est plus que ${Math.round(need * 100)} %, donc suivre est rentable.${e.eq >= 0.6 ? ' Avec autant de chances, relancer peut même rapporter plus.' : ''}` : `c'est moins que ${Math.round(need * 100)} %, donc suivre n'est pas rentable : couche-toi.`}`);
+      } else {
+        out += plain(`si personne ne se couchait jusqu'à la fin de la main, tu gagnerais environ ${eqPct} fois sur 100.`);
       }
-      out += `<ul class="ins-opps">${e.opps.map((x) => `<li><b>${esc(x.name)}</b> ${posTag(x.pos, 'pos-inline')} ${styleTag(x.name, 'style-tag') || '<span class="style-tag unknown">pas encore observé</span>'}${x.range || x.acts.length ? `<small>${x.range ? 'Mains probables : ' + x.text : 'N\'importe quelle main au départ'}${x.acts.length ? ', moins celles qui ne misent pas comme lui' : ''}</small>` : ''}</li>`).join('')}</ul>`;
     }
+    if (opps.length) {
+      if (plainOn) out += '<p class="plain ins-opps-intro">Ce que l\'appli suppose que chacun a en main, d\'après ce qu\'il a joué :</p>';
+      out += `<ul class="ins-opps">${opps.map((x) => `<li><b>${esc(x.name)}</b> ${posTag(x.pos, 'pos-inline')} ${styleTag(x.name, 'style-tag') || '<span class="style-tag unknown">pas encore observé</span>'}${x.range || x.acts.length ? `<small>${x.range ? 'Mains probables : ' + x.text : 'N\'importe quelle main au départ'}${x.acts.length ? `, surtout celles qui ont touché le tableau, puisqu'il a ${x.acts.some((y) => y.kind !== 'call') ? 'misé' : 'suivi'}` : ''}</small>` : ''}</li>`).join('')}</ul>`;
+    }
+    out += `<button type="button" class="link-btn" data-a="toggle-plain">${plainOn ? 'Masquer les explications « En clair »' : 'Afficher les explications « En clair »'}</button>`;
     return out + '</section>';
   }
 
@@ -808,7 +837,7 @@
       const show = (c, cls) => `<span class="${cls}${mineSet.has(c) ? ' from-me' : ''}">${cardHtml(c, 'sm')}</span>`;
       out += `<div class="now-cards">${cur.best.main.map((c) => show(c, 'nc')).join('')}${cur.best.kick.map((c) => show(c, 'nc kick')).join('')}</div>`;
       out += `<div class="now">${esc(cur.best.name)}</div>`;
-      const eqSide = E.meLive(h) ? myEquity(h) : null;
+      const eqSide = E.meLive(h) && h.street > 0 ? myEquity(h) : null;
       if (eqSide) out += `<div class="now-eq">≈ <b>${Math.round(eqSide.eq * 100)} %</b> de gagner contre leurs mains probables <small>(au hasard : ${Math.round(eqSide.random * 100)} %)</small></div>`;
       out += '<p class="hint small-legend"><span class="dot"></span> carte de ta main · grisée = carte d\'appoint (kicker)</p>';
       if (cur.note) out += `<p class="hint">${cur.note}</p>`;
@@ -1316,6 +1345,7 @@
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
     chart(d) { ui.chart = d.v; render(); },
+    'toggle-plain'() { plainOn = !plainOn; store.set(XKEY, plainOn ? 'on' : 'off'); render(); },
     'prof-clear'() {
       if (!window.confirm('Oublier la façon de jouer de tous les joueurs ?')) return;
       profDb = { v: 1, p: {}, recent: [] };

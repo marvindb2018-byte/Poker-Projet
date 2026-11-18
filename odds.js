@@ -200,39 +200,50 @@
     const stackBB = (ctx.myStack + ctx.myBet) / bb;
     const late = ctx.pos === 'CO' || ctx.pos === 'BTN';
     const has = (set) => set.has(hc);
-    const R = (to, why) => ({ action: 'raise', to: round5(to, unit), text: 'Relance à ' + round5(to, unit), why });
-    const allin = (why) => ({ action: 'allin', text: 'Tapis', why });
-    const call = (why) => ({ action: 'call', text: 'Suis', why });
-    const fold = (why) => ({ action: 'fold', text: 'Couche-toi', why });
-    const check = (why) => ({ action: 'check', text: 'Check', why });
+    // why : la raison courte (pour qui connaît le jargon) ; plain : la même chose en clair, pour un débutant
+    const R = (to, why, plain) => ({ action: 'raise', to: round5(to, unit), text: 'Relance à ' + round5(to, unit), why, plain });
+    const allin = (why, plain) => ({ action: 'allin', text: 'Tapis', why, plain });
+    const call = (why, plain) => ({ action: 'call', text: 'Suis', why, plain });
+    const fold = (why, plain) => ({ action: 'fold', text: 'Couche-toi', why, plain });
+    const check = (why, plain) => ({ action: 'check', text: 'Check', why, plain });
 
     // On m'a sur-relancé après ma relance
     if (ctx.iRaised) {
-      if (has(RANGES.vs3bet.raise)) return stackBB <= 40 ? allin(hc + ' : main la plus forte, tapis') : R(ctx.cb * 2.3, hc + ' : on sur-relance encore');
-      if (has(RANGES.vs3bet.call)) return call(hc + ' : assez forte pour payer la sur-relance');
-      return fold(hc + ' : pas assez forte face à une sur-relance');
+      const p0 = "Quelqu'un a relancé par-dessus ta relance";
+      if (has(RANGES.vs3bet.raise)) {
+        const p = p0 + ', mais ta main est la meilleure (ou presque) : remets-en une couche, tu as toutes les chances d\'être devant.';
+        return stackBB <= 40 ? allin(hc + ' : main la plus forte, tapis', p) : R(ctx.cb * 2.3, hc + ' : on sur-relance encore', p);
+      }
+      if (has(RANGES.vs3bet.call)) return call(hc + ' : assez forte pour payer la sur-relance', p0 + '. Ta main est assez bonne pour payer et voir le flop, mais pas pour relancer encore.');
+      return fold(hc + ' : pas assez forte face à une sur-relance', p0 + " : en général, ça veut dire une très grosse main. La tienne n'est pas assez forte : abandonne ce que tu as déjà misé, plutôt que d'en perdre plus.");
     }
     // Tapis court : tapis ou couché
     if (stackBB <= 12) {
       const key = openRangeKey(ctx.pos, ctx.n) || 'SB';
       const pushOk = ctx.raises === 0 ? has(RANGES.open[key]) || has(RANGES.call) : has(RANGES.threeBet) || has(parseRange('TT+, AQs+, AQo+'));
-      if (pushOk) return allin(`tapis court (${Math.round(stackBB)} grosses blindes) : tapis avec ${hc}`);
-      if (ctx.pos === 'BB' && ctx.raises === 0) return check('tapis court : check gratuit');
-      return fold(`tapis court (${Math.round(stackBB)} grosses blindes) : ${hc} est trop faible`);
+      const nb = Math.round(stackBB);
+      if (pushOk) return allin(`tapis court (${nb} grosses blindes) : tapis avec ${hc}`, `Il te reste peu de jetons (${nb} fois la grosse blinde). Dans ce cas, on ne fait pas de petite mise : on met tout avec une bonne main, ce qui oblige les autres à risquer gros pour te suivre.`);
+      if (ctx.pos === 'BB' && ctx.raises === 0) return check('tapis court : check gratuit', "Il te reste peu de jetons, mais personne n'a relancé : regarde le flop sans rien payer de plus.");
+      return fold(`tapis court (${nb} grosses blindes) : ${hc} est trop faible`, `Il te reste peu de jetons (${nb} fois la grosse blinde) : garde-les pour une meilleure main, sur laquelle tu pourras tout miser.`);
     }
     // Personne n'a relancé
     if (ctx.raises === 0) {
       if (ctx.pos === 'BB') {
-        if (has(parseRange('TT+, AQs+, AKo'))) return R(bb * (3 + ctx.limpers), hc + ' : main forte, relance même en grosse blinde');
-        return check('personne n\'a relancé : check gratuit');
+        if (has(parseRange('TT+, AQs+, AKo'))) return R(bb * (3 + ctx.limpers), hc + ' : main forte, relance même en grosse blinde', "Personne n'a relancé et ta main est très forte : relance, pour que le pot soit plus gros quand tu gagnes.");
+        return check('personne n\'a relancé : check gratuit', "Tu as déjà payé la grosse blinde et personne n'a relancé : tu vois le flop sans rien payer de plus.");
       }
       const key = openRangeKey(ctx.pos, ctx.n);
       const range = RANGES.open[key];
       if (has(range)) {
         const size = (late ? 2.5 : 3) + ctx.limpers;
-        return R(bb * size, `${hc} fait partie des mains à relancer depuis ${ctx.pos} (${pct(range)} % des mains)`);
+        return R(bb * size, `${hc} fait partie des mains à relancer depuis ${ctx.pos} (${pct(range)} % des mains)`,
+          "Personne n'a encore relancé et ta main est assez bonne pour ta place. Relance plutôt que de juste suivre : soit tout le monde se couche et tu gagnes les blindes tout de suite, soit tu joues la suite avec l'avantage."
+          + (ctx.limpers ? ' La relance est un peu plus grosse parce que des joueurs ont déjà suivi.' : ''));
       }
-      return fold(`${hc} ne fait pas partie des mains à jouer depuis ${ctx.pos}`);
+      const early = !late && ctx.pos !== 'SB';
+      return fold(`${hc} ne fait pas partie des mains à jouer depuis ${ctx.pos}`,
+        "Ta main n'est pas assez bonne pour ta place" + (early ? " : beaucoup de joueurs parlent encore après toi, et l'un d'eux aura souvent mieux" : '') + '. '
+        + (ctx.pos === 'SB' ? 'Te coucher ne te coûte que la petite blinde déjà posée.' : 'Te coucher ne te coûte rien.'));
     }
     // Une relance avant moi. Si on connaît le relanceur : on s'adapte à sa façon de jouer.
     if (ctx.raises === 1) {
@@ -240,21 +251,39 @@
       const r = ctx.raiser; // { name, pfr } si on le connaît assez
       const loose = r && r.pfr >= 0.25, tight = r && r.pfr < 0.08;
       const who = r ? r.name + ' relance ' + Math.round(r.pfr * 100) + ' % de ses mains' : '';
+      const rare = r ? `${r.name} relance très rarement : quand il le fait, il a souvent une très bonne main.` : '';
       const threeBet = loose ? parseRange('TT+, AQs+, AKo, AQo') : tight ? parseRange('KK+') : RANGES.threeBet;
-      if (has(threeBet)) return R(ctx.cb * (late ? 3 : 3.5), hc + (loose ? ` : forte, et ${who} (souvent sans grosse main) : sur-relance` : ' : main premium, sur-relance'));
-      if (tight) {
-        if (has(parseRange('TT+, AQs+, AKo, AQo'))) return call(`${hc} : ${who}, c'est peu : sa relance est sérieuse, suis seulement`);
-        return fold(`${hc} : ${who}, c'est peu : sa relance est sérieuse`);
+      if (has(threeBet)) {
+        return R(ctx.cb * (late ? 3 : 3.5), hc + (loose ? ` : forte, et ${who} (souvent sans grosse main) : sur-relance` : ' : main premium, sur-relance'),
+          loose ? `Ta main est bonne, et ${r.name} relance très souvent, même avec des mains faibles. Tu as donc souvent mieux que lui : relance par-dessus sa relance.`
+            : "Quelqu'un a relancé, mais ta main est l'une des toutes meilleures : relance par-dessus sa relance pour faire grossir le pot.");
       }
-      if (big && !loose) return has(RANGES.vsBig) ? call(hc + ' : assez forte pour payer une grosse relance') : fold(hc + ' : trop faible face à une grosse relance');
+      if (tight) {
+        if (has(parseRange('TT+, AQs+, AKo, AQo'))) return call(`${hc} : ${who}, c'est peu : sa relance est sérieuse, suis seulement`, rare + ' Ta main est assez bonne pour payer et voir le flop, mais pas pour relancer.');
+        return fold(`${hc} : ${who}, c'est peu : sa relance est sérieuse`, rare + ' La tienne ne suffit pas : couche-toi.');
+      }
+      if (big && !loose) {
+        const p0 = 'La relance est grosse, ce qui montre souvent une bonne main.';
+        return has(RANGES.vsBig) ? call(hc + ' : assez forte pour payer une grosse relance', p0 + ' La tienne est assez forte pour payer.')
+          : fold(hc + ' : trop faible face à une grosse relance', p0 + " La tienne n'est pas assez forte pour payer aussi cher.");
+      }
       const range = ctx.pos === 'BB' || loose ? RANGES.callBB : RANGES.call;
-      if (has(range)) return call(`${hc} : assez bonne pour payer ${loose ? `(${who} : sa relance est souvent faible)` : 'une relance'}${ctx.pos === 'BB' ? ' depuis la grosse blinde' : ''}`);
-      return fold(hc + ' : trop faible face à une relance');
+      if (has(range)) {
+        return call(`${hc} : assez bonne pour payer ${loose ? `(${who} : sa relance est souvent faible)` : 'une relance'}${ctx.pos === 'BB' ? ' depuis la grosse blinde' : ''}`,
+          "Quelqu'un a relancé. Ta main est assez bonne pour payer et voir le flop, mais pas assez pour relancer par-dessus."
+          + (loose ? ` En plus, ${r.name} relance souvent avec des mains faibles.` : '')
+          + (ctx.pos === 'BB' ? ' Comme tu as déjà mis la grosse blinde, suivre te coûte moins cher.' : ''));
+      }
+      return fold(hc + ' : trop faible face à une relance', "Quelqu'un a relancé : il a probablement une bonne main. La tienne n'est pas assez forte pour continuer : couche-toi.");
     }
     // Relance et sur-relance avant moi
-    if (has(RANGES.vs3bet.raise)) return stackBB <= 40 ? allin(hc + ' : main la plus forte, tapis') : R(ctx.cb * 2.3, hc + ' : main la plus forte, on relance encore');
-    if (has(parseRange('QQ, AKs'))) return call(hc + ' : assez forte pour payer');
-    return fold(hc + ' : face à deux relances, seules les meilleures mains continuent');
+    const two = 'Il y a déjà eu deux relances avant toi';
+    if (has(RANGES.vs3bet.raise)) {
+      const p = two + ", mais tu as l'une des deux meilleures mains possibles (paire d'As ou de Rois) : relance encore.";
+      return stackBB <= 40 ? allin(hc + ' : main la plus forte, tapis', p) : R(ctx.cb * 2.3, hc + ' : main la plus forte, on relance encore', p);
+    }
+    if (has(parseRange('QQ, AKs'))) return call(hc + ' : assez forte pour payer', two + ' : ça montre de très grosses mains. La tienne est assez forte pour payer, pas pour relancer.');
+    return fold(hc + ' : face à deux relances, seules les meilleures mains continuent', two + ' : ça montre presque toujours de très grosses mains. Couche-toi.');
   }
 
   /* ------------------------------------------------------------ mains probables des adversaires */
