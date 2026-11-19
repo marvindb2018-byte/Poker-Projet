@@ -975,7 +975,8 @@
     for (let k = 0; k < n; k++) {
       const deg = 90 + (k * 360) / n;
       const me = k === 0;
-      const cards = me ? (qg.cls ? `<span class="seat-hand">${qg.cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>` : '') : back;
+      const real = me && qg.cards && qg.cards.length === 2 && ODDS.handClass(qg.cards[0], qg.cards[1]) === qg.cls;
+      const cards = me ? (real ? qg.cards.map((c) => cardHtml(c, 'xs')).join('') : qg.cls ? `<span class="seat-hand">${qg.cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>` : '') : back;
       const mk = QA ? QA.acts[k] : null;
       const afterRaise = QA && !me && QA.raisedBefore(k);
       const sty = me ? null : seatStyle(k);
@@ -1055,6 +1056,31 @@
     const story = mine.map((k) => `${who(k)} ${QG_VERB[A.acts[k]]}`).join(', ');
     return { P: A.P, before, callers, after, acts: A.acts, who, story };
   }
+
+  // Petite fenêtre au milieu de l'écran à chaque nouvelle main : 1re carte (valeur puis couleur), puis 2e carte
+  function cardPop() {
+    const pk = ui.qgPick;
+    if (!pk || !qg || !qg.on || qg.btn == null) return '';
+    const L = (r) => (r === 'T' ? '10' : r);
+    const nth = pk.cards.length === 0 ? '1re carte' : '2e carte';
+    const used = new Set(pk.cards);
+    const slots = [0, 1].map((i) => (pk.cards[i] ? cardHtml(pk.cards[i])
+      : i === pk.cards.length && pk.rank ? `<span class="card empty qp-cur"><b>${L(pk.rank)}</b></span>` : `<span class="card empty ${i === pk.cards.length ? 'qp-cur' : ''}"></span>`)).join('');
+    const body = !pk.rank
+      ? `<div class="pk-title">${nth} : la valeur</div>
+        <div class="ranks">${E.RANKS.map((r) => `<button class="rk" data-a="qp-rank" data-r="${r}" ${E.SUITS.every((x) => used.has(r + x)) ? 'disabled' : ''}>${L(r)}</button>`).join('')}</div>`
+      : `<div class="pk-title">${nth} : ${L(pk.rank)} de quelle couleur ?</div>
+        <div class="suits">${E.SUITS.map((x) => `<button class="su s-${x}" data-a="qp-suit" data-s="${x}" ${used.has(pk.rank + x) ? 'disabled' : ''}>${SUIT_SYM[x]}<small>${SUIT_NAME[x]}</small>${K(x.toUpperCase())}</button>`).join('')}</div>`;
+    return `<div class="qp-back"><div class="qp ${pk.cards.length || pk.rank ? '' : 'qp-in'}" role="dialog" aria-label="Tes cartes">
+      <div class="qp-head"><b>Tes cartes</b><span class="muted">tu es ${seatPositions(qg.n, qg.btn)[0]}</span>
+        <button class="link-btn" data-a="qp-close">Passer ${K('Échap')}</button></div>
+      <div class="slots qp-slots">${slots}</div>
+      ${body}
+      <div class="qp-foot">${pk.cards.length || pk.rank ? `<button class="link-btn" data-a="qp-back">← Retour</button>` : '<span></span>'}
+        <span class="hint pc-only">Au clavier : <kbd>9</kbd> puis <kbd>P</kbd> = 9♠ (<kbd>T</kbd> = 10)</span></div>
+    </div></div>`;
+  }
+  const openCardPop = () => { ui.qgPick = { cards: [], rank: null }; };
 
   // Deux cartes qui représentent une main du tableau (pour l'algorithme : les couleurs exactes ne comptent pas ici)
   function classCards(cls) {
@@ -1199,7 +1225,7 @@
       <p class="hint">${text}</p>
       <p class="hint">Lecture : « s » = cartes de la même couleur (assorties), « o » = couleurs différentes. Au-dessus de la diagonale, les mains assorties ; en dessous, les autres ; sur la diagonale, les paires.</p>
     </section>`;
-    return quick ? `<div class="charts-play"><div class="cp-a">${top}</div><div class="cp-b">${chart}</div></div>` : top + chart;
+    return quick ? `<div class="charts-play"><div class="cp-a">${top}</div><div class="cp-b">${chart}</div></div>${cardPop()}` : top + chart;
   }
 
   function actionPanel(h, id, mine, meLive) {
@@ -1959,7 +1985,7 @@
       qg = { on: true, n: state ? Math.max(2, state.players.filter(E.isActive).length) : 6, btn: null, cls: null, marks: {}, st: {} };
       ui.chart = null; saveQg(); render(); window.scrollTo(0, 0);
     },
-    'qg-stop'() { qg = null; ui.chart = null; saveQg(); render(); },
+    'qg-stop'() { qg = null; ui.chart = null; ui.qgPick = null; saveQg(); render(); },
     'qg-n'(d) {
       qg.n = Math.max(2, Math.min(E.MAX_PLAYERS, qg.n + Number(d.d)));
       if (qg.btn != null && qg.btn >= qg.n) qg.btn = null;
@@ -1970,7 +1996,7 @@
     'qg-btn'(d) {
       const i = Number(d.i);
       if (qgLongOf === qgPress) { qgLongOf = -1; return; } // c'est le relâchement de l'appui long : déjà traité
-      if (qg.btn == null) { qgSetBtn(i); return; }
+      if (qg.btn == null) { qgSetBtn(i); openCardPop(); render(); return; }
       if (i === 0) { toast(touchUI() ? 'Appui long sur un joueur : le jeton D va chez lui' : 'Clic droit sur un joueur : le jeton D va chez lui'); return; }
       qg.marks = qg.marks || {};
       const m = ((qg.marks[i] || 0) + 1) % 3;
@@ -1992,11 +2018,29 @@
       }
       qg.marks = {};
       qg.btn = (qg.btn + 1) % qg.n; // le jeton D passe au joueur suivant (sens des aiguilles d'une montre)
-      qg.cls = null; ui.chart = null; saveQg(); render();
-      toast('Main suivante : tu es ' + seatPositions(qg.n, qg.btn)[0]);
+      qg.cls = null; qg.cards = null; ui.chart = null; saveQg();
+      openCardPop(); render(); // la fenêtre dit déjà « tu es … »
     },
+    'qp-rank'(d) { if (ui.qgPick) { ui.qgPick.rank = d.r; render(); } },
+    'qp-suit'(d) {
+      const pk = ui.qgPick;
+      if (!pk || !pk.rank) return;
+      const c = pk.rank + d.s;
+      if (pk.cards.includes(c)) return;
+      pk.cards.push(c); pk.rank = null;
+      if (pk.cards.length === 2) {
+        qg.cards = pk.cards.slice(); qg.cls = ODDS.handClass(qg.cards[0], qg.cards[1]);
+        ui.qgPick = null; saveQg(); render();
+        // sur téléphone : on montre directement le conseil
+        if (!wide()) { const el = document.querySelector('.size-plan'); if (el) el.scrollIntoView({ block: 'center' }); }
+        return;
+      }
+      render();
+    },
+    'qp-back'() { const pk = ui.qgPick; if (!pk) return; if (pk.rank) pk.rank = null; else pk.cards.pop(); render(); },
+    'qp-close'() { ui.qgPick = null; render(); },
     'chart-hand'(d) {
-      if (qg && qg.on) { qg.cls = qg.cls === d.c ? null : d.c; saveQg(); }
+      if (qg && qg.on) { qg.cls = qg.cls === d.c ? null : d.c; qg.cards = null; saveQg(); }
       else ui.chartHand = ui.chartHand === d.c ? null : d.c;
       render();
     },
@@ -2322,6 +2366,17 @@
       return;
     }
     if (curPage() === 'charts' && qg && qg.on && qg.btn != null && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (ui.qgPick) {
+        const key = k.toLowerCase(), pk = ui.qgPick;
+        const run = (fn) => { ev.preventDefault(); fn(); };
+        if (k === 'Escape') return run(handlers['qp-close']);
+        if (k === 'Backspace') return run(handlers['qp-back']);
+        if (!pk.rank && RANK_KEYS[key]) return run(() => handlers['qp-rank']({ r: RANK_KEYS[key] }));
+        const sk = pk.rank && (SUIT_KEYS[key] || { 1: 'p', 2: 'c', 3: 'k', 4: 't' }[key]);
+        if (sk) return run(() => (pk.cards.includes(pk.rank + sk) ? toast('Cette carte est déjà prise.') : handlers['qp-suit']({ s: sk })));
+        if (k === 'Enter' || k === ' ') ev.preventDefault(); // pas de main suivante tant que la fenêtre est ouverte
+        return;
+      }
       if ((k === 'Enter' || k === ' ') && t.tagName !== 'BUTTON') { ev.preventDefault(); handlers['qg-next'](); }
       return;
     }

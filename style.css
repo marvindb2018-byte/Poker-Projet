@@ -898,3 +898,19 @@ details.plain > div p + p { margin-top: 6px; }
 .size-plan li.main { font-size: 15.5px; }
 .size-plan li.main b { font-size: 18px; }
 .size-plan details.plain { margin-top: 8px; }
+
+/* ---------- fenêtre « tes cartes » (partie rapide) */
+.qp-back { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(4, 10, 7, .62); }
+.qp { width: min(470px, 100%); background: var(--panel); border: 2px solid var(--gold); border-radius: 16px; padding: 14px 16px 12px; box-shadow: 0 24px 70px rgba(0, 0, 0, .65); }
+.qp.qp-in { animation: qp-in .16s ease-out; }
+@keyframes qp-in { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+.qp-head { display: flex; align-items: baseline; gap: 10px; }
+.qp-head b { font-size: 17px; }
+.qp-head .link-btn { margin-left: auto; }
+.qp-slots { justify-content: center; gap: 8px; margin: 10px 0 6px; }
+.qp-slots .card.empty.qp-cur { outline: 2px dashed var(--gold); outline-offset: 2px; }
+.qp-slots .card.empty b { display: flex; height: 100%; align-items: center; justify-content: center; font: 800 20px var(--sans); color: var(--gold); }
+.qp .pk-title { text-align: center; font-weight: 800; font-size: 18px; margin: 2px 0 4px; }
+.qp-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 10px; min-height: 22px; }
+.qp-foot > :first-child { flex: 0 0 auto; }
+.qp-foot .hint { flex: 1 1 auto; margin: 0; font-size: 12px; text-align: right; }
