@@ -45,7 +45,11 @@
   const learned = new Set(parse(store.get(LKEY)) || []);
   const saveLearned = () => store.set(LKEY, JSON.stringify([...learned]));
   let qg = parse(store.get(QKEY));
+  // Partie rapide : historique des gestes, pour « Annuler » (↶ ou Ctrl+Z sur la page Mains)
+  let qgHist = [];
+  const qgPush = (label) => { qgHist.push({ s: JSON.stringify(qg), label }); if (qgHist.length > 60) qgHist.shift(); };
   let tourActive = false; // pendant le petit tuto, la partie d'exemple n'est jamais enregistrée
+  const TOUR_ON = () => tourActive;
   const saveQg = () => (tourActive ? null : qg ? store.set(QKEY, JSON.stringify(qg)) : store.del(QKEY));
   let crop = parse(store.get(CKEY));
 
@@ -1012,7 +1016,10 @@
         <div class="qg-n" title="Nombre de joueurs à la table"><div class="stepper">
           <button data-a="qg-n" data-d="-1" aria-label="Un joueur de moins">−</button><b>${n}</b><button data-a="qg-n" data-d="1" aria-label="Un joueur de plus">+</button>
         </div><span class="lbl">joueurs</span></div>
-        <button class="qg-x" data-a="qg-stop" aria-label="Arrêter la partie rapide" title="Arrêter la partie rapide">×</button></div>`;
+        <div class="qg-tr">
+          <button class="qg-undo" data-a="qg-undo" aria-label="Annuler le dernier geste" title="${qgHist.length ? 'Annuler : ' + esc(qgHist[qgHist.length - 1].label) + ' (Ctrl+Z)' : 'Rien à annuler'}" ${qgHist.length ? '' : 'disabled'}>↶</button>
+          <button class="qg-x" data-a="qg-stop" aria-label="Arrêter la partie rapide" title="Arrêter la partie rapide">×</button>
+        </div></div>`;
     return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
       ${b == null ? '<div class="mt-label">À faire · touche le joueur qui a le jeton D</div>' : ''}
       <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
@@ -1233,7 +1240,8 @@
       text = `Les couleurs suivent ce que tu as touché sur la table${big ? ' (ici, pour une relance de 3 à 6 BB : touche ta main pour les autres tailles)' : ''}. Retouche le joueur pour changer, ou passe à la main suivante.`;
     }
     const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}" data-a="chart-hand" data-c="${c}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
-    const top = quick ? quickTable() : `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide <small>tu joues avec tes potes : l'appli suit le jeton D et te montre les mains à jouer à ta place</small></button>`;
+    const resume = !quick && qgHist.length ? `<button class="btn ghost wide qg-resume" data-a="qg-undo">↶ Reprendre la partie rapide arrêtée</button>` : '';
+    const top = quick ? quickTable() : resume + `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide <small>tu joues avec tes potes : l'appli suit le jeton D et te montre les mains à jouer à ta place</small></button>`;
     const chart = `<section class="panel">
       <h2>Mains de départ</h2>
       ${quick ? '' : '<p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c\'est ce qui fait le plus progresser un débutant.</p>'}
@@ -2002,12 +2010,27 @@
       }
     },
     'qg-start'() {
+      qgHist = []; // nouvelle partie rapide : on repart de zéro
       qg = { on: true, n: state ? Math.max(2, state.players.filter(E.isActive).length) : 6, btn: null, cls: null, marks: {}, st: {} };
       ui.chart = null; saveQg(); render(); window.scrollTo(0, 0);
     },
-    'qg-stop'() { qg = null; ui.chart = null; ui.qgPick = null; saveQg(); render(); },
+    'qg-stop'() {
+      qgPush('arrêt de la partie rapide');
+      qg = null; ui.chart = null; ui.qgPick = null; saveQg(); render();
+      toast('Partie rapide arrêtée · « Reprendre » ou Ctrl+Z pour revenir en arrière');
+    },
+    // Annuler le dernier geste de la partie rapide (même l'arrêt)
+    'qg-undo'() {
+      const last = qgHist.pop();
+      if (!last) { toast('Rien à annuler'); return; }
+      qg = JSON.parse(last.s); ui.qgPick = null; ui.chart = null; saveQg(); render();
+      toast('Annulé : ' + last.label);
+    },
     'qg-n'(d) {
-      qg.n = Math.max(2, Math.min(E.MAX_PLAYERS, qg.n + Number(d.d)));
+      const nn = Math.max(2, Math.min(E.MAX_PLAYERS, qg.n + Number(d.d)));
+      if (nn === qg.n) return;
+      qgPush('nombre de joueurs');
+      qg.n = nn;
       if (qg.btn != null && qg.btn >= qg.n) qg.btn = null;
       qg.marks = {}; qg.st = {}; // autres joueurs : on repart de zéro
       ui.chart = null; saveQg(); render();
@@ -2016,8 +2039,9 @@
     'qg-btn'(d) {
       const i = Number(d.i);
       if (qgLongOf === qgPress) { qgLongOf = -1; return; } // c'est le relâchement de l'appui long : déjà traité
-      if (qg.btn == null) { qgSetBtn(i); openCardPop(); render(); return; }
+      if (qg.btn == null) { qgSetBtn(i, false, 'jeton D placé'); openCardPop(); render(); return; }
       if (i === 0) { openCardPop(); render(); return; } // clic sur moi : saisir ou changer mes cartes
+      qgPush(`clic sur Joueur ${i + 1}`);
       qg.marks = qg.marks || {};
       const m = ((qg.marks[i] || 0) + 1) % 3;
       if (m) qg.marks[i] = m; else delete qg.marks[i];
@@ -2025,6 +2049,7 @@
     },
     'qg-next'() {
       if (!qg || qg.btn == null) return;
+      qgPush('main suivante');
       // je suivais la main (ma main touchée) : les joueurs qui parlaient avant moi et que je n'ai pas touchés n'ont pas relancé
       if (qg.cls) {
         const P = seatPositions(qg.n, qg.btn), order = E.POSITIONS[qg.n], me = order.indexOf(P[0]), QA0 = qgActs();
@@ -2049,6 +2074,7 @@
       if (pk.cards.includes(c)) return;
       pk.cards.push(c); pk.rank = null;
       if (pk.cards.length === 2) {
+        qgPush('tes cartes');
         qg.cards = pk.cards.slice(); qg.cls = ODDS.handClass(qg.cards[0], qg.cards[1]);
         ui.qgPick = null; saveQg(); render();
         // sur téléphone : on montre directement le conseil
@@ -2060,7 +2086,7 @@
     'qp-back'() { const pk = ui.qgPick; if (!pk) return; if (pk.rank) pk.rank = null; else pk.cards.pop(); render(); },
     'qp-close'() { ui.qgPick = null; render(); },
     'chart-hand'(d) {
-      if (qg && qg.on) { qg.cls = qg.cls === d.c ? null : d.c; qg.cards = null; saveQg(); }
+      if (qg && qg.on) { qgPush('ta main'); qg.cls = qg.cls === d.c ? null : d.c; qg.cards = null; saveQg(); }
       else ui.chartHand = ui.chartHand === d.c ? null : d.c;
       render();
     },
@@ -2237,8 +2263,9 @@
 
   // Partie rapide : le jeton D se place au clic droit (ordinateur) ou à l'appui long (téléphone)
   let qgPress = 0, qgLongOf = -1, qgTimer = null; // qgPress : moment du dernier appui ; qgLongOf : l'appui qui a placé le jeton D
-  function qgSetBtn(i, moved) {
+  function qgSetBtn(i, moved, label) {
     if (!qg || !qg.on) return;
+    qgPush(label || 'jeton D déplacé');
     qg.btn = i; qg.marks = {}; ui.chart = null; saveQg(); render();
     if (moved) toast(`Jeton D chez ${i === 0 ? 'toi' : 'Joueur ' + (i + 1)} : tu es ${seatPositions(qg.n, i)[0]}`);
   }
@@ -2361,6 +2388,10 @@
       }
       return;
     }
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && k.toLowerCase() === 'z' && !inField && curPage() === 'charts' && !TOUR_ON()) {
+      ev.preventDefault();
+      return handlers['qg-undo']();
+    }
     if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && k.toLowerCase() === 'z' && !inField && ['main', 'prompt', 'settings'].includes(curPage()) && !autoPage()) {
       ev.preventDefault();
       return handlers.undo();
@@ -2464,7 +2495,7 @@
     const ex = { on: true, n: 6, btn: 1, cls: null, cards: null, marks: {}, st: {} }; // D chez Joueur 2 : moi en CO
     const steps = [
       { sel: '.qg-n', title: 'Le nombre de joueurs', set: {},
-        text: L("Pour commencer : bouton « Partie rapide » en haut de cette page. Ensuite, règle le nombre de joueurs autour de la table avec − et +. Toi, tu es toujours en bas.") },
+        text: L("Pour commencer : bouton « Partie rapide » en haut de cette page. Ensuite, règle le nombre de joueurs autour de la table avec − et +. Toi, tu es toujours en bas. En haut à droite : ↶ annule ton dernier geste (Ctrl+Z), la croix rouge arrête la partie rapide.") },
       { sel: '.qg-pt .seat.is-btn', title: 'Le jeton D', set: {},
         text: L(`Au début, touche le joueur qui a le jeton D. Pour le déplacer ensuite : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.`) },
       { sel: '.qg-you', title: 'Ta place', set: {},

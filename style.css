@@ -970,3 +970,12 @@ details.plain > div p + p { margin-top: 6px; }
   .qg-pt .qg-n .stepper b { min-width: 20px; font-size: 16px; }
   .qg-x { width: 30px; height: 30px; font-size: 19px; }
 }
+
+/* partie rapide : ↶ (annuler le dernier geste) à côté de la croix rouge */
+.qg-pt .qg-tr { display: flex; gap: 8px; align-items: center; }
+.qg-undo { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--panel2); color: var(--text);
+  font: 700 18px/1 var(--sans); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 0 2px; }
+.qg-undo:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.qg-undo:disabled { opacity: .3; cursor: default; }
+.qg-resume { margin-bottom: 10px; }
+@media (max-width: 999px) { .qg-undo { width: 30px; height: 30px; font-size: 16px; } }
