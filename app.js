@@ -983,7 +983,7 @@
       const mk = QA ? QA.acts[k] : null;
       const afterRaise = QA && !me && QA.raisedBefore(k);
       const sty = me ? null : seatStyle(k);
-      const title = b == null ? 'Touche le joueur qui a le jeton D' : me ? 'Toi. Clic droit (appui long sur téléphone) : le jeton D est chez toi'
+      const title = b == null ? 'Touche le joueur qui a le jeton D' : me ? `Toi. ${touchUI() ? 'Touche' : 'Clic'} : saisir ou changer tes cartes · ${touchUI() ? 'Appui long' : 'Clic droit'} : le jeton D est chez toi`
         : (afterRaise ? 'Clic : il suit · 2e clic : il relance la relance' : 'Clic : il relance · 2e clic : grosse relance ou tapis') + ' · 3e clic : annuler · Clic droit (appui long sur téléphone) : le jeton D est chez lui';
       seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''} ${mk ? (mk === 'c' ? 'called' : 'raised') + ' a-' + mk : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="${title}">
         <div class="seat-cards">${cards}</div>
@@ -2000,7 +2000,7 @@
       const i = Number(d.i);
       if (qgLongOf === qgPress) { qgLongOf = -1; return; } // c'est le relâchement de l'appui long : déjà traité
       if (qg.btn == null) { qgSetBtn(i); openCardPop(); render(); return; }
-      if (i === 0) { toast(touchUI() ? 'Appui long sur un joueur : le jeton D va chez lui' : 'Clic droit sur un joueur : le jeton D va chez lui'); return; }
+      if (i === 0) { openCardPop(); render(); return; } // clic sur moi : saisir ou changer mes cartes
       qg.marks = qg.marks || {};
       const m = ((qg.marks[i] || 0) + 1) % 3;
       if (m) qg.marks[i] = m; else delete qg.marks[i];
@@ -2453,7 +2453,7 @@
       { sel: '.qg-you', title: 'Ta place', set: {},
         text: L("L'appli en déduit ta place (ici CO) et règle le tableau des mains de départ dessus. Survole les places (UTG, BTN…) pour savoir ce qu'elles veulent dire.") },
       { sel: '.qp', title: 'Tes cartes', set: { pick: { cards: ['Ap'], rank: 'J' } },
-        text: L("À chaque main, cette fenêtre s'ouvre au milieu de l'écran. Touche la valeur puis la couleur de ta 1re carte, puis pareil pour la 2e. Au clavier : 9 puis P = 9♠ (T = 10). « Passer » ou Échap si tu ne veux pas.") },
+        text: L("À chaque main, cette fenêtre s'ouvre au milieu de l'écran. Touche la valeur puis la couleur de ta 1re carte, puis pareil pour la 2e. Au clavier : 9 puis P = 9♠ (T = 10). « Passer » ou Échap si tu ne veux pas. Pour les saisir ou les changer à tout moment : clic sur toi, en bas de la table.") },
       { sel: '.size-plan', title: 'Le conseil', set: { cls: 'AJs', cards: ['Ap', 'Jp'] },
         text: L("Ta main est encadrée dans le tableau et le plan s'affiche : quoi faire si personne n'a relancé, et selon la taille de la relance. Tu lis la ligne qui correspond.") },
       { sel: '.qg-pt .seat[data-i="4"]', title: 'Quelqu\'un relance', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1 } },
