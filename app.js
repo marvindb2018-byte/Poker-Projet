@@ -1164,8 +1164,10 @@
     if (mode === 'auto') return viewSideAuto();
     const h = state && state.hand;
     const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
-    let out = `<div class="side-a"><section class="side-box"><h3>Ta main ${tip('hand')}</h3>`;
-    if (cur) {
+    // page Apprendre : pas de « Ta main » (rien à y afficher)
+    const showHand = curPage() !== 'learn';
+    let out = `<div class="side-a">${showHand ? `<section class="side-box"><h3>Ta main ${tip('hand')}</h3>` : ''}`;
+    if (!showHand) { /* rien */ } else if (cur) {
       const mineSet = new Set(h.cards);
       const show = (c, cls) => `<span class="${cls}${mineSet.has(c) ? ' from-me' : ''}">${cardHtml(c, 'sm')}</span>`;
       out += `<div class="now-cards">${cur.best.main.map((c) => show(c, 'nc')).join('')}${cur.best.kick.map((c) => show(c, 'nc kick')).join('')}</div>`;
@@ -1179,7 +1181,7 @@
     } else {
       out += '<p class="hint">Ta combinaison s\'affichera ici dès que tu auras choisi tes cartes.</p>';
     }
-    out += '</section>';
+    if (showHand) out += '</section>';
 
     out += `<section class="side-box"><h3>Combinaisons <small>de la plus forte à la plus faible</small></h3><ol class="combos">`;
     out += HANDS.CATEGORIES.slice().reverse().map((c) => `<li class="${cur && cur.best.cat === c.id ? 'on' : ''}">
