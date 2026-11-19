@@ -883,3 +883,16 @@ details.plain > div p + p { margin-top: 6px; }
 .size-plan li b { font-size: 16px; white-space: nowrap; }
 .ps-raise b { color: #6fe0a5; } .ps-r3 b { color: var(--gold); } .ps-call b { color: #9cc4ff; } .ps-fold b { color: #c9d3cd; }
 .ps-raise { border-left: 4px solid #2c8f5c; } .ps-r3 { border-left: 4px solid #b98a2a; } .ps-call { border-left: 4px solid #2b5e9b; } .ps-fold { border-left: 4px solid #4a5a52; }
+
+/* ---------- partie rapide : joueurs touchés (relance), styles appris */
+.qg-pt .seat { cursor: pointer; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.qg-pt .seat.raised .seat-box { border: 2px solid #4f8fe0; box-shadow: 0 0 0 3px rgba(79, 143, 224, .35), 0 0 18px rgba(79, 143, 224, .45); }
+.qg-pt .seat.raised.r2 .seat-box { border-color: #e0604f; box-shadow: 0 0 0 3px rgba(224, 96, 79, .35), 0 0 18px rgba(224, 96, 79, .5); }
+.qg-pt .seat-act { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 4px); white-space: nowrap; z-index: 3;
+  padding: 2px 8px; border-radius: 999px; font: 800 11px var(--sans); background: #2b5e9b; color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
+.qg-pt .seat.r2 .seat-act { background: #b8432f; }
+.qg-pt .seat-sty { display: block; font-size: 10.5px; color: var(--gold); line-height: 1.1; }
+.size-plan.sit { border-color: rgba(79, 143, 224, .6); background: rgba(79, 143, 224, .07); }
+.size-plan li.main { font-size: 15.5px; }
+.size-plan li.main b { font-size: 18px; }
+.size-plan details.plain { margin-top: 8px; }

@@ -174,6 +174,10 @@
     threeBet: parseRange('QQ+, AKs, AKo'),
     call: parseRange('22+, ATs+, KJs+, QJs, JTs, T9s, AQo'),
     callBB: parseRange('22+, A2s+, K9s+, Q9s+, J9s+, T8s+, 97s+, 86s+, 75s+, 65s, 54s, A9o+, KTo+, QTo+, JTo'),
+    // selon la place du relanceur : plus serré contre UTG/MP, plus large contre CO/BTN/SB
+    callEarly: parseRange('22+, AJs+, KQs, QJs, JTs, AQo'),
+    callBBEarly: parseRange('22+, A2s+, K9s+, Q9s+, J9s+, T8s+, 98s, 87s, 76s, 65s, AJo+, KQo'),
+    callBBLate: parseRange('22+, A2s+, K5s+, Q8s+, J8s+, T7s+, 96s+, 86s+, 75s+, 64s+, 54s, A7o+, K9o+, Q9o+, J9o+, T9o, 98o'),
     vsBig: parseRange('77+, AJs+, KQs, AQo+'),
     vs3bet: { raise: parseRange('KK+'), call: parseRange('QQ, AKs, AKo') },
   };
@@ -308,7 +312,7 @@
       const loose = r && r.pfr >= 0.25, tight = r && r.pfr < 0.08;
       const who = r ? r.name + ' relance ' + Math.round(r.pfr * 100) + ' % de ses mains' : '';
       const rare = r ? `${r.name} relance très rarement : quand il le fait, il a souvent une très bonne main.` : '';
-      const threeBet = loose ? parseRange('TT+, AQs+, AKo, AQo') : tight ? parseRange('KK+') : RANGES.threeBet;
+      let threeBet = loose ? parseRange('TT+, AQs+, AKo, AQo') : tight ? parseRange('KK+') : RANGES.threeBet;
       // Taille de la relance, calée sur les tailles les plus courantes : 0 normale (jusqu'à 3 BB), 1 grosse (3 à 6 BB),
       // 2 très grosse (6 à 15 BB), 3 tapis ou plus de 15 BB. Plus elle est grosse, plus il a une grosse main.
       const sizeBB = ctx.cb / bb;
@@ -316,7 +320,17 @@
       if (loose && tier > 0) tier -= 1; // il relance tout : sa grosse relance vaut une relance normale d'un autre
       else if (tight && tier > 0 && tier < 3) tier += 1; // il relance rarement : sa relance vaut plus
       if (tier > 0) return bigRaise(tier);
+      // Place du relanceur : depuis UTG/MP on ne relance qu'avec de bonnes mains, depuis CO/BTN/SB avec beaucoup de mains moyennes.
+      // Si l'appli connaît ses habitudes (relance tout ou presque rien), elles comptent plus que sa place.
+      const rp = ctx.raiserPos || '';
+      const vsEarly = !loose && /^(UTG|MP)/.test(rp);
+      const vsLate = !loose && !tight && LATE.includes(rp) && (!r || r.pfr >= 0.12);
+      const rKey = rp ? openRangeKey(rp, ctx.n) : null;
+      const rPct = rKey ? pct(RANGES.open[rKey]) : 0;
+      const posNote = vsEarly ? ` Il relance depuis ${rp}, la place d'où l'on ne relance qu'avec de bonnes mains (environ ${rPct} % des mains) : sois prudent.`
+        : vsLate ? ` Il relance depuis ${rp}, une place d'où l'on relance avec beaucoup de mains moyennes (environ ${rPct} % des mains) : tu peux continuer avec plus de mains.` : '';
       const callers = ctx.callers || 0; // joueurs qui ont suivi la relance avant moi
+      if (vsLate) threeBet = parseRange('TT+, AJs+, KQs, AQo+');
       const size = ctx.cb * (late ? 3 : 3.5) + ctx.cb * callers; // plus gros s'il y a déjà des suiveurs (« squeeze »)
       // Sur-relance « bluff » : un As bloque ses meilleures mains, contre une relance tardive, quand je suis bien placé
       if (!tight && !callers && LATE.includes(ctx.pos) && LATE.includes(ctx.raiserPos) && has(parseRange('A5s, A4s'))) {
@@ -324,28 +338,33 @@
       }
       // Petite blinde : on ne fait pas que suivre (mal placé après le flop) : sur-relance ou couché
       if (ctx.pos === 'SB' && !has(threeBet)) {
-        if (has(parseRange('JJ, TT, AQs, AJs, KQs, AQo'))) return R(size, `${hc} : en petite blinde, sur-relance plutôt que suivre`, "En petite blinde, tu parleras en premier après le flop : suivre te met en difficulté. Avec une bonne main comme la tienne, sur-relance pour reprendre l'avantage.");
-        return fold(`${hc} : en petite blinde, sur-relance ou couché`, "En petite blinde, tu parleras en premier après le flop, ce qui est un gros désavantage. Sans une main assez forte pour sur-relancer, couche-toi.");
+        const sb3 = parseRange(vsLate ? '99+, ATs+, KJs+, QJs, AJo+, KQo' : vsEarly ? 'JJ, TT, AQs, AQo' : 'JJ, TT, AQs, AJs, KQs, AQo');
+        if (has(sb3)) return R(size, `${hc} : en petite blinde, sur-relance plutôt que suivre${vsLate ? ' (relance tardive)' : ''}`, "En petite blinde, tu parleras en premier après le flop : suivre te met en difficulté. Avec une bonne main comme la tienne, sur-relance pour reprendre l'avantage." + posNote);
+        return fold(`${hc} : en petite blinde, sur-relance ou couché${vsEarly ? ' (relance depuis ' + rp + ')' : ''}`, "En petite blinde, tu parleras en premier après le flop, ce qui est un gros désavantage. Sans une main assez forte pour sur-relancer, couche-toi." + posNote);
       }
       if (has(threeBet)) {
         return R(size, hc + (callers ? ` : sur-relance plus grosse, ${callers} joueur${callers > 1 ? 's ont' : ' a'} déjà suivi` : loose ? ` : forte, et ${who} (souvent sans grosse main) : sur-relance` : ' : main premium, sur-relance'),
           loose ? `Ta main est bonne, et ${r.name} relance très souvent, même avec des mains faibles. Tu as donc souvent mieux que lui : relance par-dessus sa relance.`
-            : "Quelqu'un a relancé, mais ta main est l'une des toutes meilleures : relance par-dessus sa relance pour faire grossir le pot.");
+            : vsLate && !has(RANGES.threeBet) ? `Ta main est bonne, et il relance depuis ${rp} : de cette place, on relance avec beaucoup de mains moyennes (environ ${rPct} % des mains). Tu as souvent mieux que lui : relance par-dessus.`
+              : "Quelqu'un a relancé, mais ta main est l'une des toutes meilleures : relance par-dessus sa relance pour faire grossir le pot." + posNote);
       }
       if (tight) {
         if (has(parseRange('TT+, AQs+, AKo, AQo'))) return call(`${hc} : ${who}, c'est peu : sa relance est sérieuse, suis seulement`, rare + ' Ta main est assez bonne pour payer et voir le flop, mais pas pour relancer.');
         return fold(`${hc} : ${who}, c'est peu : sa relance est sérieuse`, rare + ' La tienne ne suffit pas : couche-toi.');
       }
-      const range = ctx.pos === 'BB' || loose ? RANGES.callBB
-        : ctx.pos === 'BTN' ? parseRange('22+, A9s+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s, AJo+, KQo') // en position : on peut payer plus large
-          : RANGES.call;
+      const range = ctx.pos === 'BB'
+        ? (vsLate ? RANGES.callBBLate : vsEarly ? RANGES.callBBEarly : RANGES.callBB)
+        : loose ? RANGES.callBB
+          : vsEarly ? (ctx.pos === 'BTN' ? RANGES.call : RANGES.callEarly)
+            : ctx.pos === 'BTN' || vsLate ? parseRange('22+, A9s+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s, AJo+, KQo') // en position, ou contre une relance tardive : plus large
+              : RANGES.call;
       if (has(range)) {
         return call(`${hc} : assez bonne pour payer ${loose ? `(${who} : sa relance est souvent faible)` : 'une relance'}${ctx.pos === 'BB' ? ' depuis la grosse blinde' : ''}`,
           "Quelqu'un a relancé. Ta main est assez bonne pour payer et voir le flop, mais pas assez pour relancer par-dessus."
-          + (loose ? ` En plus, ${r.name} relance souvent avec des mains faibles.` : '')
+          + (loose ? ` En plus, ${r.name} relance souvent avec des mains faibles.` : posNote)
           + (ctx.pos === 'BB' ? ' Comme tu as déjà mis la grosse blinde, suivre te coûte moins cher.' : ''));
       }
-      return fold(hc + ' : trop faible face à une relance', "Quelqu'un a relancé : il a probablement une bonne main. La tienne n'est pas assez forte pour continuer : couche-toi.");
+      return fold(hc + ' : trop faible face à une relance' + (vsEarly ? ' depuis ' + rp : ''), "Quelqu'un a relancé : il a probablement une bonne main. La tienne n'est pas assez forte pour continuer : couche-toi." + posNote);
     }
     // Relance et sur-relance avant moi
     const two = 'Il y a déjà eu deux relances avant toi';

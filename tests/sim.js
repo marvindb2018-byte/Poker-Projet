@@ -4,7 +4,7 @@
  * Compare la version actuelle (conseil avant et après le flop, profils appris en cours de route)
  * à l'ancienne (tableau avant le flop, puis seulement « suivre si c'est rentable », jamais de mise).
  *
- * Usage : node tests/sim.js [mains] [table]   (table : amis, payeurs, serres, maniaques, melange)
+ * Usage : node tests/sim.js [mains] [table]   (table : amis, payeurs, serres, maniaques, melange, reguliers)
  */
 const E = require('../engine.js');
 const O = require('../odds.js');
@@ -49,6 +49,21 @@ const STYLES = {
   ami: {
     pre(x) { const q = pct(x.cards); if (q <= 0.08) return x.h.cb === BB && Math.random() < 0.5 ? openTo(x, 6) : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; if (!x.raisedBefore) return q <= 0.45 ? { type: 's' } : { type: 'f' }; return q <= 0.3 ? { type: 's' } : { type: 'f' }; },
     post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || Math.random() < 0.1 ? bet(x, 0.5) : { type: 'x' }; if (c.level >= 4) return raise(x, 2.5); return c.level >= 1 || c.draw || Math.random() < 0.15 ? { type: 's' } : { type: 'f' }; },
+  },
+  // Le régulier : joue selon sa place (tableaux classiques), mise après avoir relancé, lâche sans rien
+  regulier: {
+    pre(x) {
+      const hc = O.handClass(x.cards[0], x.cards[1]), pos = x.h.pos[x.id], R = O.RANGES;
+      if (!x.raisedBefore) {
+        const key = O.openRangeKey(pos, x.h.order.length);
+        if (key && R.open[key].has(hc)) return raise(x, 2.5);
+        return x.o.toCall === 0 ? { type: 'x' } : { type: 'f' };
+      }
+      if (R.threeBet.has(hc)) return raise(x, 3);
+      if (x.o.toCall === 0) return { type: 'x' };
+      return (pos === 'BB' ? R.callBB : R.call).has(hc) && x.o.toCall <= BB * 4 ? { type: 's' } : { type: 'f' };
+    },
+    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || c.draw || Math.random() < 0.35 ? bet(x, 0.6) : { type: 'x' }; if (c.level >= 3) return raise(x, 2.5); return c.level >= 2 || (c.draw && Math.random() < 0.6) ? { type: 's' } : { type: 'f' }; },
   },
 };
 function openTo(x, nbb) {
@@ -138,6 +153,7 @@ const TABLES = {
   serres: ['serre', 'serre', 'serre', 'ami', 'ami'],
   maniaques: ['maniaque', 'maniaque', 'ami', 'ami', 'serre'],
   melange: ['payeur', 'serre', 'maniaque', 'ami', 'ami'],
+  reguliers: ['regulier', 'regulier', 'regulier', 'ami', 'ami'],
 };
 
 if (require.main === module) {

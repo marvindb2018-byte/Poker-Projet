@@ -105,4 +105,19 @@ assert.strictEqual(vsSize(['7c', '7k'], 'CO', 100, { raiser: { name: 'Paul', pfr
 // contre un joueur très serré, une relance de 5 BB est traitée comme une très grosse
 assert.strictEqual(vsSize(['7c', '7k'], 'CO', 100, { raiser: { name: 'Léa', pfr: 0.04 } }), 'fold');
 console.log('✓ conseils selon la taille de la relance');
+// place du relanceur : plus prudent contre UTG/MP, plus large contre CO/BTN/SB
+const vsPos = (cards, pos, rp, raiser) => vsSize(cards, pos, 60, { raiserPos: rp, raiser });
+assert.strictEqual(vsPos(['Ap', 'Tc'], 'BB', 'UTG'), 'fold');
+assert.strictEqual(vsPos(['Ap', 'Tc'], 'BB', 'BTN'), 'call');
+assert.strictEqual(vsPos(['Ap', 'Jc'], 'SB', 'MP'), 'fold');
+assert.strictEqual(vsPos(['Ap', 'Jc'], 'SB', 'BTN'), 'raise');
+assert.strictEqual(vsPos(['Tp', 'Tc'], 'BTN', 'UTG'), 'call');
+assert.strictEqual(vsPos(['Tp', 'Tc'], 'BTN', 'CO'), 'raise');
+assert.ok(adv({ cards: ['Ap', 'Tc'], pos: 'BB', cb: 60, raises: 1, myBet: 20, raiserPos: 'BTN' }).plain.includes('BTN'));
+// les habitudes connues comptent plus que la place : un joueur très serré qui relance du bouton reste sérieux
+assert.strictEqual(vsPos(['Ap', 'Tc'], 'BB', 'BTN', { name: 'Léa', pfr: 0.05 }), 'fold');
+assert.strictEqual(vsPos(['Ap', 'Jc'], 'SB', 'BTN', { name: 'Léa', pfr: 0.05 }), 'fold');
+// sans place connue : comme avant
+assert.strictEqual(vsPos(['Ap', 'Tc'], 'BB', null), 'call');
+console.log('✓ conseils selon la place du relanceur');
 console.log('\nTests probabilités OK');

@@ -15,7 +15,8 @@
   const PKEY = 'pokercode:profiles:v1'; // façon de jouer de chaque pseudo, gardée d'une partie à l'autre
   const XKEY = 'pokercode:plainOpen'; // explications « En clair » que j'ai laissées ouvertes (par sorte)
   const LKEY = 'pokercode:learned'; // notions que je connais (onglet Apprendre)
-  const QKEY = 'pokercode:quickgame'; // partie rapide de l'onglet Mains : { on, n, btn (siège du jeton D), cls (ma main) }
+  const QKEY = 'pokercode:quickgame'; // partie rapide de l'onglet Mains : { on, n, btn (siège du jeton D), cls (ma main),
+  //   marks { siège: 1 relance normale | 2 grosse relance ou tapis }, st { siège: { c: occasions, r: relances } } }
   const HIST_MAX = 60;
   const SUIT_SYM = { p: '♠', c: '♥', k: '♦', t: '♣' };
   const SUIT_NAME = { p: 'pique', c: 'cœur', k: 'carreau', t: 'trèfle' };
@@ -974,9 +975,14 @@
       const deg = 90 + (k * 360) / n;
       const me = k === 0;
       const cards = me ? (qg.cls ? `<span class="seat-hand">${qg.cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>` : '') : back;
-      seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="Le jeton D est ici">
+      const mk = (qg.marks || {})[k];
+      const sty = me ? null : seatStyle(k);
+      const title = b == null ? 'Touche le joueur qui a le jeton D' : me ? 'Toi. Clic droit (appui long sur téléphone) : le jeton D est chez toi'
+        : 'Clic : il a relancé · 2e clic : grosse relance ou tapis · 3e clic : annuler · Clic droit (appui long sur téléphone) : le jeton D est chez lui';
+      seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''} ${mk ? 'raised r' + mk : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="${title}">
         <div class="seat-cards">${cards}</div>
-        <div class="seat-box">${k === b ? `<span class="dealer-badge ${dealerCorner(deg)}">D</span>` : ''}<span class="seat-pos">${pos ? pos[k] : '—'}</span><b class="seat-name">${me ? 'Toi' : 'Joueur ' + (k + 1)}</b></div>
+        <div class="seat-box">${k === b ? `<span class="dealer-badge ${dealerCorner(deg)}">D</span>` : ''}<span class="seat-pos">${pos ? pos[k] : '—'}</span><b class="seat-name">${me ? 'Toi' : 'Joueur ' + (k + 1)}</b>${sty ? `<span class="seat-sty">${sty.tag}</span>` : ''}</div>
+        ${mk ? `<span class="seat-act">${mk === 1 ? 'Relance' : 'Grosse relance / tapis'}</span>` : ''}
       </div>`;
     }
     const mine = pos ? pos[0] : null;
@@ -990,9 +996,39 @@
       <div class="ptable qg-pt"><div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
       ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'} : l'appli te dit quoi faire si personne n'a relancé, et selon la taille de la relance s'il y en a une.</p>`
+        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance normale, 2 fois = grosse relance ou tapis, 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.</p>`
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
+  }
+
+  const touchUI = () => !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+
+  // Ce que l'appli a appris d'un siège (partie rapide) : à quelle fréquence il relance quand il parle avant moi
+  const QG_MIN = 8; // occasions avant d'en tirer un style
+  function seatProfile(k) {
+    const t = (qg.st || {})[k];
+    if (!t || t.c < QG_MIN) return null;
+    const pr = (PROF.PRIOR && PROF.PRIOR.pfr) || 0.12, kk = (PROF.PRIOR && PROF.PRIOR.kHands) || 10;
+    return { name: 'Joueur ' + (k + 1), pfr: (t.r + pr * kk) / (t.c + kk), seen: t.c };
+  }
+  function seatStyle(k) {
+    const pf = seatProfile(k);
+    if (!pf) return null;
+    return pf.pfr >= 0.25 ? { tag: 'relance souvent', cls: 'loose' } : pf.pfr < 0.08 ? { tag: 'relance peu', cls: 'tight' } : null;
+  }
+
+  // Ce qui s'est passé avant moi d'après les joueurs touchés (partie rapide)
+  function quickSituation() {
+    if (!qg || !qg.on || qg.btn == null) return null;
+    const marks = qg.marks || {};
+    const ks = Object.keys(marks).map(Number).filter((k) => marks[k] && k !== 0 && k < qg.n);
+    if (!ks.length) return null;
+    const P = seatPositions(qg.n, qg.btn), order = E.POSITIONS[qg.n];
+    const ord = (k) => order.indexOf(P[k]);
+    const before = ks.filter((k) => ord(k) < ord(0)).sort((a, b) => ord(a) - ord(b));
+    const after = ks.filter((k) => ord(k) > ord(0));
+    const who = (k) => `Joueur ${k + 1} (${P[k]})`;
+    return { P, before, after, marks, who };
   }
 
   // Deux cartes qui représentent une main du tableau (pour l'algorithme : les couleurs exactes ne comptent pas ici)
@@ -1002,8 +1038,45 @@
   }
 
   // Conseil de l'algorithme (le même que dans l'onglet Partie) pour une main, une place et une relance de cb (blindes 10/20)
-  function chartAdvice(cls, pos, n, raises, cb) {
-    return ODDS.preflopAdvice({ cards: classCards(cls), pos, n, bb: 20, sb: 10, cb, myBet: pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0, myStack: 2000, raises, limpers: 0, callers: 0 });
+  function chartAdvice(cls, pos, n, raises, cb, extra) {
+    return ODDS.preflopAdvice(Object.assign({ cards: classCards(cls), pos, n, bb: 20, sb: 10, cb, myBet: pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0, myStack: 2000, raises, limpers: 0, callers: 0 }, extra || {}));
+  }
+  const catOf = (a) => (a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : a.action === 'check' ? 'call' : 'fold');
+  const ACT_TXT = { raise: 'Sur-relance', allin: 'Tapis', call: 'Suis', fold: 'Couche-toi', check: 'Check' };
+
+  // Les lignes du conseil pour la situation touchée sur la table : { head, lines: [{ label, a, again }] }
+  function situationLines(cls, pos, n, sit) {
+    const { before, after, marks, who, P } = sit;
+    const reraise = (to) => chartAdvice(cls, pos, n, 2, to, { iRaised: true }); // on relance par-dessus ma relance
+    if (before.length >= 2) {
+      const a = chartAdvice(cls, pos, n, 2, 200, { raiserPos: P[before[before.length - 1]] });
+      return { head: `${before.map(who).join(' puis ')} ont relancé`, lines: [{ label: 'Deux relances avant toi', a }] };
+    }
+    if (before.length === 1) {
+      const k = before[0], extra = { raiserPos: P[k], raiser: seatProfile(k) };
+      const sizes = marks[k] === 1 ? [[60, "Relance normale (jusqu'à 3 BB)"]]
+        : [[100, 'Grosse relance (3 à 6 BB)'], [200, 'Très grosse (6 à 15 BB)'], [2000, 'Plus de 15 BB, ou tapis']];
+      // tailles voisines avec le même conseil : une seule ligne
+      const merged = [];
+      sizes.forEach(([cb, label]) => {
+        const a = chartAdvice(cls, pos, n, 1, cb, extra);
+        const last = merged[merged.length - 1];
+        if (last && ACT_TXT[last.a.action] === ACT_TXT[a.action]) last.labels.push(label);
+        else merged.push({ a, labels: [label] });
+      });
+      const lines = merged.map((m) => ({ a: m.a, label: m.labels.length === 1 ? m.labels[0]
+        : m.labels.length === 3 ? 'Grosse relance ou tapis, quelle que soit la taille'
+          : m.labels[0].startsWith('Grosse') ? 'De 3 à 15 BB' : 'Plus de 6 BB, ou tapis' }));
+      if (after.length && lines[0].a.action === 'raise') {
+        lines.push({ label: `${after.map(who).join(', ')} relance par-dessus ta sur-relance`, a: reraise(lines[0].a.to * 2.5), again: true });
+      }
+      return { head: `${who(k)} a relancé${marks[k] === 2 ? ' gros (ou tapis)' : ''}`, lines };
+    }
+    // seulement des joueurs qui parlent après moi : ils ont relancé par-dessus ma relance
+    const open = chartAdvice(cls, pos, n, 0, 20);
+    const head = `${after.map(who).join(', ')} a relancé après toi`;
+    if (open.action !== 'raise') return { head, lines: [{ label: "Avec cette main, tu t'es couché(e) ou tu as checké : rien à faire", a: open }] };
+    return { head, lines: [{ label: 'Il relance par-dessus ta relance', a: reraise(open.to * (after.some((k) => marks[k] === 2) ? 5 : 3)), again: true }] };
   }
 
   // Le plan selon la taille de la relance, calé sur les tailles les plus courantes : on lit la ligne qui correspond
@@ -1021,6 +1094,15 @@
     rows.forEach((r) => { const last = merged[merged.length - 1]; if (last && last.txt === r.txt) last.hi = r.hi; else merged.push(Object.assign({}, r)); });
     const first = (E.POSITIONS[n] || E.POSITIONS[6])[0] === pos; // je parle en premier : personne n'a pu relancer avant moi
     const label = (r) => (r.lo === 0 && r.hi === Infinity ? 'Quelle que soit la relance' : r.lo === 0 ? `Relance jusqu'à ${r.hi} BB` : r.hi === Infinity ? `Relance de plus de ${r.lo} BB, ou tapis` : `Relance de ${r.lo} à ${r.hi} BB`);
+    const sit = qg && qg.on ? quickSituation() : null;
+    if (sit) {
+      const { head, lines } = situationLines(cls, pos, n, sit);
+      return `<div class="size-plan sit">
+      <div class="sp-head"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><span class="muted">en ${pos} · ${esc(head)}</span></div>
+      <ul>${lines.map((l, i) => `<li class="ps-${catOf(l.a)} ${i === 0 ? 'main' : ''}"><span>${esc(l.label)}</span><b>${l.again && l.a.action === 'raise' ? 'Relance encore' : ACT_TXT[l.a.action]}</b></li>`).join('')}</ul>
+      ${plain(lines[0].a.plain, 'qgsit', 'En clair : pourquoi')}
+    </div>`;
+    }
     return `<div class="size-plan">
       <div class="sp-head"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><span class="muted">en ${pos} · ${first ? 'tu parles en premier, personne ne peut relancer avant toi' : "lis la ligne qui correspond à ce qui s'est passé avant toi"}</span></div>
       <ul>
@@ -1044,7 +1126,8 @@
       myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : ui.chartHand || null;
     }
     const views = [['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['vs', 'Face à une relance']];
-    let v = ui.chart;
+    const sit = quick && myPos ? quickSituation() : null;
+    let v = sit ? 'vs' : ui.chart;
     if (!v) {
       const k = myPos ? (myPos === 'BB' ? 'BB' : ODDS.openRangeKey(myPos, n)) : 'CO';
       v = k === 'UTG9' ? 'UTG' : k || 'CO';
@@ -1071,6 +1154,13 @@
       cat = (c) => (range.has(c) ? 'raise' : 'fold');
       legend = [['raise', 'Relance'], ['fold', 'Couche-toi']];
       text = `Personne n'a relancé avant toi : relance (${v === 'CO' || v === 'BTN' ? '2,5' : '3'} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
+    }
+    if (sit) {
+      // les couleurs suivent ce qui s'est passé à la table (le joueur touché, sa place, la taille de sa relance)
+      cat = (c) => catOf(situationLines(c, myPos, n, sit).lines[0].a);
+      legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
+      const big = sit.before.length === 1 && sit.marks[sit.before[0]] === 2;
+      text = `Les couleurs suivent ce que tu as touché sur la table${big ? ' (ici, pour une relance de 3 à 6 BB : touche ta main pour les autres tailles)' : ''}. Retouche le joueur pour changer, ou passe à la main suivante.`;
     }
     const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}" data-a="chart-hand" data-c="${c}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
     const top = quick ? quickTable() : `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide <small>tu joues avec tes potes : l'appli suit le jeton D et te montre les mains à jouer à ta place</small></button>`;
@@ -1841,18 +1931,41 @@
       }
     },
     'qg-start'() {
-      qg = { on: true, n: state ? Math.max(2, state.players.filter(E.isActive).length) : 6, btn: null, cls: null };
+      qg = { on: true, n: state ? Math.max(2, state.players.filter(E.isActive).length) : 6, btn: null, cls: null, marks: {}, st: {} };
       ui.chart = null; saveQg(); render(); window.scrollTo(0, 0);
     },
     'qg-stop'() { qg = null; ui.chart = null; saveQg(); render(); },
     'qg-n'(d) {
       qg.n = Math.max(2, Math.min(E.MAX_PLAYERS, qg.n + Number(d.d)));
       if (qg.btn != null && qg.btn >= qg.n) qg.btn = null;
+      qg.marks = {}; qg.st = {}; // autres joueurs : on repart de zéro
       ui.chart = null; saveQg(); render();
     },
-    'qg-btn'(d) { qg.btn = Number(d.i); ui.chart = null; saveQg(); render(); },
+    // Partie rapide : clic sur un joueur = il a relancé (2e clic : gros ou tapis, 3e : annuler) ; clic droit / appui long = jeton D
+    'qg-btn'(d) {
+      const i = Number(d.i);
+      if (qgLongOf === qgPress) { qgLongOf = -1; return; } // c'est le relâchement de l'appui long : déjà traité
+      if (qg.btn == null) { qgSetBtn(i); return; }
+      if (i === 0) { toast(touchUI() ? 'Appui long sur un joueur : le jeton D va chez lui' : 'Clic droit sur un joueur : le jeton D va chez lui'); return; }
+      qg.marks = qg.marks || {};
+      const m = ((qg.marks[i] || 0) + 1) % 3;
+      if (m) qg.marks[i] = m; else delete qg.marks[i];
+      saveQg(); render();
+    },
     'qg-next'() {
       if (!qg || qg.btn == null) return;
+      // je suivais la main (ma main touchée) : les joueurs qui parlaient avant moi et que je n'ai pas touchés n'ont pas relancé
+      if (qg.cls) {
+        const P = seatPositions(qg.n, qg.btn), order = E.POSITIONS[qg.n], me = order.indexOf(P[0]);
+        qg.st = qg.st || {};
+        for (let k = 1; k < qg.n; k++) {
+          if (order.indexOf(P[k]) >= me) continue;
+          const t = qg.st[k] || (qg.st[k] = { c: 0, r: 0 });
+          t.c++;
+          if ((qg.marks || {})[k]) t.r++;
+        }
+      }
+      qg.marks = {};
       qg.btn = (qg.btn + 1) % qg.n; // le jeton D passe au joueur suivant (sens des aiguilles d'une montre)
       qg.cls = null; ui.chart = null; saveQg(); render();
       toast('Main suivante : tu es ' + seatPositions(qg.n, qg.btn)[0]);
@@ -2032,6 +2145,36 @@
     }
   }, true);
   window.addEventListener('resize', () => { if (bubble.for) hideTip(); });
+
+  // Partie rapide : le jeton D se place au clic droit (ordinateur) ou à l'appui long (téléphone)
+  let qgPress = 0, qgLongOf = -1, qgTimer = null; // qgPress : moment du dernier appui ; qgLongOf : l'appui qui a placé le jeton D
+  function qgSetBtn(i, moved) {
+    if (!qg || !qg.on) return;
+    qg.btn = i; qg.marks = {}; ui.chart = null; saveQg(); render();
+    if (moved) toast(`Jeton D chez ${i === 0 ? 'toi' : 'Joueur ' + (i + 1)} : tu es ${seatPositions(qg.n, i)[0]}`);
+  }
+  function qgLongPress(i) {
+    if (qgLongOf === qgPress) return; // déjà fait pour cet appui (le téléphone envoie parfois aussi un clic droit)
+    qgLongOf = qgPress;
+    qgSetBtn(i, true);
+    if (navigator.vibrate) navigator.vibrate(25);
+  }
+  document.addEventListener('contextmenu', (ev) => {
+    const el = ev.target.closest('.qg-pt [data-a="qg-btn"]');
+    if (!el || !qg || !qg.on) return;
+    ev.preventDefault();
+    if (touchUI()) qgLongPress(Number(el.dataset.i));
+    else qgSetBtn(Number(el.dataset.i), true);
+  });
+  document.addEventListener('pointerdown', (ev) => {
+    qgPress = Date.now();
+    if (ev.pointerType === 'mouse') return;
+    const el = ev.target.closest('.qg-pt [data-a="qg-btn"]');
+    if (!el || !qg || !qg.on) return;
+    clearTimeout(qgTimer);
+    qgTimer = setTimeout(() => qgLongPress(Number(el.dataset.i)), 550);
+  });
+  ['pointerup', 'pointercancel'].forEach((t) => document.addEventListener(t, () => clearTimeout(qgTimer)));
 
   document.addEventListener('click', (ev) => {
     let q = ev.target.closest(TIP_SEL);
