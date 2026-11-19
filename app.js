@@ -45,7 +45,8 @@
   const learned = new Set(parse(store.get(LKEY)) || []);
   const saveLearned = () => store.set(LKEY, JSON.stringify([...learned]));
   let qg = parse(store.get(QKEY));
-  const saveQg = () => (qg ? store.set(QKEY, JSON.stringify(qg)) : store.del(QKEY));
+  let tourActive = false; // pendant le petit tuto, la partie d'exemple n'est jamais enregistrée
+  const saveQg = () => (tourActive ? null : qg ? store.set(QKEY, JSON.stringify(qg)) : store.del(QKEY));
   let crop = parse(store.get(CKEY));
 
   function save() {
@@ -112,6 +113,7 @@
     'mode-manuel': "Mode Manuel : tu saisis la partie dans l'appli, qui prépare les messages pour Claude et calcule l'aide instantanée.",
     'mode-auto': "Mode Auto : tu envoies des captures d'écran de la table à Claude, qui lit tout lui-même. Rien à saisir dans l'appli.",
     undo: "Annuler : revient en arrière d'une action, en cas d'erreur de saisie (Ctrl+Z).",
+    tour: 'Petit tuto : un rappel de comment utiliser cette page, étape par étape (Échap pour quitter).',
     vsraise: "Face à une relance : ce que tu fais quand un joueur a déjà relancé avant toi, à une autre place que la grosse blinde.",
     skip: "Tu n'as pas pu suivre cette main ? Passe-la : le jeton D avance comme sur le site et la main suivante commence. Les jetons reviennent à leur valeur d'avant la main : corrige-les si besoin en touchant un joueur. Ctrl+Z annule.",
     shown: "Si des joueurs montrent leurs cartes à la fin, tape-les : la valeur puis la couleur (p pique, c cœur, k carreau, t trèfle), ex : « ac kk » = A♥ K♦. Quand toutes les mains sont connues, l'appli trouve seule le gagnant. Surtout, elle vérifie ses prévisions : ce joueur bluffait-il ? Relance-t-il avec des mains plus faibles que prévu ? C'est ce qui affine le plus ses conseils.",
@@ -268,6 +270,7 @@
     $('undo').hidden = auto;
     const nav = document.querySelector('.nav');
     nav.hidden = auto;
+    $('tour-btn').hidden = auto || curPage() !== 'charts'; // le « ? » : pour l'instant, seulement sur la page Mains
     // sans partie en cours : Main (l'écran de départ), Mains et Apprendre restent accessibles ; Prompt et Réglages, non
     nav.querySelectorAll('[data-tab="prompt"], [data-tab="settings"]').forEach((b) => { b.hidden = !state; });
     if (auto) {
@@ -2436,6 +2439,117 @@
   }
 
   document.addEventListener('keydown', onKey);
+
+  /* ------------------------------------------------------------ petit tuto de la page Mains (le « ? » en haut) */
+  // Ne se lance jamais tout seul. Il montre une partie d'exemple, puis remet tout comme avant (rien n'est enregistré).
+  const TOUR = (() => {
+    const L = (txt) => txt; // textes en clair
+    const ex = { on: true, n: 6, btn: 1, cls: null, cards: null, marks: {}, st: {} }; // D chez Joueur 2 : moi en CO
+    const steps = [
+      { sel: '.qg-n', title: 'Le nombre de joueurs', set: {},
+        text: L("Pour commencer : bouton « Partie rapide » en haut de cette page. Ensuite, règle le nombre de joueurs autour de la table avec − et +. Toi, tu es toujours en bas.") },
+      { sel: '.qg-pt .seat.is-btn', title: 'Le jeton D', set: {},
+        text: L(`Au début, touche le joueur qui a le jeton D. Pour le déplacer ensuite : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.`) },
+      { sel: '.qg-you', title: 'Ta place', set: {},
+        text: L("L'appli en déduit ta place (ici CO) et règle le tableau des mains de départ dessus. Survole les places (UTG, BTN…) pour savoir ce qu'elles veulent dire.") },
+      { sel: '.qp', title: 'Tes cartes', set: { pick: { cards: ['Ap'], rank: 'J' } },
+        text: L("À chaque main, cette fenêtre s'ouvre au milieu de l'écran. Touche la valeur puis la couleur de ta 1re carte, puis pareil pour la 2e. Au clavier : 9 puis P = 9♠ (T = 10). « Passer » ou Échap si tu ne veux pas.") },
+      { sel: '.size-plan', title: 'Le conseil', set: { cls: 'AJs', cards: ['Ap', 'Jp'] },
+        text: L("Ta main est encadrée dans le tableau et le plan s'affiche : quoi faire si personne n'a relancé, et selon la taille de la relance. Tu lis la ligne qui correspond.") },
+      { sel: '.qg-pt .seat[data-i="4"]', title: 'Quelqu\'un relance', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1 } },
+        text: L(`Clic${touchUI() ? '' : ' gauche'} sur le joueur qui relance : 1 fois = relance normale, 2 fois = grosse relance ou tapis, 3 fois = annuler.`) },
+      { sel: '.qg-pt .seat[data-i="5"]', title: 'Après une relance', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1, 5: 1 } },
+        text: L(`Pour ceux qui parlent après lui : clic${touchUI() ? '' : ' gauche'} 1 fois = il suit, 2 fois = il relance la relance, 3 fois = annuler. Passe la souris sur un joueur : la bulle dit ce que fera ton prochain clic.`) },
+      { sel: '.size-plan', title: 'Le conseil s\'adapte', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1, 5: 1 } },
+        text: L("Il suit ce que tu as touché : qui a relancé, depuis quelle place, et combien de joueurs ont suivi. Le tableau se colore pour cette situation. « En clair » explique pourquoi.") },
+      { sel: '.qg-pt .seat[data-i="4"]', title: 'La mémoire', set: { cls: 'AJs', cards: ['Ap', 'Jp'], st: { 4: { c: 12, r: 6 } } },
+        text: L("Au fil des mains, l'appli retient qui relance souvent quand il parle avant toi : « relance souvent » ou « relance peu » s'affiche sous son nom, et le conseil en tient compte. Pense à toucher tous ceux qui relancent.") },
+      { sel: '[data-a="qg-next"]', title: 'Main suivante', set: { cls: 'AJs', cards: ['Ap', 'Jp'] },
+        text: L("Quand la main est finie : Entrée ou ce bouton. Le jeton D avance, ta place suit, et la fenêtre des cartes revient. Ce rappel se relance avec le « ? » en haut.") },
+    ];
+    let i = -1, saved = null, root = null;
+    const on = () => i >= 0;
+    function apply(st) {
+      qg = Object.assign({}, ex, { marks: Object.assign({}, st.marks || {}), st: Object.assign({}, st.st || {}), cls: st.cls || null, cards: st.cards || null });
+      ui.qgPick = st.pick ? { cards: st.pick.cards.slice(), rank: st.pick.rank } : null;
+      ui.chart = null;
+      render(); // sans saveQg : la partie d'exemple n'est jamais enregistrée
+    }
+    function place() {
+      if (!on() || !root) return;
+      const el = document.querySelector(steps[i].sel);
+      const spot = root.querySelector('.t-spot'), bub = root.querySelector('.t-bub');
+      const vw = window.innerWidth, vh = window.innerHeight, m = 12;
+      if (!el) { spot.style.display = 'none'; bub.style.left = (vw - bub.offsetWidth) / 2 + 'px'; bub.style.top = (vh - bub.offsetHeight) / 2 + 'px'; return; }
+      // le cadre englobe aussi l'étiquette sous le joueur (« Relance », « Suit »…)
+      const rs = [el, ...el.querySelectorAll('.seat-act')].map((x) => x.getBoundingClientRect());
+      const r = { left: Math.min(...rs.map((x) => x.left)), top: Math.min(...rs.map((x) => x.top)), right: Math.max(...rs.map((x) => x.right)), bottom: Math.max(...rs.map((x) => x.bottom)) };
+      r.width = r.right - r.left; r.height = r.bottom - r.top;
+      const pad = 6;
+      Object.assign(spot.style, { display: 'block', left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+      const bw = bub.offsetWidth, bh = bub.offsetHeight;
+      let top, left = Math.min(Math.max(m, r.left + r.width / 2 - bw / 2), vw - bw - m);
+      if (r.bottom + pad + m + bh < vh) top = r.bottom + pad + m;
+      else if (r.top - pad - m - bh > 0) top = r.top - pad - m - bh;
+      else if (r.right + pad + m + bw < vw) { left = r.right + pad + m; top = Math.min(Math.max(m, r.top), vh - bh - m); }
+      else if (r.left - pad - m - bw > 0) { left = r.left - pad - m - bw; top = Math.min(Math.max(m, r.top), vh - bh - m); }
+      else top = vh - bh - m;
+      bub.style.left = left + 'px'; bub.style.top = top + 'px';
+    }
+    function show(k) {
+      i = Math.max(0, Math.min(steps.length - 1, k));
+      apply(steps[i].set);
+      const st = steps[i];
+      root.querySelector('.t-bub').innerHTML = `
+        <div class="t-head"><span class="t-n">${i + 1} / ${steps.length}</span><b>${esc(st.title)}</b>
+          <button class="t-x" data-t="end" aria-label="Fermer le tuto">×</button></div>
+        <p>${esc(st.text)}</p>
+        <div class="t-foot">${i ? '<button class="btn ghost" data-t="prev">← Précédent</button>' : '<span class="hint pc-only">Échap pour quitter</span>'}
+          <button class="btn primary" data-t="${i === steps.length - 1 ? 'end' : 'next'}">${i === steps.length - 1 ? 'Terminé' : 'Suivant →'}</button></div>`;
+      const el = document.querySelector(st.sel);
+      if (el) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+      place(); // tout de suite, puis encore une fois après le défilement
+      requestAnimationFrame(() => requestAnimationFrame(place));
+    }
+    function start() {
+      if (on()) return;
+      saved = { qg: qg ? JSON.parse(JSON.stringify(qg)) : null, pick: ui.qgPick || null, chart: ui.chart, y: window.scrollY };
+      tourActive = true;
+      hideTip();
+      root = document.createElement('div');
+      root.id = 'tour';
+      root.innerHTML = '<div class="t-block"></div><div class="t-spot"></div><div class="t-bub" role="dialog" aria-label="Petit tuto"></div>';
+      root.addEventListener('click', (ev) => {
+        const b = ev.target.closest('[data-t]');
+        ev.stopPropagation();
+        if (!b) return;
+        if (b.dataset.t === 'next') show(i + 1); else if (b.dataset.t === 'prev') show(i - 1); else end();
+      });
+      document.body.appendChild(root);
+      show(0);
+    }
+    function end() {
+      if (!on()) return;
+      i = -1; tourActive = false;
+      if (root) root.remove();
+      root = null;
+      qg = saved.qg; ui.qgPick = saved.pick; ui.chart = saved.chart;
+      render();
+      window.scrollTo(0, saved.y);
+    }
+    // le clavier pendant le tuto : Échap = quitter, flèches / Entrée = étape suivante ou précédente
+    window.addEventListener('keydown', (ev) => {
+      if (!on()) return;
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      if (ev.key === 'Escape') end();
+      else if (ev.key === 'ArrowRight' || ev.key === 'Enter' || ev.key === ' ') (i === steps.length - 1 ? end() : show(i + 1));
+      else if (ev.key === 'ArrowLeft' || ev.key === 'Backspace') show(i - 1);
+    }, true);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, { passive: true });
+    return { start, end, on };
+  })();
+  $('tour-btn').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); TOUR.start(); });
 
   /* ------------------------------------------------------------ nouvelle version en ligne */
 

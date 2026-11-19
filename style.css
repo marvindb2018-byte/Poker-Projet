@@ -914,3 +914,24 @@ details.plain > div p + p { margin-top: 6px; }
 .qp-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 10px; min-height: 22px; }
 .qp-foot > :first-child { flex: 0 0 auto; }
 .qp-foot .hint { flex: 1 1 auto; margin: 0; font-size: 12px; text-align: right; }
+
+/* ---------- le « ? » en haut et le petit tuto */
+.tour-btn { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(241, 195, 95, .12);
+  color: var(--gold); font: 800 17px var(--sans); line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.tour-btn:hover { background: rgba(241, 195, 95, .25); }
+.tour-btn[hidden] { display: none; }
+@media (max-width: 520px) { body.tab-charts #undo { display: none; } .tour-btn { width: 30px; height: 30px; flex-basis: 30px; font-size: 15px; } }
+#tour { position: fixed; inset: 0; z-index: 300; }
+#tour .t-block { position: fixed; inset: 0; }
+#tour .t-spot { position: fixed; border-radius: 14px; outline: 2px solid var(--gold); box-shadow: 0 0 0 9999px rgba(3, 8, 6, .74);
+  pointer-events: none; transition: left .2s, top .2s, width .2s, height .2s; }
+#tour .t-bub { position: fixed; width: min(380px, calc(100vw - 24px)); background: var(--panel); border: 2px solid var(--gold); border-radius: 14px;
+  padding: 12px 14px; box-shadow: 0 18px 50px rgba(0, 0, 0, .6); }
+#tour .t-head { display: flex; align-items: center; gap: 8px; }
+#tour .t-head b { font-size: 16px; }
+#tour .t-n { font: 800 11px var(--mono); color: var(--gold); background: rgba(241, 195, 95, .14); border-radius: 999px; padding: 2px 8px; }
+#tour .t-x { margin-left: auto; background: none; border: 0; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px; }
+#tour p { margin: 8px 0 10px; font-size: 14.5px; line-height: 1.5; }
+#tour .t-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+#tour .t-foot .btn { padding: 8px 14px; font-size: 14px; min-height: 0; }
+#tour .t-foot .hint { margin: 0; font-size: 12px; }
