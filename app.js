@@ -1007,13 +1007,15 @@
     }
     const mine = pos ? pos[0] : null;
     const center = mine ? `<div class="qg-you">Tu es <b>${mine}</b></div>` : '<div class="qg-you qg-ask">Touche le joueur<br>qui a le jeton D</div>';
-    return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
-      <div class="qg-head"><div class="mt-label">${b == null ? 'À faire · touche le joueur qui a le jeton D' : '🎯 Partie rapide'}</div>
-        <div class="qg-n"><span class="lbl">Joueurs</span><div class="stepper">
+    // nombre de joueurs (à gauche) et croix pour arrêter (à droite) : dans les coins de la table, pour qu'elle monte
+    const head = `<div class="qg-head">
+        <div class="qg-n" title="Nombre de joueurs à la table"><div class="stepper">
           <button data-a="qg-n" data-d="-1" aria-label="Un joueur de moins">−</button><b>${n}</b><button data-a="qg-n" data-d="1" aria-label="Un joueur de plus">+</button>
-        </div></div>
-        <button class="link-btn" data-a="qg-stop">Arrêter</button></div>
-      <div class="ptable qg-pt"><div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
+        </div><span class="lbl">joueurs</span></div>
+        <button class="qg-x" data-a="qg-stop" aria-label="Arrêter la partie rapide" title="Arrêter la partie rapide">×</button></div>`;
+    return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
+      ${b == null ? '<div class="mt-label">À faire · touche le joueur qui a le jeton D</div>' : ''}
+      <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
       ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
         <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance, 2 fois = grosse relance ou tapis. Ceux qui parlent après lui : 1 fois = il suit, 2 fois = il relance la relance. 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.</p>`

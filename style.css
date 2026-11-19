@@ -368,10 +368,10 @@ kbd {
   .nav button.on { box-shadow: none; background: rgba(60, 196, 127, .14); }
   .layout {
     display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px;
-    max-width: 1500px; margin: 0 auto; padding: 22px 28px 40px;
+    max-width: 1500px; margin: 0 auto; padding: 10px 28px 40px;
   }
   main { max-width: none; margin: 0; padding: 0; }
-  .side { display: block; position: sticky; top: 84px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; }
+  .side { display: block; position: sticky; top: 68px; align-self: start; max-height: calc(100vh - 84px); overflow: auto; }
   .narrow { max-width: 720px; }
   .hand-grid { display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
   .k, .pc-only { display: inline-block; }
@@ -794,7 +794,9 @@ details.plain > div p + p { margin-top: 6px; }
 .qg-n { display: flex; align-items: center; gap: 10px; }
 .qg-n .lbl { font-weight: 650; font-size: 14px; color: var(--muted); }
 /* la table de la partie normale, affichée aussi sur téléphone */
-.ptable.qg-pt { display: block; position: relative; width: 100%; aspect-ratio: 4 / 3.2; margin: 26px 0 34px; container-type: inline-size; }
+.ptable.qg-pt { display: block; position: relative; width: 100%; aspect-ratio: 4 / 3.2; margin: 12px auto 34px; container-type: inline-size; }
+/* sur PC, la table ne dépasse pas la hauteur de la fenêtre : « Main suivante » reste visible sans défiler */
+@media (min-width: 1000px) { .ptable.qg-pt { width: min(100%, calc((100vh - 290px) * 1.25)); } }
 .qg-pt .seat { cursor: pointer; }
 .qg-pt .seat:hover .seat-box { border-color: rgba(241, 195, 95, .6); }
 .qg-pt .seat.me .seat-box { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(241, 195, 95, .25), 0 6px 14px rgba(0, 0, 0, .45); }
@@ -951,3 +953,20 @@ details.plain > div p + p { margin-top: 6px; }
 .top-right { min-height: 33px; }
 .tour-btn { box-sizing: border-box; }
 @media (max-width: 520px) { .top-right { min-height: 30px; } }
+
+/* partie rapide : nombre de joueurs et croix rouge dans les coins hauts de la table */
+.qg-pt .qg-head { position: absolute; top: 0; left: 0; right: 0; z-index: 4; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+.qg-pt .qg-head > * { pointer-events: auto; }
+.qg-pt .qg-n { display: flex; align-items: center; gap: 6px; }
+.qg-pt .qg-n .stepper button { width: 34px; height: 34px; font-size: 18px; }
+.qg-pt .qg-n .stepper b { min-width: 26px; font-size: 18px; }
+.qg-pt .qg-n .lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
+.qg-x { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #d64545; background: rgba(214, 69, 69, .14); color: #ff7070;
+  font: 700 22px/1 var(--sans); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 0 2px; }
+.qg-x:hover { background: rgba(214, 69, 69, .3); color: #fff; }
+@media (max-width: 999px) {
+  .qg-pt .qg-n .lbl { display: none; }
+  .qg-pt .qg-n .stepper button { width: 30px; height: 30px; font-size: 16px; }
+  .qg-pt .qg-n .stepper b { min-width: 20px; font-size: 16px; }
+  .qg-x { width: 30px; height: 30px; font-size: 19px; }
+}
