@@ -352,19 +352,28 @@
         if (has(parseRange('TT+, AQs+, AKo, AQo'))) return call(`${hc} : ${who}, c'est peu : sa relance est sérieuse, suis seulement`, rare + ' Ta main est assez bonne pour payer et voir le flop, mais pas pour relancer.');
         return fold(`${hc} : ${who}, c'est peu : sa relance est sérieuse`, rare + ' La tienne ne suffit pas : couche-toi.');
       }
-      const range = ctx.pos === 'BB'
+      let range = ctx.pos === 'BB'
         ? (vsLate ? RANGES.callBBLate : vsEarly ? RANGES.callBBEarly : RANGES.callBB)
         : loose ? RANGES.callBB
           : vsEarly ? (ctx.pos === 'BTN' ? RANGES.call : RANGES.callEarly)
             : ctx.pos === 'BTN' || vsLate ? parseRange('22+, A9s+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s, AJo+, KQo') // en position, ou contre une relance tardive : plus large
               : RANGES.call;
+      // Des joueurs ont déjà suivi la relance : à plusieurs, les paires et les mains assorties (brelan, couleur, quinte)
+      // gagnent de gros pots ; les mains dépareillées moyennes perdent souvent contre une meilleure du même genre.
+      let multiNote = '';
+      if (callers) {
+        const keepO = parseRange(ctx.pos === 'BB' ? 'ATo+, KJo+, QJo' : 'AQo+');
+        const addS = parseRange(ctx.pos === 'BB' || ctx.pos === 'BTN' ? '22+, A2s+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s, 65s' : '22+, T9s, 98s');
+        range = new Set([...range].filter((c) => !c.endsWith('o') || keepO.has(c)).concat([...addS]));
+        multiNote = ` ${callers > 1 ? callers + ' joueurs ont' : 'Un joueur a'} déjà suivi : à plusieurs, les paires et les mains assorties (qui peuvent faire un brelan, une couleur ou une quinte) valent plus, les mains dépareillées moins.`;
+      }
       if (has(range)) {
         return call(`${hc} : assez bonne pour payer ${loose ? `(${who} : sa relance est souvent faible)` : 'une relance'}${ctx.pos === 'BB' ? ' depuis la grosse blinde' : ''}`,
           "Quelqu'un a relancé. Ta main est assez bonne pour payer et voir le flop, mais pas assez pour relancer par-dessus."
-          + (loose ? ` En plus, ${r.name} relance souvent avec des mains faibles.` : posNote)
+          + (loose ? ` En plus, ${r.name} relance souvent avec des mains faibles.` : posNote) + multiNote
           + (ctx.pos === 'BB' ? ' Comme tu as déjà mis la grosse blinde, suivre te coûte moins cher.' : ''));
       }
-      return fold(hc + ' : trop faible face à une relance' + (vsEarly ? ' depuis ' + rp : ''), "Quelqu'un a relancé : il a probablement une bonne main. La tienne n'est pas assez forte pour continuer : couche-toi." + posNote);
+      return fold(hc + ' : trop faible face à une relance' + (vsEarly ? ' depuis ' + rp : callers ? ' et ' + callers + ' suiveur' + (callers > 1 ? 's' : '') : ''), "Quelqu'un a relancé : il a probablement une bonne main. La tienne n'est pas assez forte pour continuer : couche-toi." + posNote + multiNote);
     }
     // Relance et sur-relance avant moi
     const two = 'Il y a déjà eu deux relances avant toi';
