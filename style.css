@@ -917,7 +917,7 @@ details.plain > div p + p { margin-top: 6px; }
 .qp-foot .hint { flex: 1 1 auto; margin: 0; font-size: 12px; text-align: right; }
 
 /* ---------- le « ? » en haut et le petit tuto */
-.tour-btn { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(241, 195, 95, .12);
+.tour-btn { width: 33px; height: 33px; flex: 0 0 33px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(241, 195, 95, .12);
   color: var(--gold); font: 800 17px var(--sans); line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .tour-btn:hover { background: rgba(241, 195, 95, .25); }
 .tour-btn[hidden] { display: none; }
@@ -946,3 +946,8 @@ details.plain > div p + p { margin-top: 6px; }
 /* Manuel / Auto : en haut de la page Partie */
 .mode-bar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 0 0 12px; }
 .mode-bar .lbl { font-size: 13px; color: var(--muted); }
+
+/* même hauteur de bande en haut sur toutes les pages, qu'il y ait « Annuler », le « ? » ou rien à droite */
+.top-right { min-height: 33px; }
+.tour-btn { box-sizing: border-box; }
+@media (max-width: 520px) { .top-right { min-height: 30px; } }
