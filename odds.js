@@ -283,10 +283,19 @@
     function bigRaise(tier) {
       const sizeTxt = ['', 'grosse relance (3 à 6 grosses blindes)', 'très grosse relance (6 à 15 grosses blindes)', 'relance énorme ou un tapis'][tier];
       const allInMe = ctx.cb >= ctx.myStack + ctx.myBet; // sa relance couvre tous mes jetons
-      const deep = stackBB >= 60;
       if (tier === 1) {
         if (has(RANGES.threeBet)) return R(ctx.cb * (late ? 2.5 : 3), `${hc} : main premium, sur-relance même face à une grosse relance`, "La relance est grosse, mais ta main est l'une des toutes meilleures : relance par-dessus pour faire grossir le pot.");
-        const callR = parseRange((deep ? '22+, ' : '77+, ') + 'AJs+, KQs, AQo+' + (ctx.pos === 'BB' ? ', ATs, KJs, QJs, JTs' : ''));
+        // Petite blinde : comme face à une relance normale, on évite de suivre (on parle en premier après le flop,
+        // et la grosse blinde peut encore relancer derrière) ; seules les très bonnes mains paient
+        if (ctx.pos === 'SB') {
+          if (has(parseRange('JJ, TT, AQs'))) return call(`${hc} : en petite blinde, assez forte pour payer une ${sizeTxt}`, `C'est une ${sizeTxt} : il a souvent une bonne main. En petite blinde, on préfère d'habitude sur-relancer ou se coucher, mais ta main est assez forte pour payer et voir le flop.`);
+          return fold(`${hc} : en petite blinde, trop faible face à une ${sizeTxt}`, `C'est une ${sizeTxt} : il a souvent une bonne main. En petite blinde, tu parleras en premier après le flop et la grosse blinde peut encore relancer derrière toi : seules les meilleures mains continuent.`);
+        }
+        // Petites paires : on paie pour espérer un brelan seulement s'il reste assez de jetons derrière pour qu'il rapporte gros
+        // (au moins 15 fois ce qu'il faut payer) ; plus la relance est grosse, moins c'est le cas
+        const toPay = Math.max(1, ctx.cb - ctx.myBet);
+        const setMine = (ctx.myStack - toPay) / toPay >= 15;
+        const callR = parseRange((setMine ? '22+, ' : '77+, ') + 'AJs+, KQs, AQo+' + (ctx.pos === 'BB' ? ', ATs, KJs, QJs, JTs' : ''));
         if (has(callR)) {
           const smallPair = hc.length === 2 && 'AKQJT98'.indexOf(hc[0]) < 0;
           return call(`${hc} : assez forte pour payer une ${sizeTxt}`, `C'est une ${sizeTxt} : il a souvent une bonne main. `

@@ -120,4 +120,25 @@ assert.strictEqual(vsPos(['Ap', 'Jc'], 'SB', 'BTN', { name: 'Léa', pfr: 0.05 })
 // sans place connue : comme avant
 assert.strictEqual(vsPos(['Ap', 'Tc'], 'BB', null), 'call');
 console.log('✓ conseils selon la place du relanceur');
+// cohérence : plus la relance est grosse, moins on joue de mains (jamais « payé à 5 BB mais couché à 3 BB »)
+{
+  const RK = 'AKQJT98765432', hs = [];
+  for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) hs.push(i === j ? [RK[i] + 'p', RK[j] + 'c'] : i < j ? [RK[i] + 'p', RK[j] + 'p'] : [RK[j] + 'p', RK[i] + 'c']);
+  const plays = (a) => a.action !== 'fold' && a.action !== 'check';
+  for (const pos of ['MP', 'CO', 'BTN', 'SB', 'BB']) for (const rp of [null, 'UTG', 'CO']) {
+    if (rp === pos) continue;
+    for (const c of hs) {
+      const at = (cb) => plays(vsSize(c, pos, cb, { raiserPos: rp }));
+      const sz = [60, 100, 200, 2000];
+      for (let k = 1; k < sz.length; k++) assert.ok(!(at(sz[k]) && !at(sz[k - 1])), `${O.handClass(c[0], c[1])} en ${pos} contre ${rp} : joué à ${sz[k] / 20} BB mais couché à ${sz[k - 1] / 20} BB`);
+    }
+  }
+  // l'exemple de la capture : 22 en petite blinde, couché face à une relance normale comme face à une grosse
+  assert.strictEqual(vsSize(['2p', '2c'], 'SB', 60, { raiserPos: 'UTG' }), 'fold');
+  assert.strictEqual(vsSize(['2p', '2c'], 'SB', 100, { raiserPos: 'UTG' }), 'fold');
+  // ailleurs, petite paire : payée face à une grosse relance seulement s'il reste au moins 15 fois la mise derrière
+  assert.strictEqual(vsSize(['2p', '2c'], 'BTN', 100, { raiserPos: 'CO' }), 'call');
+  assert.strictEqual(vsSize(['2p', '2c'], 'BTN', 100, { raiserPos: 'CO', myStack: 1100 }), 'fold');
+}
+console.log('✓ cohérence : plus la relance est grosse, moins de mains jouées');
 console.log('\nTests probabilités OK');
