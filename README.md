@@ -5,7 +5,7 @@ Elle est faite en HTML, CSS et JavaScript, sans dépendance ni compilation. Tout
 
 ## Deux modes
 
-L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode à tout moment, sans rien perdre.
+L'interrupteur **Manuel | Auto**, en haut de la page Partie, permet de changer de mode à tout moment, sans rien perdre. Le mode Auto ne concerne que la page Partie : Mains et Apprendre restent accessibles.
 
 - **Manuel** (parties en vrai, autour d'une table) : tu saisis la partie dans l'appli, qui écrit les messages pour Claude. Voir « Utilisation » ci-dessous.
 - **Auto** (parties en ligne) : rien à saisir. Tu envoies à Claude une capture d'écran de la table quand tu reçois tes cartes, puis à chaque nouvelle carte du tableau. Claude lit la table, déduit ce qui s'est passé depuis la capture précédente, et répond avec les probabilités et un plan (« si on checke → mise 300 ; si on relance → couche-toi »).
@@ -16,7 +16,7 @@ L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode �
 
 ## Utilisation (mode Manuel)
 
-Les onglets : **Partie** (la partie en cours), **Mains** (tableaux des mains de départ et partie rapide), **Apprendre**, **Prompt**, **Réglages**.
+Les onglets : **Partie** (la partie en cours), **Prompt** et **Réglages** (pour cette partie), puis, séparés par un trait, **Mains** (tableaux des mains de départ et partie rapide) et **Apprendre**. « Annuler » (`Ctrl+Z`) annule la dernière action de la partie : il n'apparaît que sur Partie, Prompt et Réglages.
 
 **Au départ (une fois)**
 

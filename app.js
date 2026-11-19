@@ -259,27 +259,40 @@
   }
 
   const curPage = () => (!state ? (ui.tab === 'charts' || ui.tab === 'learn' ? ui.tab : 'main') : ui.tab);
+  // Le mode Auto ne concerne que la page Partie : Mains et Apprendre restent les mêmes
+  const autoPage = () => mode === 'auto' && curPage() === 'main';
+
+  // Manuel / Auto : en haut de la page Partie
+  function modeBar() {
+    return `<div class="mode-bar"><span class="lbl">Saisie de la partie</span><div class="mode-switch" role="group" aria-label="Mode de saisie">
+      <button class="tipped ${mode !== 'auto' ? 'on' : ''}" data-a="mode" data-v="manuel" data-tip="mode-manuel">Manuel</button>
+      <button class="tipped ${mode === 'auto' ? 'on' : ''}" data-a="mode" data-v="auto" data-tip="mode-auto">Auto</button>
+    </div></div>`;
+  }
 
   function render() {
     hideTip();
-    document.body.classList.toggle('tab-charts', mode !== 'auto' && curPage() === 'charts');
-    const auto = mode === 'auto';
+    // en mode Auto, Prompt et Réglages (qui ne servent qu'à la saisie manuelle) sont masqués : on revient sur Partie
+    if (mode === 'auto' && (ui.tab === 'prompt' || ui.tab === 'settings')) ui.tab = 'main';
+    document.body.classList.toggle('tab-charts', curPage() === 'charts');
+    const auto = autoPage();
     document.body.classList.toggle('auto', auto);
-    document.querySelectorAll('.mode-switch button').forEach((b) => b.classList.toggle('on', b.dataset.v === mode));
     $('undo').disabled = !state || !hist.length;
-    $('undo').hidden = auto;
+    // Annuler ne concerne que la partie de la page Partie : masqué sur Mains et Apprendre (et en mode Auto)
+    const gamePage = curPage() === 'main' || curPage() === 'prompt' || curPage() === 'settings';
+    $('undo').hidden = auto || !gamePage;
     const nav = document.querySelector('.nav');
-    nav.hidden = auto;
-    $('tour-btn').hidden = auto || curPage() !== 'charts'; // le « ? » : pour l'instant, seulement sur la page Mains
-    // sans partie en cours : Main (l'écran de départ), Mains et Apprendre restent accessibles ; Prompt et Réglages, non
-    nav.querySelectorAll('[data-tab="prompt"], [data-tab="settings"]').forEach((b) => { b.hidden = !state; });
+    nav.hidden = false;
+    $('tour-btn').hidden = curPage() !== 'charts'; // le « ? » : pour l'instant, seulement sur la page Mains
+    // sans partie en cours (ou en mode Auto) : Partie, Mains et Apprendre restent accessibles ; Prompt et Réglages, non
+    nav.querySelectorAll('[data-tab="prompt"], [data-tab="settings"]').forEach((b) => { b.hidden = !state || mode === 'auto'; });
+    nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === curPage()));
     if (auto) {
-      $('view').innerHTML = viewAuto();
+      $('view').innerHTML = modeBar() + viewAuto();
       $('side').innerHTML = viewSide();
       attachPreview();
       return;
     }
-    nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
     let html;
     if (!state) html = ui.tab === 'charts' ? viewCharts() : ui.tab === 'learn' ? viewLearn() : viewSetup();
     else if (ui.tab === 'prompt') html = viewPrompt();
@@ -288,7 +301,8 @@
     else if (ui.tab === 'learn') html = viewLearn();
     else { ui.tab = 'main'; html = viewMain(); }
     if (curPage() === 'charts' && qg && qg.on) html = `<div class="wide-page">${html}</div>`; // table + tableau côte à côte sur PC
-    else if (!state || ui.tab !== 'main') html = `<div class="narrow">${html}</div>`;
+    else if (!state || ui.tab !== 'main') html = `<div class="narrow">${curPage() === 'main' ? modeBar() : ''}${html}</div>`;
+    if (state && ui.tab === 'main') html = modeBar() + html;
     $('view').innerHTML = html;
     $('side').innerHTML = viewSide();
     if (ui.tab === 'learn') filterLearn();
@@ -1338,7 +1352,7 @@
   /* ---- colonne de droite (PC) : ma main, combinaisons, raccourcis */
 
   function viewSide() {
-    if (mode === 'auto') return viewSideAuto();
+    if (autoPage()) return viewSideAuto();
     const h = state && state.hand;
     const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
     // page Apprendre : pas de « Ta main » (rien à y afficher)
@@ -1814,6 +1828,7 @@
   const handlers = {
     mode(d) {
       mode = d.v === 'auto' ? 'auto' : 'manuel';
+      ui.tab = 'main';
       store.set(MKEY, mode);
       ui.cropping = false;
       render();
@@ -2344,7 +2359,7 @@
       }
       return;
     }
-    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && k.toLowerCase() === 'z' && !inField) {
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && k.toLowerCase() === 'z' && !inField && ['main', 'prompt', 'settings'].includes(curPage()) && !autoPage()) {
       ev.preventDefault();
       return handlers.undo();
     }
@@ -2361,7 +2376,7 @@
       else if (k === 'Escape' && (t.id === 'add-name' || t.id === 'add-stack')) handlers['add-close']();
       return;
     }
-    if (mode === 'auto') {
+    if (autoPage()) {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       if (t.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return; // le bouton s'en charge
       if (k === ' ' || k.toLowerCase() === 'c') { ev.preventDefault(); shoot(); }
