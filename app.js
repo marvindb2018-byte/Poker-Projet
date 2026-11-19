@@ -1025,7 +1025,7 @@
       <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
       ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance, 2 fois = grosse relance ou tapis. Ceux qui parlent après lui : 1 fois = il suit, 2 fois = il relance la relance. 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.</p>`
+        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance, 2 fois = grosse relance ou tapis. Ceux qui parlent après une relance (la tienne comprise) : 1 fois = il suit, 2 fois = il relance la relance. 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.</p>`
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
   }
@@ -1049,9 +1049,13 @@
   // Ce que veulent dire les clics, dans l'ordre où l'on parle avant le flop :
   // tant que personne n'a relancé, 1 clic = relance (r), 2 clics = grosse relance ou tapis (R) ;
   // après une relance, 1 clic = il suit (c), 2 clics = il relance la relance (x) ; après moi : il relance par-dessus moi (over)
-  const QG_ACT = { r: 'Relance', R: 'Grosse relance / tapis', c: 'Suit', x: 'Sur-relance', over: 'Relance' };
-  const QG_VERB = { r: 'a relancé', R: 'a relancé gros (ou tapis)', c: 'a suivi', x: 'a sur-relancé', over: 'a relancé' };
-  function qgActs() {
+  const QG_ACT = { r: 'Relance', R: 'Grosse relance / tapis', c: 'Suit', x: 'Sur-relance' };
+  const QG_VERB = { r: 'a relancé', R: 'a relancé gros (ou tapis)', c: 'a suivi', x: 'a sur-relancé' };
+  // Ce que veulent dire les clics, dans l'ordre où l'on parle avant le flop, ma propre action comprise :
+  // tant que personne n'a relancé, 1 clic = relance (r), 2 clics = grosse relance ou tapis (R) ;
+  // dès que quelqu'un a relancé avant lui (moi compris), 1 clic = il suit (c), 2 clics = il relance la relance (x).
+  // cls : ma main (pour savoir si je relance moi-même) ; sans main connue, on suppose que je relance.
+  function qgActs(cls) {
     const marks = qg.marks || {};
     const P = seatPositions(qg.n, qg.btn), order = E.POSITIONS[qg.n];
     const ord = (k) => order.indexOf(P[k]);
@@ -1059,27 +1063,40 @@
     const ks = Object.keys(marks).map(Number).filter((k) => marks[k] && k !== 0 && k < qg.n).sort((x, y) => ord(x) - ord(y));
     const acts = {};
     let raised = false;
-    ks.forEach((k) => {
-      if (ord(k) > me) acts[k] = 'over';
-      else if (!raised) { acts[k] = marks[k] === 1 ? 'r' : 'R'; raised = true; }
-      else acts[k] = marks[k] === 1 ? 'c' : 'x';
-    });
-    // y a-t-il déjà une relance avant ce siège ? (pour savoir ce que voudra dire le prochain clic)
-    const raisedBefore = (k) => ks.some((j) => ord(j) < ord(k) && ord(j) < me && 'rRx'.includes(acts[j]));
-    return { P, ord, me, ks, acts, raisedBefore };
+    const read = (k) => { if (!raised) { acts[k] = marks[k] === 1 ? 'r' : 'R'; raised = true; } else acts[k] = marks[k] === 1 ? 'c' : 'x'; };
+    ks.filter((k) => ord(k) < me).forEach(read); // ceux qui parlent avant moi
+    const mine = cls === undefined ? qg.cls : cls;
+    const my = mine ? myFirstAdvice(mine, P[0], qg.n, P, ks.filter((k) => ord(k) < me), acts) : null;
+    const myRaises = !my || my.action === 'raise' || my.action === 'allin';
+    if (myRaises) raised = true;
+    ks.filter((k) => ord(k) > me).forEach(read); // ceux qui parlent après moi
+    // y a-t-il déjà une relance avant ce siège (moi compris) ? pour savoir ce que voudra dire le prochain clic
+    const raisedBefore = (k) => ks.some((j) => ord(j) < ord(k) && ord(j) !== me && 'rRx'.includes(acts[j])) || (ord(k) > me && myRaises);
+    return { P, ord, me, ks, acts, raisedBefore, my };
+  }
+  // Mon premier conseil d'après ce qu'ont fait ceux qui parlent avant moi
+  function myFirstAdvice(cls, pos, n, P, beforeKs, acts) {
+    const raisers = beforeKs.filter((k) => 'rRx'.includes(acts[k]));
+    if (raisers.length >= 2) return chartAdvice(cls, pos, n, 2, 200, { raiserPos: P[raisers[raisers.length - 1]] });
+    if (raisers.length === 1) {
+      const k = raisers[0];
+      const callers = beforeKs.filter((j) => acts[j] === 'c').length;
+      return chartAdvice(cls, pos, n, 1, acts[k] === 'r' ? 60 : 100, { raiserPos: P[k], raiser: seatProfile(k), callers });
+    }
+    return chartAdvice(cls, pos, n, 0, 20);
   }
 
-  // Ce qui s'est passé avant moi d'après les joueurs touchés (partie rapide)
-  function quickSituation() {
+  // Ce qui s'est passé à la table d'après les joueurs touchés (partie rapide), pour une main donnée
+  function quickSituation(cls) {
     if (!qg || !qg.on || qg.btn == null) return null;
-    const A = qgActs();
+    const A = qgActs(cls);
     if (!A.ks.length) return null;
-    const mine = A.ks.filter((k) => A.acts[k] !== 'over');
-    const before = mine.filter((k) => 'rRx'.includes(A.acts[k])); // relanceurs avant moi, dans l'ordre
-    const callers = mine.filter((k) => A.acts[k] === 'c' && before.length && A.ord(k) > A.ord(before[before.length - 1])); // ont suivi la dernière relance
-    const after = A.ks.filter((k) => A.acts[k] === 'over');
+    const beforeKs = A.ks.filter((k) => A.ord(k) < A.me), afterKs = A.ks.filter((k) => A.ord(k) > A.me);
+    const before = beforeKs.filter((k) => 'rRx'.includes(A.acts[k])); // relanceurs avant moi, dans l'ordre
+    const callers = beforeKs.filter((k) => A.acts[k] === 'c' && before.length && A.ord(k) > A.ord(before[before.length - 1])); // ont suivi la dernière relance
+    const after = afterKs.filter((k) => 'rRx'.includes(A.acts[k])); // relancent après moi
     const who = (k) => `Joueur ${k + 1} (${A.P[k]})`;
-    const story = mine.map((k) => `${who(k)} ${QG_VERB[A.acts[k]]}`).join(', ');
+    const story = A.ks.map((k) => `${who(k)} ${QG_VERB[A.acts[k]]}${A.ord(k) > A.me ? ' après toi' : ''}`).join(', ');
     return { P: A.P, before, callers, after, acts: A.acts, who, story };
   }
 
@@ -1124,12 +1141,10 @@
   // Les lignes du conseil pour la situation touchée sur la table : { head, lines: [{ label, a, again }] }
   function situationLines(cls, pos, n, sit) {
     const { before, after, acts, who, P, callers, story } = sit;
-    const reraise = (to) => chartAdvice(cls, pos, n, 2, to, { iRaised: true }); // on relance par-dessus ma relance
+    let lines;
     if (before.length >= 2) {
-      const a = chartAdvice(cls, pos, n, 2, 200, { raiserPos: P[before[before.length - 1]] });
-      return { head: story, lines: [{ label: 'Relance et sur-relance avant toi', a }] };
-    }
-    if (before.length === 1) {
+      lines = [{ label: 'Relance et sur-relance avant toi', a: chartAdvice(cls, pos, n, 2, 200, { raiserPos: P[before[before.length - 1]] }) }];
+    } else if (before.length === 1) {
       const k = before[0], extra = { raiserPos: P[k], raiser: seatProfile(k), callers: callers.length };
       const sizes = acts[k] === 'r' ? [[60, "Relance normale (jusqu'à 3 BB)"]]
         : [[100, 'Grosse relance (3 à 6 BB)'], [200, 'Très grosse (6 à 15 BB)'], [2000, 'Plus de 15 BB, ou tapis']];
@@ -1141,20 +1156,27 @@
         if (last && ACT_TXT[last.a.action] === ACT_TXT[a.action]) last.labels.push(label);
         else merged.push({ a, labels: [label] });
       });
-      const lines = merged.map((m) => ({ a: m.a, label: m.labels.length === 1 ? m.labels[0]
+      lines = merged.map((m) => ({ a: m.a, label: m.labels.length === 1 ? m.labels[0]
         : m.labels.length === 3 ? 'Grosse relance ou tapis, quelle que soit la taille'
           : m.labels[0].startsWith('Grosse') ? 'De 3 à 15 BB' : 'Plus de 6 BB, ou tapis' }));
-      if (after.length && lines[0].a.action === 'raise') {
-        lines.push({ label: `${after.map(who).join(', ')} relance par-dessus ta sur-relance`, a: reraise(lines[0].a.to * 2.5), again: true });
-      }
-      return { head: story, lines };
+    } else {
+      lines = [{ label: "Personne n'a relancé avant toi", a: chartAdvice(cls, pos, n, 0, 20), open: true }];
     }
-    // seulement des joueurs qui parlent après moi : ils ont relancé par-dessus ma relance
-    const open = chartAdvice(cls, pos, n, 0, 20);
-    const head = `${after.map(who).join(', ')} a relancé après toi`;
-    if (open.action !== 'raise') return { head, lines: [{ label: "Avec cette main, tu t'es couché(e) ou tu as checké : rien à faire", a: open }] };
-    return { head, lines: [{ label: 'Il relance par-dessus ta relance', a: reraise(open.to * (after.some((k) => (qg.marks || {})[k] === 2) ? 5 : 3)), again: true }] };
+    // ceux qui relancent après moi : la décision suivante
+    const first = lines[0].a;
+    if (after.length && (first.action === 'raise' || first.action === 'call')) {
+      const names = after.map(who).join(' puis ');
+      if (first.action === 'raise') {
+        lines.push({ label: after.length === 1 ? `${names} relance par-dessus ta relance` : `${names} relancent par-dessus ta relance`,
+          a: chartAdvice(cls, pos, n, 2, first.to * 3, { iRaised: true, reraises: after.length }), again: true, dec: true });
+      } else {
+        lines.push({ label: `${names} relance après toi (tu avais suivi)`, a: chartAdvice(cls, pos, n, 2, 300, { raiserPos: P[after[after.length - 1]] }), dec: true });
+      }
+    }
+    return { head: story, lines };
   }
+  // La ligne qui décide pour cette main (la dernière décision à prendre)
+  const decisive = (L) => L.lines.find((l) => l.dec) || L.lines[0];
 
   // Le plan selon la taille de la relance, calé sur les tailles les plus courantes : on lit la ligne qui correspond
   const SIZE_ROWS = [[0, 3, 60], [3, 6, 100], [6, 15, 200], [15, Infinity, 2000]]; // [de, à (en BB), relance type en jetons]
@@ -1171,13 +1193,13 @@
     rows.forEach((r) => { const last = merged[merged.length - 1]; if (last && last.txt === r.txt) last.hi = r.hi; else merged.push(Object.assign({}, r)); });
     const first = (E.POSITIONS[n] || E.POSITIONS[6])[0] === pos; // je parle en premier : personne n'a pu relancer avant moi
     const label = (r) => (r.lo === 0 && r.hi === Infinity ? 'Quelle que soit la relance' : r.lo === 0 ? `Relance jusqu'à ${r.hi} BB` : r.hi === Infinity ? `Relance de plus de ${r.lo} BB, ou tapis` : `Relance de ${r.lo} à ${r.hi} BB`);
-    const sit = qg && qg.on ? quickSituation() : null;
+    const sit = qg && qg.on ? quickSituation(cls) : null;
     if (sit) {
       const { head, lines } = situationLines(cls, pos, n, sit);
       return `<div class="size-plan sit">
       <div class="sp-head"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><span class="muted">en ${pos} · ${esc(head)}</span></div>
-      <ul>${lines.map((l, i) => `<li class="ps-${catOf(l.a)} ${i === 0 ? 'main' : ''}"><span>${esc(l.label)}</span><b>${l.again && l.a.action === 'raise' ? 'Relance encore' : ACT_TXT[l.a.action]}</b></li>`).join('')}</ul>
-      ${plain(lines[0].a.plain, 'qgsit', 'En clair : pourquoi')}
+      <ul>${lines.map((l, i) => `<li class="ps-${catOf(l.a)} ${i === 0 ? 'main' : ''}"><span>${esc(l.label)}</span><b>${l.again && l.a.action === 'raise' ? 'Relance encore' : l.open && l.a.action === 'raise' ? `Relance à ${String(Math.round((l.a.to / 20) * 10) / 10).replace('.', ',')} BB` : ACT_TXT[l.a.action]}</b></li>`).join('')}</ul>
+      ${plain(decisive({ lines }).a.plain, 'qgsit', 'En clair : pourquoi')}
     </div>`;
     }
     return `<div class="size-plan">
@@ -1234,7 +1256,7 @@
     }
     if (sit) {
       // les couleurs suivent ce qui s'est passé à la table (le joueur touché, sa place, la taille de sa relance)
-      cat = (c) => catOf(situationLines(c, myPos, n, sit).lines[0].a);
+      cat = (c) => { const sc = quickSituation(c); return catOf(decisive(situationLines(c, myPos, n, sc || sit)).a); };
       legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
       const big = sit.before.length === 1 && sit.acts[sit.before[0]] === 'R';
       text = `Les couleurs suivent ce que tu as touché sur la table${big ? ' (ici, pour une relance de 3 à 6 BB : touche ta main pour les autres tailles)' : ''}. Retouche le joueur pour changer, ou passe à la main suivante.`;
@@ -2508,7 +2530,7 @@
       { sel: '.qg-pt .seat[data-i="4"]', title: 'Quelqu\'un relance', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1 } },
         text: L(`Clic${touchUI() ? '' : ' gauche'} sur le joueur qui relance : 1 fois = relance normale, 2 fois = grosse relance ou tapis, 3 fois = annuler.`) },
       { sel: '.qg-pt .seat[data-i="5"]', title: 'Après une relance', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1, 5: 1 } },
-        text: L(`Pour ceux qui parlent après lui : clic${touchUI() ? '' : ' gauche'} 1 fois = il suit, 2 fois = il relance la relance, 3 fois = annuler. Passe la souris sur un joueur : la bulle dit ce que fera ton prochain clic.`) },
+        text: L(`Pour ceux qui parlent après une relance (la tienne comprise) : clic${touchUI() ? '' : ' gauche'} 1 fois = il suit, 2 fois = il relance la relance, 3 fois = annuler. Passe la souris sur un joueur : la bulle dit ce que fera ton prochain clic.`) },
       { sel: '.size-plan', title: 'Le conseil s\'adapte', set: { cls: 'AJs', cards: ['Ap', 'Jp'], marks: { 4: 1, 5: 1 } },
         text: L("Il suit ce que tu as touché : qui a relancé, depuis quelle place, et combien de joueurs ont suivi. Le tableau se colore pour cette situation. « En clair » explique pourquoi.") },
       { sel: '.qg-pt .seat[data-i="4"]', title: 'La mémoire', set: { cls: 'AJs', cards: ['Ap', 'Jp'], st: { 4: { c: 12, r: 6 } } },

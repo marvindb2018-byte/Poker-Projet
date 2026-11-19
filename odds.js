@@ -220,6 +220,12 @@
     const check = (why, plain) => ({ action: 'check', text: 'Check', why, plain });
 
     // On m'a sur-relancé après ma relance
+    if (ctx.iRaised && (ctx.reraises || 1) >= 2) {
+      // deux relances par-dessus la mienne : seules les deux meilleures mains continuent
+      const p2 = "Deux joueurs ont relancé par-dessus ta relance : ça montre presque toujours une très grosse main.";
+      if (has(RANGES.vs3bet.raise)) return allin(hc + ' : la meilleure main, tapis', p2 + " Mais tu as l'une des deux meilleures mains possibles (paire d'As ou de Rois) : mets tapis.");
+      return fold(hc + ' : face à deux relances par-dessus la tienne, seules AA et KK continuent', p2 + " Même une bonne main comme la tienne n'est pas assez forte : abandonne ce que tu as déjà misé.");
+    }
     if (ctx.iRaised) {
       const p0 = "Quelqu'un a relancé par-dessus ta relance";
       if (has(RANGES.vs3bet.raise)) {
