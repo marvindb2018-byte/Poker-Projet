@@ -304,7 +304,7 @@
     else if (ui.tab === 'charts') html = viewCharts();
     else if (ui.tab === 'learn') html = viewLearn();
     else { ui.tab = 'main'; html = viewMain(); }
-    if (curPage() === 'charts' && qg && qg.on) html = `<div class="wide-page">${html}</div>`; // table + tableau côte à côte sur PC
+    if (curPage() === 'charts') html = `<div class="wide-page">${html}</div>`; // tableau + table (ou boutons) côte à côte sur PC
     else if (!state || ui.tab !== 'main') html = `<div class="narrow">${curPage() === 'main' ? modeBar() : ''}${html}</div>`;
     if (state && ui.tab === 'main') html = modeBar() + html;
     $('view').innerHTML = html;
@@ -1241,7 +1241,7 @@
     }
     const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}" data-a="chart-hand" data-c="${c}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
     const resume = !quick && qgHist.length ? `<button class="btn ghost wide qg-resume" data-a="qg-undo">↶ Reprendre la partie rapide arrêtée</button>` : '';
-    const top = quick ? quickTable() : resume + `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide <small>tu joues avec tes potes : l'appli suit le jeton D et te montre les mains à jouer à ta place</small></button>`;
+    const top = quick ? quickTable() : resume + `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide</button>`;
     const chart = `<section class="panel">
       <h2>Mains de départ</h2>
       ${quick ? '' : '<p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c\'est ce qui fait le plus progresser un débutant.</p>'}
@@ -1252,7 +1252,8 @@
       <p class="hint">${text}</p>
       <p class="hint">Lecture : « s » = cartes de la même couleur (assorties), « o » = couleurs différentes. Au-dessus de la diagonale, les mains assorties ; en dessous, les autres ; sur la diagonale, les paires.</p>
     </section>`;
-    return quick ? `<div class="charts-play"><div class="cp-a">${top}</div><div class="cp-b">${chart}</div></div>${cardPop()}` : top + chart;
+    // même disposition avec ou sans partie rapide : le tableau à gauche, la table (ou les boutons pour la lancer) au milieu
+    return `<div class="charts-play"><div class="cp-a">${quick ? top : `<div class="qg-start-zone">${top}</div>`}</div><div class="cp-b">${chart}</div></div>${quick ? cardPop() : ''}`;
   }
 
   function actionPanel(h, id, mine, meLive) {
