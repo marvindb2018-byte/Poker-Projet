@@ -92,14 +92,15 @@
   function advise(h, lookup, opts) {
     if (!h || !h.meIn || h.folded[h.meId] || h.cards.length !== 2) return null;
     const o = O();
-    if (h.street === 0) return Object.assign(o.preflopAdvice(preflopCtx(h, lookup)), { street: 0 });
+    const tune = opts && opts.tune; // d'autres réglages (simulation) ; sinon ceux de l'appli
+    if (h.street === 0) return Object.assign(o.preflopAdvice(Object.assign(preflopCtx(h, lookup), { tune })), { street: 0 });
     const e = E();
     const opt = e.options(h, h.meId);
     const d = H().describe(h.cards, h.board);
     const ctx = {
       cards: h.cards, board: h.board, pot: e.potOf(h), toCall: opt.toCall, myBet: h.bet[h.meId], myStack: h.stack[h.meId],
       cb: h.cb, minRaise: opt.minTo, unit: h.sb, inPos: inPosition(h), handName: d ? H().shortText(d) : '',
-      opps: oppModels(h, lookup),
+      opps: oppModels(h, lookup), tune,
     };
     return Object.assign(o.postflopAdvice(ctx, opts && opts.iters), { street: h.street });
   }

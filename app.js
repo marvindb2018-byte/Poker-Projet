@@ -1207,7 +1207,7 @@
       const range = R.open[key];
       cat = (c) => (range.has(c) ? 'raise' : 'fold');
       legend = [['raise', 'Relance'], ['fold', 'Couche-toi']];
-      text = `Personne n'a relancé avant toi : relance (${v === 'CO' || v === 'BTN' ? '2,5' : '3'} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
+      text = `Personne n'a relancé avant toi : relance (${String(v === 'CO' || v === 'BTN' ? ODDS.TUNE.openLate : ODDS.TUNE.openEarly).replace('.', ',')} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
     }
     if (sit) {
       // les couleurs suivent ce qui s'est passé à la table (le joueur touché, sa place, la taille de sa relance)

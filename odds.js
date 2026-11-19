@@ -205,6 +205,7 @@
    * Renvoie { action: 'raise'|'call'|'check'|'fold'|'allin', to, text, why }
    */
   function preflopAdvice(ctx) {
+    const T = tuneOf(ctx.tune);
     const hc = handClass(ctx.cards[0], ctx.cards[1]);
     const bb = ctx.bb;
     const unit = ctx.sb || 1;
@@ -268,7 +269,7 @@
         return R(bb * 2.5, `${hc} : vol des blindes, les joueurs restants jouent très peu`, "Les joueurs qui parlent après toi jouent très peu de mains et se couchent presque toujours. Relance pour leur prendre les blindes, même avec une main moyenne : la plupart du temps, tu gagnes tout de suite.");
       }
       if (has(range)) {
-        const size = (late ? 2.5 : 3) + ctx.limpers;
+        const size = (late ? T.openLate : T.openEarly) + ctx.limpers;
         return R(bb * size, `${hc} fait partie des mains à relancer depuis ${ctx.pos} (${pct(range)} % des mains)`,
           "Personne n'a encore relancé et ta main est assez bonne pour ta place. Relance plutôt que de juste suivre : soit tout le monde se couche et tu gagnes les blindes tout de suite, soit tu joues la suite avec l'avantage."
           + (ctx.limpers ? ' La relance est un peu plus grosse parce que des joueurs ont déjà suivi.' : ''));
@@ -331,7 +332,7 @@
         : vsLate ? ` Il relance depuis ${rp}, une place d'où l'on relance avec beaucoup de mains moyennes (environ ${rPct} % des mains) : tu peux continuer avec plus de mains.` : '';
       const callers = ctx.callers || 0; // joueurs qui ont suivi la relance avant moi
       if (vsLate) threeBet = parseRange('TT+, AJs+, KQs, AQo+');
-      const size = ctx.cb * (late ? 3 : 3.5) + ctx.cb * callers; // plus gros s'il y a déjà des suiveurs (« squeeze »)
+      const size = ctx.cb * (late ? T.tbIP : T.tbOOP) + ctx.cb * callers; // plus gros s'il y a déjà des suiveurs (« squeeze »)
       // Sur-relance « bluff » : un As bloque ses meilleures mains, contre une relance tardive, quand je suis bien placé
       if (!tight && !callers && LATE.includes(ctx.pos) && LATE.includes(ctx.raiserPos) && has(parseRange('A5s, A4s'))) {
         return R(size, `${hc} : sur-relance « bluff » contre une relance tardive`, `Le relanceur ${ctx.raiserPos ? 'est en ' + ctx.raiserPos + ', une place d\'où l\'on relance souvent avec des mains moyennes' : 'relance souvent'}. Ton As rend ses meilleures mains (AA, AK) moins probables, et s'il paie, tu peux encore faire une couleur ou une quinte. Il se couchera souvent.`);
@@ -591,28 +592,48 @@
 
   // Probabilité qu'un adversaire continue (suive ou relance) face à une mise, selon ce que ses cartes font avec le tableau.
   // sizeFrac : taille de la mise / pot ; vsRaise : face à une relance ; scale : réglage propre au joueur (calé sur son profil).
-  function continueProb(c, sizeFrac, vsRaise, scale) {
+  /*
+   * Réglages de l'algorithme. Valeurs trouvées par simulation (tests/tune.js) ; chaque calcul peut recevoir
+   * d'autres réglages (ctx.tune) : c'est ce qui permet à la simulation de comparer deux versions à la même table.
+   */
+  const TUNE = {
+    rOop: 0.9, // part de mes chances que j'arrive à jouer jusqu'au bout quand je parle en premier (flop, turn)
+    sizes: [0.33, 0.66, 1, 1.5], // tailles de mise essayées (en part du pot) ; 1,5 fois le pot ajouté par la simulation
+    betCap: 0.6, // une mise ne dépasse pas cette part de mon tapis (au-delà : tapis)
+    aiBet: 4.9, // tapis possible si mon tapis ≤ aiBet × le pot (2,5 avant la simulation)
+    raiseMult: 3, // relance = 3 fois la mise
+    aiRaise: 2, // tapis possible face à une mise si ce qui reste ≤ aiRaise × le pot
+    tol: 0.03, // à gain presque égal (en part du pot), on préfère l'action la plus simple
+    commit: 0.35, // une mise qui engage cette part du tapis ou plus devient tapis, si ça rapporte presque autant (0,5 avant)
+    mPair: 1, mDraw: 1, mAir: 1, sizeK: 0.9, rr: 1, // modèle de l'adversaire : paie avec une paire, un tirage, rien ; effet de la taille ; sur-relance
+    openLate: 2.5, openEarly: 3, tbIP: 3, tbOOP: 3.5, // tailles avant le flop (en grosses blindes / en fois la relance)
+    foldMarginal: true, // une relance « bluff » qui ne rapporte presque rien : couché
+  };
+  const tuneOf = (t) => (t ? Object.assign({}, TUNE, t) : TUNE);
+
+  function continueProb(c, sizeFrac, vsRaise, scale, T) {
+    T = T || TUNE;
     let p;
     if (c.level >= 4) return 0.98;
     if (c.level === 3) return clamp(0.95 * Math.min(1, 1.9 / (1 + 0.45 * sizeFrac)), 0.3, 0.95); // double paire : paie, sauf énorme mise
     // face à une relance, celui qui a misé lâche rarement une bonne paire (surtout entre amis)
-    if (c.level === 2) p = vsRaise ? 0.8 : 0.88;
-    else if (c.level === 1) p = vsRaise ? 0.45 : 0.55;
-    else if (c.draw) p = vsRaise ? 0.5 : 0.62;
-    else if (c.over) p = vsRaise ? 0.08 : 0.22;
-    else p = vsRaise ? 0.03 : 0.08;
-    p *= 1.45 / (1 + 0.9 * sizeFrac); // plus la mise est grosse, moins les mains moyennes paient (×1 pour une demi-mise du pot)
+    if (c.level === 2) p = (vsRaise ? 0.8 : 0.88) * T.mPair;
+    else if (c.level === 1) p = (vsRaise ? 0.45 : 0.55) * T.mPair;
+    else if (c.draw) p = (vsRaise ? 0.5 : 0.62) * T.mDraw;
+    else if (c.over) p = (vsRaise ? 0.08 : 0.22) * T.mAir;
+    else p = (vsRaise ? 0.03 : 0.08) * T.mAir;
+    p *= (1 + T.sizeK * 0.5) / (1 + T.sizeK * sizeFrac); // plus la mise est grosse, moins les mains moyennes paient (×1 pour une demi-mise du pot)
     return clamp(1 - Math.pow(1 - clamp(p, 0, 0.98), scale), 0, 0.98); // scale > 1 : paie plus souvent ; < 1 : se couche plus
   }
 
   // Cale le réglage d'un joueur pour que sa part de « couché face à une mise » colle à ce qu'on a observé.
-  function calibrate(foldTarget, cons) {
+  function calibrate(foldTarget, cons, T) {
     if (foldTarget == null || !cons.length) return 1;
     let lo = 0.15, hi = 25;
     for (let i = 0; i < 18; i++) {
       const mid = (lo + hi) / 2;
       let f = 0;
-      for (const c of cons) f += 1 - continueProb(c, 0.6, false, mid);
+      for (const c of cons) f += 1 - continueProb(c, 0.6, false, mid, T);
       // plus mid est grand, plus il paie : on cherche mid tel que sa part de couchés = foldTarget
       f /= cons.length;
       if (f > foldTarget) lo = mid; else hi = mid;
@@ -631,13 +652,14 @@
    */
   function postflopAdvice(ctx, iters) {
     iters = iters || 1800;
+    const T = tuneOf(ctx.tune);
     const mineI = ctx.cards.map(toInt), boardI = ctx.board.map(toInt);
     const opps = ctx.opps;
     const n = opps.length;
     const unit = ctx.unit || 1;
     const pot = ctx.pot, toCall = Math.min(ctx.toCall, ctx.myStack), stack = ctx.myStack;
     const river = boardI.length === 5;
-    const R = river ? 1 : ctx.inPos ? 1 : 0.9; // part de mes chances que j'arrive vraiment à jouer jusqu'au bout
+    const R = river ? 1 : ctx.inPos ? 1 : T.rOop; // part de mes chances que j'arrive vraiment à jouer jusqu'au bout
     const rnd = (x) => Math.max(unit, Math.round(x / unit) * unit);
     const boardCat = score7(boardI) >> 20;
 
@@ -645,18 +667,22 @@
     const opts = [];
     if (toCall === 0) {
       opts.push({ k: 'check' });
-      [[0.33, '1/3 du pot'], [0.66, '2/3 du pot'], [1, 'le pot']].forEach(([f, label]) => {
+      const SIZE_LABEL = { 0.25: '1/4 du pot', 0.33: '1/3 du pot', 0.5: 'la moitié du pot', 0.66: '2/3 du pot', 0.75: '3/4 du pot', 1: 'le pot', 1.25: '1,25 fois le pot', 1.5: '1,5 fois le pot' };
+      const seen = new Set();
+      T.sizes.forEach((f) => {
         const amt = rnd(pot * f);
-        if (amt <= stack * 0.6) opts.push({ k: 'bet', add: amt, to: amt, frac: amt / pot, label });
+        if (seen.has(amt)) return;
+        seen.add(amt);
+        if (amt <= stack * T.betCap) opts.push({ k: 'bet', add: amt, to: amt, frac: amt / pot, label: SIZE_LABEL[f] || Math.round(f * 100) + ' % du pot' });
       });
       // tapis seulement quand il reste peu de jetons par rapport au pot (pas de sur-mise énorme)
-      if (stack <= pot * 2.5) opts.push({ k: 'allin', add: stack, to: ctx.myBet + stack, frac: stack / pot });
+      if (stack <= pot * T.aiBet) opts.push({ k: 'allin', add: stack, to: ctx.myBet + stack, frac: stack / pot });
     } else {
       opts.push({ k: 'fold' }, { k: 'call', add: toCall });
       if (stack > toCall) {
-        const t = Math.max(ctx.minRaise || 0, rnd(ctx.cb * 3));
+        const t = Math.max(ctx.minRaise || 0, rnd(ctx.cb * T.raiseMult));
         if (t - ctx.myBet < stack * 0.8) opts.push({ k: 'raise', add: t - ctx.myBet, to: t, frac: (t - ctx.cb) / (pot + toCall) });
-        if (stack - toCall <= (pot + toCall) * 2) opts.push({ k: 'allin', add: stack, to: ctx.myBet + stack, frac: (stack - toCall) / (pot + toCall) });
+        if (stack - toCall <= (pot + toCall) * T.aiRaise) opts.push({ k: 'allin', add: stack, to: ctx.myBet + stack, frac: (stack - toCall) / (pot + toCall) });
       }
     }
     opts.forEach((o) => { o.ev = 0; o.win = 0; o.called = 0; o.folds = 0; });
@@ -670,7 +696,7 @@
         if (!S.sample()) break;
         cons.push(connect(S.hands[k][0], S.hands[k][1], boardI, boardCat));
       }
-      return calibrate(o.fold, cons);
+      return calibrate(o.fold, cons, T);
     });
 
     const me = new Array(7), opp = new Array(7);
@@ -715,7 +741,7 @@
           for (let k = 0; k < n; k++) {
             const o2 = opps[k];
             const owes = o2.toCall || 0;
-            inMask[k] = o2.allin || owes === 0 || Math.random() < continueProb(cn[k], owes / pot, false, scales[k]);
+            inMask[k] = o2.allin || owes === 0 || Math.random() < continueProb(cn[k], owes / pot, false, scales[k], T);
             if (inMask[k]) extra += Math.min(owes, o2.stack == null ? owes : o2.stack);
           }
           const sh = share(myScore, inMask);
@@ -730,7 +756,7 @@
         for (let k = 0; k < n; k++) {
           const o2 = opps[k];
           if (o2.allin) { inMask[k] = true; continue; }
-          const p = continueProb(cn[k], o.frac, vsRaise || o.k === 'allin' && o.frac > 1.5, scales[k]);
+          const p = continueProb(cn[k], o.frac, vsRaise || o.k === 'allin' && o.frac > 1.5, scales[k], T);
           inMask[k] = Math.random() < p;
           if (inMask[k]) {
             callers++;
@@ -738,7 +764,7 @@
             extra += Math.min(owes, o2.stack == null ? owes : o2.stack);
             if (o.k !== 'allin' && reraiser < 0) {
               const aggr = clamp((o2.bluff || 0.3) / 0.3, 0.5, 2);
-              const rr = cn[k].level >= 3 ? (vsRaise ? 0.5 : 0.35) * aggr : cn[k].level === 2 && vsRaise ? 0.08 * aggr : 0;
+              const rr = (cn[k].level >= 3 ? (vsRaise ? 0.5 : 0.35) * aggr : cn[k].level === 2 && vsRaise ? 0.08 * aggr : 0) * T.rr;
               if (rr && Math.random() < rr) reraiser = k;
             }
           }
@@ -774,7 +800,7 @@
     const eq = eqAll / done;
     const best = opts.slice().sort((a, b) => b.ev - a.ev);
     // À gain presque égal (moins de 3 % du pot d'écart avec le meilleur), on préfère l'action la plus simple et la moins risquée.
-    const top = best[0].ev, tol = Math.max(1, pot * 0.03);
+    const top = best[0].ev, tol = Math.max(1, pot * T.tol);
     const order = ['check', 'call', 'bet', 'raise', 'allin', 'fold'];
     let pick = best[0];
     for (const o of best.slice(1)) {
@@ -782,8 +808,14 @@
     }
     // Une mise qui engage la moitié de ton tapis ou plus : autant mettre tapis, si ça rapporte presque autant
     // (garder un petit reste ne sert à rien : tu ne pourras plus te coucher, et l'adversaire voit que tu es engagé).
+    // Une relance « bluff » (peu de chances quand on paie) qui ne rapporte presque rien : on se couche plutôt
+    // (le calcul est approché : ce n'est pas la peine de risquer gros pour un gain quasi nul).
+    if (T.foldMarginal && toCall > 0 && (pick.k === 'raise' || pick.k === 'allin') && pick.ev <= tol && (pick.eqCalled == null || pick.eqCalled < 0.5)) {
+      const fo = opts.find((o) => o.k === 'fold'), ca = opts.find((o) => o.k === 'call');
+      pick = ca && ca.ev > 0 ? ca : fo;
+    }
     const ai = opts.find((o) => o.k === 'allin');
-    if (ai && (pick.k === 'bet' || pick.k === 'raise') && pick.add >= stack * 0.5 && top - ai.ev <= tol * 2) pick = ai;
+    if (ai && (pick.k === 'bet' || pick.k === 'raise') && pick.add >= stack * T.commit && top - ai.ev <= tol * 2) pick = ai;
     return describePostflop(pick, opts, { ctx, eq, pot, toCall, stack, river });
   }
 
@@ -871,7 +903,7 @@
   })();
   const rankPct = (cls) => RANK_PCT[cls];
 
-  const api = { score7, equity, equityVs, postflopAdvice, continueProb, rankPct, makeSampler, playerRange, topRange, connect, HAND_RANK, potOdds, handClass, parseRange, RANGES, openRangeKey, preflopAdvice, grid, pct, toInt };
+  const api = { TUNE, score7, equity, equityVs, postflopAdvice, continueProb, rankPct, makeSampler, playerRange, topRange, connect, HAND_RANK, potOdds, handClass, parseRange, RANGES, openRangeKey, preflopAdvice, grid, pct, toInt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PokerOdds = api;
 })(typeof window !== 'undefined' ? window : globalThis);

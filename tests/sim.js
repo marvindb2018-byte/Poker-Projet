@@ -18,6 +18,8 @@ RANKS.forEach((r) => 'pckt'.split('').forEach((s) => DECK.push(r + s)));
 function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const shuffle = (a, r) => { for (let i = a.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const BB = 20, STACK = 2000;
+let BR = Math.random; // hasard des robots (rejouable en mode « seeded »)
+const BASE = JSON.parse(JSON.stringify(O.TUNE)); // réglages de départ : ceux des copies de l'appli
 
 /* ---------------------------------------------------------------- robots */
 
@@ -33,7 +35,7 @@ const STYLES = {
   // Paie presque tout, relance rarement, ne bluffe jamais
   payeur: {
     pre(x) { const q = pct(x.cards); if (q <= 0.05) return raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; return q <= (x.raisedBefore ? 0.55 : 0.65) ? { type: 's' } : { type: 'f' }; },
-    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 3 ? bet(x, 0.5) : { type: 'x' }; if (c.level >= 4) return raise(x, 2.5); return c.level >= 1 || c.draw || c.over || Math.random() < 0.35 ? { type: 's' } : { type: 'f' }; },
+    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 3 ? bet(x, 0.5) : { type: 'x' }; if (c.level >= 4) return raise(x, 2.5); return c.level >= 1 || c.draw || c.over || BR() < 0.35 ? { type: 's' } : { type: 'f' }; },
   },
   // Joue très peu, mise ses bonnes mains, lâche tout le reste
   serre: {
@@ -42,13 +44,13 @@ const STYLES = {
   },
   // Relance et mise tout le temps
   maniaque: {
-    pre(x) { const q = pct(x.cards); if (q <= 0.15 || (q <= 0.5 && !x.raisedBefore)) return Math.random() < 0.12 ? { type: 'AI' } : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; return q <= 0.6 ? { type: 's' } : { type: 'f' }; },
-    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return Math.random() < 0.7 || c.level >= 1 ? bet(x, 0.75) : { type: 'x' }; if (c.level >= 3 || Math.random() < 0.12) return raise(x, 2.5); return c.level >= 1 || c.draw || Math.random() < 0.3 ? { type: 's' } : { type: 'f' }; },
+    pre(x) { const q = pct(x.cards); if (q <= 0.15 || (q <= 0.5 && !x.raisedBefore)) return BR() < 0.12 ? { type: 'AI' } : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; return q <= 0.6 ? { type: 's' } : { type: 'f' }; },
+    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return BR() < 0.7 || c.level >= 1 ? bet(x, 0.75) : { type: 'x' }; if (c.level >= 3 || BR() < 0.12) return raise(x, 2.5); return c.level >= 1 || c.draw || BR() < 0.3 ? { type: 's' } : { type: 'f' }; },
   },
   // L'ami typique : joue beaucoup, suit beaucoup, relance peu, bluffe un peu
   ami: {
-    pre(x) { const q = pct(x.cards); if (q <= 0.08) return x.h.cb === BB && Math.random() < 0.5 ? openTo(x, 6) : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; if (!x.raisedBefore) return q <= 0.45 ? { type: 's' } : { type: 'f' }; return q <= 0.3 ? { type: 's' } : { type: 'f' }; },
-    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || Math.random() < 0.1 ? bet(x, 0.5) : { type: 'x' }; if (c.level >= 4) return raise(x, 2.5); return c.level >= 1 || c.draw || Math.random() < 0.15 ? { type: 's' } : { type: 'f' }; },
+    pre(x) { const q = pct(x.cards); if (q <= 0.08) return x.h.cb === BB && BR() < 0.5 ? openTo(x, 6) : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; if (!x.raisedBefore) return q <= 0.45 ? { type: 's' } : { type: 'f' }; return q <= 0.3 ? { type: 's' } : { type: 'f' }; },
+    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || BR() < 0.1 ? bet(x, 0.5) : { type: 'x' }; if (c.level >= 4) return raise(x, 2.5); return c.level >= 1 || c.draw || BR() < 0.15 ? { type: 's' } : { type: 'f' }; },
   },
   // Le régulier : joue selon sa place (tableaux classiques), mise après avoir relancé, lâche sans rien
   regulier: {
@@ -63,9 +65,38 @@ const STYLES = {
       if (x.o.toCall === 0) return { type: 'x' };
       return (pos === 'BB' ? R.callBB : R.call).has(hc) && x.o.toCall <= BB * 4 ? { type: 's' } : { type: 'f' };
     },
-    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || c.draw || Math.random() < 0.35 ? bet(x, 0.6) : { type: 'x' }; if (c.level >= 3) return raise(x, 2.5); return c.level >= 2 || (c.draw && Math.random() < 0.6) ? { type: 's' } : { type: 'f' }; },
+    post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || c.draw || BR() < 0.35 ? bet(x, 0.6) : { type: 'x' }; if (c.level >= 3) return raise(x, 2.5); return c.level >= 2 || (c.draw && BR() < 0.6) ? { type: 's' } : { type: 'f' }; },
+  },
+  // Serré-agressif : peu de mains, mais relance et mise souvent, bluffe parfois ; selon sa place
+  tag: {
+    pre(x) {
+      const hc = O.handClass(x.cards[0], x.cards[1]), pos = x.h.pos[x.id], R = O.RANGES;
+      if (!x.raisedBefore) {
+        const key = O.openRangeKey(pos, x.h.order.length);
+        if (key && R.open[key].has(hc)) return raise(x, 2.5);
+        return x.o.toCall === 0 ? { type: 'x' } : { type: 'f' };
+      }
+      if (R.threeBet.has(hc) || (O.parseRange('A5s, A4s, KQs, AJs').has(hc) && BR() < 0.4)) return raise(x, 3);
+      if (x.o.toCall === 0) return { type: 'x' };
+      return R.call.has(hc) && x.o.toCall <= BB * 5 ? { type: 's' } : { type: 'f' };
+    },
+    post(x) {
+      const c = conn(x.cards, x.h.board);
+      if (x.o.toCall === 0) return c.level >= 2 || c.draw || BR() < 0.45 ? bet(x, c.level >= 3 ? 0.75 : 0.5) : { type: 'x' };
+      if (c.level >= 3 || (c.draw && BR() < 0.25)) return raise(x, 2.5);
+      return c.level >= 2 || c.draw ? { type: 's' } : { type: 'f' };
+    },
+  },
+  // Copie de l'appli, avec les réglages de départ (pour vérifier que la nouvelle version bat l'ancienne)
+  copie: {
+    pre(x) { return copyAct(x); },
+    post(x) { return copyAct(x); },
   },
 };
+function copyAct(x) {
+  const h2 = Object.assign({}, x.h, { meId: x.id, cards: x.cards, meIn: true });
+  return A.toAction(A.advise(h2, x.lookup, { iters: 250, tune: BASE }));
+}
 function openTo(x, nbb) {
   const to = Math.max(x.o.minTo, BB * nbb);
   return to >= x.o.maxTo ? { type: 'AI' } : { type: 'r', to };
@@ -91,11 +122,14 @@ function heroOld(s, lookup) {
   return eq >= O.potOdds(o.toCall, E.potOf(h)) ? { type: 's' } : { type: 'f' };
 }
 function heroNew(s, lookup) { return A.toAction(A.advise(s.hand, lookup, { iters: 700 })); }
+const heroWith = (tune) => (s, lookup) => A.toAction(A.advise(s.hand, lookup, { iters: 700, tune }));
 
 /* ---------------------------------------------------------------- partie */
 
-function play(nHands, styles, hero, seed0) {
+function play(nHands, styles, hero, seed0, opts) {
   seed0 = seed0 || 1;
+  const seeded = !!(opts && opts.seeded);
+  const mr = Math.random;
   const results = [];
   const names = ['Moi'].concat(styles.map((st, i) => st + (i + 1)));
   const s = E.newGame({ names, meIndex: 0, btnIndex: 0, sb: 10, bb: BB, stack: STACK });
@@ -109,6 +143,7 @@ function play(nHands, styles, hero, seed0) {
     if (!E.startHand(s).ok) break;
     const h = s.hand;
     const deck = shuffle(DECK.slice(), rng(seed0 * 100003 + n));
+    if (seeded) { Math.random = rng(seed0 * 1000003 + n * 7 + 1); BR = rng(seed0 * 999331 + n * 13 + 5); } // mêmes tirages pour les deux versions
     const cards = {};
     h.order.forEach((id) => { cards[id] = [deck.pop(), deck.pop()]; });
     const board = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
@@ -128,7 +163,7 @@ function play(nHands, styles, hero, seed0) {
       if (id === h.meId) a = hero(s, lookup);
       else {
         const raisedBefore = h.street === 0 && h.cb > BB;
-        a = STYLES[styleOf[id]][h.street === 0 ? 'pre' : 'post']({ cards: cards[id], h, id, o, pot: E.potOf(h), raisedBefore });
+        a = STYLES[styleOf[id]][h.street === 0 ? 'pre' : 'post']({ cards: cards[id], h, id, o, pot: E.potOf(h), raisedBefore, lookup });
       }
       let r = E.applyAction(s, a || { type: 'f' }, true);
       if (!r.ok) r = E.applyAction(s, { type: o.toCall ? 'f' : 'x' }, true);
@@ -142,6 +177,7 @@ function play(nHands, styles, hero, seed0) {
     played++;
     E.endHand(s);
   }
+  Math.random = mr; BR = mr;
   const mean = results.reduce((a, x) => a + x, 0) / played;
   const sd = Math.sqrt(results.reduce((a, x) => a + (x - mean) * (x - mean), 0) / played);
   return { bb100: (won / BB / played) * 100, se100: (sd / Math.sqrt(played)) * 100, played, errors, results };
@@ -154,6 +190,13 @@ const TABLES = {
   maniaques: ['maniaque', 'maniaque', 'ami', 'ami', 'serre'],
   melange: ['payeur', 'serre', 'maniaque', 'ami', 'ami'],
   reguliers: ['regulier', 'regulier', 'regulier', 'ami', 'ami'],
+};
+// Tables jamais utilisées pendant le réglage : pour vérifier que le gain tient face à d'autres adversaires
+const VALIDATION = {
+  tags: ['tag', 'tag', 'tag', 'ami', 'payeur'],
+  copies: ['copie', 'copie', 'regulier', 'ami', 'payeur'],
+  potes: ['ami', 'ami', 'payeur', 'maniaque', 'tag'],
+  durs: ['tag', 'regulier', 'copie', 'serre', 'ami'],
 };
 
 if (require.main === module) {
@@ -175,4 +218,4 @@ if (require.main === module) {
   console.log('\n± = marge d\'erreur (95 %). Écart > marge : la différence n\'est pas due au hasard.');
 }
 
-module.exports = { play, TABLES, heroOld, heroNew };
+module.exports = { play, TABLES, VALIDATION, heroOld, heroNew, heroWith, BASE };
