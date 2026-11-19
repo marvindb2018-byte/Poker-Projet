@@ -984,3 +984,21 @@ details.plain > div p + p { margin-top: 6px; }
 .qg-start-zone { max-width: 560px; margin: 0 auto; }
 .qg-start-zone .btn { margin-top: 0; }
 .qg-start-zone .qg-resume { margin-bottom: 10px; }
+
+/* partie rapide : après le flop */
+.qg-you.small { font-size: clamp(12px, 2.6cqw, 15px); }
+.qg-you.small b { display: inline; font-size: clamp(16px, 4cqw, 24px); margin-left: 4px; }
+.qg-board { display: flex; gap: 4px; justify-content: center; margin: 6px 0 4px; }
+.qg-board .card.xs { width: clamp(26px, 6.4cqw, 40px); height: clamp(36px, 8.8cqw, 54px); }
+.qg-board .card.xs b { font-size: clamp(12px, 3cqw, 18px); }
+.qg-board .card.xs i { font-size: clamp(10px, 2.6cqw, 15px); }
+.qg-street { margin-top: 6px; padding: 5px 16px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: rgba(0, 0, 0, .28);
+  color: #e8f5ee; font: 700 13px var(--sans); cursor: pointer; }
+.qg-street:hover { border-color: var(--gold); color: var(--gold); }
+.size-plan.post { margin-top: 0; border-color: rgba(60, 196, 127, .5); background: rgba(60, 196, 127, .06); }
+.qg-opp { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; font-size: 13px; }
+.qg-opp .stepper button { width: 30px; height: 30px; font-size: 16px; }
+.qg-opp .stepper b { min-width: 20px; font-size: 15px; }
+.qp-mine { display: inline-flex; gap: 3px; align-items: center; margin-left: 8px; }
+.qp-mine i { color: var(--muted); font-style: normal; margin: 0 2px; }
+.qp-mine .card.xs { width: 22px; height: 30px; }

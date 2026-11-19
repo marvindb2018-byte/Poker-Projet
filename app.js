@@ -993,24 +993,32 @@
     const back = '<span class="cb"></span><span class="cb"></span>';
     let seats = '';
     const QA = b == null ? null : qgActs();
+    const post = b != null && (qg.board || []).length >= 3 ? postPlan() : null; // après le flop (mes cartes connues)
+    const postOn = b != null && (qg.board || []).length >= 3;
     for (let k = 0; k < n; k++) {
       const deg = 90 + (k * 360) / n;
       const me = k === 0;
       const real = me && qg.cards && qg.cards.length === 2 && ODDS.handClass(qg.cards[0], qg.cards[1]) === qg.cls;
       const cards = me ? (real ? qg.cards.map((c) => cardHtml(c, 'xs')).join('') : qg.cls ? `<span class="seat-hand">${qg.cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>` : '') : back;
-      const mk = QA ? QA.acts[k] : null;
-      const afterRaise = QA && !me && QA.raisedBefore(k);
+      const mk = postOn ? (post ? post.acts[k] : null) : QA ? QA.acts[k] : null;
+      const afterRaise = postOn ? post && !me && post.betBeforeSeat(k) : QA && !me && QA.raisedBefore(k);
       const sty = me ? null : seatStyle(k);
       const title = b == null ? 'Touche le joueur qui a le jeton D' : me ? `Toi. ${touchUI() ? 'Touche' : 'Clic'} : saisir ou changer tes cartes · ${touchUI() ? 'Appui long' : 'Clic droit'} : le jeton D est chez toi`
-        : (afterRaise ? 'Clic : il suit · 2e clic : il relance la relance' : 'Clic : il relance · 2e clic : grosse relance ou tapis') + ' · 3e clic : annuler · Clic droit (appui long sur téléphone) : le jeton D est chez lui';
-      seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''} ${mk ? (mk === 'c' ? 'called' : 'raised') + ' a-' + mk : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="${title}">
+        : (postOn ? (afterRaise ? 'Clic : il suit · 2e clic : il relance' : 'Clic : il mise · 2e clic : grosse mise ou tapis')
+          : afterRaise ? 'Clic : il suit · 2e clic : il relance la relance' : 'Clic : il relance · 2e clic : grosse relance ou tapis') + ' · 3e clic : annuler · Clic droit (appui long sur téléphone) : le jeton D est chez lui';
+      seats += `<div class="seat ${me ? 'me' : ''} ${k === b ? 'is-btn' : ''} ${mk ? (mk === 'c' ? 'called' : 'raised') + ' a-' + (postOn ? { b: 'r', B: 'R', c: 'c', x: 'x' }[mk] : mk) : ''}" style="${at(1, deg)}" data-a="qg-btn" data-i="${k}" title="${title}">
         <div class="seat-cards">${cards}</div>
         <div class="seat-box">${k === b ? `<span class="dealer-badge ${dealerCorner(deg)}">D</span>` : ''}<span class="seat-pos">${pos ? pos[k] : '—'}</span><b class="seat-name">${me ? 'Toi' : 'Joueur ' + (k + 1)}</b>${sty ? `<span class="seat-sty">${sty.tag}</span>` : ''}</div>
-        ${mk ? `<span class="seat-act">${QG_ACT[mk]}</span>` : ''}
+        ${mk ? `<span class="seat-act">${postOn ? QP_ACT[mk] : QG_ACT[mk]}</span>` : ''}
       </div>`;
     }
     const mine = pos ? pos[0] : null;
-    const center = mine ? `<div class="qg-you">Tu es <b>${mine}</b></div>` : '<div class="qg-you qg-ask">Touche le joueur<br>qui a le jeton D</div>';
+    const bd = qg.board || [];
+    const nextSt = NEXT_STREET(bd.length);
+    const center = mine ? `<div class="qg-you ${bd.length ? 'small' : ''}">Tu es <b>${mine}</b></div>
+        ${bd.length ? `<div class="qg-board">${bd.map((c) => cardHtml(c, 'xs')).join('')}</div>` : ''}
+        ${nextSt ? `<button class="qg-street" data-a="qg-board" title="Facultatif : les cartes du ${nextSt.toLowerCase()}, pour un conseil après le flop">${nextSt}</button>` : ''}`
+      : '<div class="qg-you qg-ask">Touche le joueur<br>qui a le jeton D</div>';
     // nombre de joueurs (à gauche) et croix pour arrêter (à droite) : dans les coins de la table, pour qu'elle monte
     const head = `<div class="qg-head">
         <div class="qg-n" title="Nombre de joueurs à la table"><div class="stepper">
@@ -1023,9 +1031,10 @@
     return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
       ${b == null ? '<div class="mt-label">À faire · touche le joueur qui a le jeton D</div>' : ''}
       <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
-      ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
+      ${mine ? `${postOn ? (post ? postBox() : '<p class="q-me-txt">Donne tes cartes (clic sur toi) pour le conseil après le flop.</p>') : `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>`}
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance, 2 fois = grosse relance ou tapis. Ceux qui parlent après une relance (la tienne comprise) : 1 fois = il suit, 2 fois = il relance la relance. 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur.</p>`
+        <p class="hint">${postOn ? `Au ${STREET_NAME(bd.length)} : touche un joueur qui mise (1 fois = mise, 2 fois = grosse mise ou tapis) ; après une mise, la tienne comprise, 1 fois = il suit, 2 fois = il relance. Le pot est estimé, sans montants.` : ''}
+        ${postOn ? '' : `Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance, 2 fois = grosse relance ou tapis. Ceux qui parlent après une relance (la tienne comprise) : 1 fois = il suit, 2 fois = il relance la relance. 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur. Facultatif : « Flop » au milieu de la table pour un conseil après le flop.`}</p>`
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
   }
@@ -1105,17 +1114,20 @@
     const pk = ui.qgPick;
     if (!pk || !qg || !qg.on || qg.btn == null) return '';
     const L = (r) => (r === 'T' ? '10' : r);
-    const nth = pk.cards.length === 0 ? '1re carte' : '2e carte';
-    const used = new Set(pk.cards);
-    const slots = [0, 1].map((i) => (pk.cards[i] ? cardHtml(pk.cards[i])
+    const board = pk.kind === 'board', need = pk.need || 2;
+    const street = board ? (need === 3 ? 'Flop' : (qg.board || []).length === 3 ? 'Turn' : 'River') : '';
+    const nth = board && need === 1 ? street : (board ? street + ' : ' : '') + ['1re carte', '2e carte', '3e carte'][pk.cards.length];
+    const used = pickUsed(pk);
+    const slots = Array.from({ length: need }, (_, i) => i).map((i) => (pk.cards[i] ? cardHtml(pk.cards[i])
       : i === pk.cards.length && pk.rank ? `<span class="card empty qp-cur"><b>${L(pk.rank)}</b></span>` : `<span class="card empty ${i === pk.cards.length ? 'qp-cur' : ''}"></span>`)).join('');
     const body = !pk.rank
       ? `<div class="pk-title">${nth} : la valeur</div>
         <div class="ranks">${E.RANKS.map((r) => `<button class="rk" data-a="qp-rank" data-r="${r}" ${E.SUITS.every((x) => used.has(r + x)) ? 'disabled' : ''}>${L(r)}</button>`).join('')}</div>`
       : `<div class="pk-title">${nth} : ${L(pk.rank)} de quelle couleur ?</div>
         <div class="suits">${E.SUITS.map((x) => `<button class="su s-${x}" data-a="qp-suit" data-s="${x}" ${used.has(pk.rank + x) ? 'disabled' : ''}>${SUIT_SYM[x]}<small>${SUIT_NAME[x]}</small>${K(x.toUpperCase())}</button>`).join('')}</div>`;
-    return `<div class="qp-back"><div class="qp ${pk.cards.length || pk.rank ? '' : 'qp-in'}" role="dialog" aria-label="Tes cartes">
-      <div class="qp-head"><b>Tes cartes</b><span class="muted">tu es ${seatPositions(qg.n, qg.btn)[0]}</span>
+    const mineSmall = board && qg.cards ? `<span class="qp-mine">${qg.cards.map((c) => cardHtml(c, 'xs')).join('')}${(qg.board || []).length ? '<i>·</i>' + qg.board.map((c) => cardHtml(c, 'xs')).join('') : ''}</span>` : '';
+    return `<div class="qp-back"><div class="qp ${pk.cards.length || pk.rank ? '' : 'qp-in'}" role="dialog" aria-label="${board ? street : 'Tes cartes'}">
+      <div class="qp-head"><b>${board ? (need === 3 ? 'Le flop' : street === 'Turn' ? 'La turn' : 'La river') : 'Tes cartes'}</b><span class="muted">${board ? '' : 'tu es ' + seatPositions(qg.n, qg.btn)[0]}</span>${mineSmall}
         <button class="link-btn" data-a="qp-close">Passer ${K('Échap')}</button></div>
       <div class="slots qp-slots">${slots}</div>
       ${body}
@@ -1123,7 +1135,7 @@
         <span class="hint pc-only">Au clavier : <kbd>9</kbd> puis <kbd>P</kbd> = 9♠ (<kbd>T</kbd> = 10)</span></div>
     </div></div>`;
   }
-  const openCardPop = () => { ui.qgPick = { cards: [], rank: null }; };
+  const openCardPop = () => { ui.qgPick = { kind: 'hand', need: 2, cards: [], rank: null }; };
 
   // Deux cartes qui représentent une main du tableau (pour l'algorithme : les couleurs exactes ne comptent pas ici)
   function classCards(cls) {
@@ -1177,6 +1189,151 @@
   }
   // La ligne qui décide pour cette main (la dernière décision à prendre)
   const decisive = (L) => L.lines.find((l) => l.dec) || L.lines[0];
+
+
+  /* ---- partie rapide : après le flop (facultatif). Rien n'est saisi en jetons : pot et mises sont estimés */
+  // ordre de parole après le flop : les blindes d'abord, le bouton en dernier
+  const POST_ORDER = (n) => (n === 2 ? ['BB', 'BTN'] : ['SB', 'BB'].concat(E.POSITIONS[n].filter((x) => x !== 'SB' && x !== 'BB')));
+  const QP_ACT = { b: 'Mise', B: 'Grosse mise / tapis', c: 'Suit', x: 'Relance' };
+  const QP_VERB = { b: 'mise', B: 'mise gros (ou tapis)', c: 'suit', x: 'relance' };
+  const STREET_NAME = (len) => (len <= 3 ? 'flop' : len === 4 ? 'turn' : 'river');
+  const NEXT_STREET = (len) => (len === 0 ? 'Flop' : len === 3 ? 'Turn' : len === 4 ? 'River' : null);
+  const STREET_NO = (len) => (len <= 3 ? 1 : len === 4 ? 2 : 3);
+
+  // Avant le flop : niveau de mise (relance ≈ 3 BB, grosse ≈ 5,5 BB, sur-relance ×3) et pot estimé
+  function prePot() {
+    const A = qgActs();
+    let level = 20;
+    const step = (k) => {
+      const a = A.acts[k];
+      if (a === 'r') level = Math.max(level, 60); else if (a === 'R') level = Math.max(level, 110); else if (a === 'x') level = Math.round(level * 3);
+    };
+    A.ks.filter((k) => A.ord(k) < A.me).forEach(step);
+    if (A.my && (A.my.action === 'raise' || A.my.action === 'allin')) level = Math.max(level, A.my.to || level * 3);
+    A.ks.filter((k) => A.ord(k) > A.me).forEach(step);
+    const meIn = !A.my || A.my.action !== 'fold';
+    return { A, level, pot: level * (Math.max(1, A.ks.length) + (meIn ? 1 : 0)) + 10 };
+  }
+
+  // Les adversaires encore dans le coup : ceux touchés avant le flop (ou après), corrigé par − / +
+  function postOpps(A, level) {
+    const P = A.P, n = qg.n, sm = qg.smarks || {};
+    const seen = new Set((qg.seenPost || []).concat(Object.keys(sm).filter((k) => sm[k]).map(Number)));
+    let ids = A.ks.slice();
+    seen.forEach((k) => { if (k !== 0 && !ids.includes(k)) ids.push(k); });
+    const want = qg.opp != null ? qg.opp : Math.max(1, ids.length);
+    const prio = (k) => (seen.has(k) ? 2 : 0) + ('rRx'.includes(A.acts[k] || '-') ? 1 : 0);
+    ids = ids.sort((a, b) => prio(b) - prio(a)).slice(0, want);
+    const st = PROF.stats(null);
+    const past = (k) => (qg.past || []).filter((x) => x.acts[k]).map((x) => (x.acts[k] === 'c' ? { street: x.street, kind: 'call' }
+      : { street: x.street, kind: x.acts[k] === 'x' ? 'raise' : 'bet', frac: x.acts[k] === 'B' ? 1 : 0.5 }));
+    const model = (k, generic) => {
+      const pa = generic ? null : A.acts[k];
+      const act = pa === 'r' || pa === 'R' ? { raised: true, raiseOver: false, reraiseCount: 0, openKey: ODDS.openRangeKey(P[k], n) }
+        : pa === 'x' ? { raised: true, raiseOver: true, reraiseCount: 1 } : { called: true, facingRaise: level > 20 };
+      const pf = generic ? null : seatProfile(k);
+      const r = ODDS.playerRange(act, pf ? { vpip: Math.min(0.9, Math.max(0.15, pf.pfr * 2.6)), pfr: pf.pfr } : null);
+      return { seat: generic ? null : k, name: generic ? 'Adversaire' : `Joueur ${k + 1}`, pos: generic ? null : P[k], range: r.range, minus: r.minus,
+        acts: generic ? [] : past(k), bluff: st.bluff, loose: st.loose, mix: st.mix, fold: null, allin: false, bet: 0, stack: 2000 - level, toCall: 0 };
+    };
+    return { list: ids.map((k) => model(k)).concat(Array.from({ length: Math.max(0, want - ids.length) }, () => model(null, true))), ids, want };
+  }
+
+  // Le conseil pour le tour en cours (flop, turn ou river), d'après les clics sur les joueurs ; mis en cache
+  const postCache = new Map();
+  function postPlan() {
+    if (!qg || !qg.on || qg.btn == null || !qg.cards || !qg.board || qg.board.length < 3) return null;
+    const key = JSON.stringify([qg.cards, qg.board, qg.smarks, qg.marks, qg.opp, qg.n, qg.btn, qg.past, qg.pot, qg.stack, qg.seenPost]);
+    if (postCache.has(key)) return postCache.get(key);
+    const pre = prePot(), A = pre.A, P = A.P;
+    const len = qg.board.length, sno = STREET_NO(len);
+    const pot0 = len === 3 ? pre.pot : qg.pot || pre.pot;
+    const stack0 = Math.max(20, len === 3 ? 2000 - pre.level : qg.stack || 2000 - pre.level);
+    const O = postOpps(A, pre.level);
+    const order = POST_ORDER(qg.n), ord = (k) => order.indexOf(P[k]), me = ord(0);
+    const sm = qg.smarks || {};
+    const ks = Object.keys(sm).map(Number).filter((k) => sm[k] && k !== 0 && k < qg.n).sort((a, b) => ord(a) - ord(b));
+    const before = ks.filter((k) => ord(k) < me), after = ks.filter((k) => ord(k) > me);
+    const d = HANDS.describe(qg.cards, qg.board);
+    const handName = d ? HANDS.shortText(d) : '';
+    const inPos = O.ids.every((k) => ord(k) < me) && (O.list.length === O.ids.length || me === order.length - 1);
+    let bet = 0, pot = pot0, myBet = 0;
+    const acts = {}, put = {}, fracs = {};
+    const read = (k) => {
+      const m = sm[k];
+      if (!bet) { const potB = pot; bet = m === 1 ? Math.max(20, Math.round((pot * 0.5) / 10) * 10) : Math.min(Math.round(pot / 10) * 10, stack0); acts[k] = m === 1 ? 'b' : 'B'; pot += bet; put[k] = bet; fracs[k] = bet / potB; }
+      else if (m === 1) { acts[k] = 'c'; pot += bet - (put[k] || 0); put[k] = bet; }
+      else { const to = Math.min(bet * 3, stack0); acts[k] = 'x'; pot += to - (put[k] || 0); put[k] = to; bet = to; }
+    };
+    const oppsNow = () => O.list.map((o) => {
+      const a = o.seat != null ? acts[o.seat] : null;
+      const cur = !a ? [] : a === 'c' ? [{ street: sno, kind: 'call' }] : [{ street: sno, kind: a === 'x' ? 'raise' : 'bet', frac: fracs[o.seat] || 0.5 }];
+      const b = o.seat != null ? put[o.seat] || 0 : 0;
+      return Object.assign({}, o, { acts: o.acts.concat(cur), bet: b, toCall: Math.max(0, bet - b) });
+    });
+    const advise = () => ODDS.postflopAdvice({ cards: qg.cards, board: qg.board, pot, toCall: Math.max(0, bet - myBet), myBet, myStack: stack0 - myBet,
+      cb: bet, minRaise: bet ? bet * 2 : 20, unit: 10, inPos, handName, opps: oppsNow() }, 1200);
+    const who = (k) => `Joueur ${k + 1} (${P[k]})`;
+    before.forEach(read);
+    const firstBettor = before.find((k) => acts[k] === 'b' || acts[k] === 'B');
+    const a1 = advise();
+    const lines = [{ label: bet ? before.filter((k) => acts[k] !== 'c').map((k) => `${who(k)} ${QP_VERB[acts[k]]}`).join(', ') : "Personne n'a misé avant toi", a: a1, potBefore: pot }];
+    // ma décision, puis ceux qui parlent après moi
+    let myBets = false;
+    if (a1.action === 'bet' || a1.action === 'raise' || a1.action === 'allin') { myBets = true; const to = a1.action === 'allin' ? stack0 : a1.to; pot += to - myBet; myBet = to; bet = Math.max(bet, to); }
+    else if (a1.action === 'call') { pot += bet - myBet; myBet = bet; }
+    if (a1.action !== 'fold') {
+      const betBefore = bet;
+      after.forEach(read);
+      const raisers = after.filter((k) => acts[k] === 'x' || ((acts[k] === 'b' || acts[k] === 'B') && !betBefore));
+      if (raisers.length && a1.action !== 'allin') {
+        const a2 = advise();
+        const lbl = a1.action === 'check' ? `${who(raisers[0])} mise après ton check` : `${raisers.map(who).join(' puis ')} relance par-dessus ${a1.action === 'call' ? 'après toi' : 'ta mise'}`;
+        lines.push({ label: lbl, a: a2, potBefore: pot, dec: true });
+        if (a2.action === 'call') { pot += bet - myBet; myBet = bet; } else if (a2.action === 'raise' || a2.action === 'allin') { const to = a2.action === 'allin' ? stack0 : a2.to; pot += (to - myBet) + (to - bet); myBet = to; }
+      }
+    }
+    // pour les bulles : ce que voudra dire le prochain clic sur ce joueur
+    const betBeforeSeat = (k) => ks.some((j) => ord(j) < ord(k) && ord(j) < me && 'bBx'.includes(acts[j])) || (ord(k) > me && (myBets || ks.some((j) => ord(j) < me && 'bBx'.includes(acts[j])) || ks.some((j) => ord(j) > me && ord(j) < ord(k) && 'bBx'.includes(acts[j]))));
+    // pour la carte suivante : ceux qui restent dans le coup ont payé la dernière mise
+    let endPot = pot;
+    if (a1.action !== 'fold') O.list.forEach((o) => { endPot += Math.max(0, bet - (o.seat != null ? put[o.seat] || 0 : 0)); });
+    const res = { name: handName, eq: a1.eq, lines, acts, street: STREET_NAME(len), opps: O.list.length, endPot, endStack: stack0 - myBet, betBeforeSeat, folded: a1.action === 'fold' };
+    if (postCache.size > 40) postCache.clear();
+    postCache.set(key, res);
+    return res;
+  }
+  // Taille d'une mise en mots (le pot est estimé : on ne donne pas de montant)
+  function betWords(a, potBefore) {
+    if (a.action === 'allin') return 'Tapis';
+    const f = a.to / Math.max(1, potBefore);
+    const opts = [[0.33, '1/3 du pot'], [0.5, 'la moitié du pot'], [0.66, '2/3 du pot'], [1, 'le pot'], [1.5, '1,5 fois le pot']];
+    const best = opts.reduce((x, y) => (Math.abs(y[0] - f) < Math.abs(x[0] - f) ? y : x));
+    return (a.action === 'raise' ? 'Relance' : 'Mise ') + (a.action === 'raise' ? '' : best[1]);
+  }
+  const POST_TXT = { check: 'Check', call: 'Suis', fold: 'Couche-toi' };
+  function postBox() {
+    const pl = postPlan();
+    if (!pl) return '';
+    const txt = (l) => POST_TXT[l.a.action] || betWords(l.a, l.potBefore);
+    const cat = (a) => (a.action === 'fold' ? 'fold' : a.action === 'check' || a.action === 'call' ? 'call' : 'r3');
+    const dec = pl.lines.find((l) => l.dec) || pl.lines[0];
+    return `<div class="size-plan post">
+      <div class="sp-head"><span class="v-hand">${esc((pl.name || '').charAt(0).toUpperCase() + (pl.name || '').slice(1))}</span><span class="muted">au ${pl.street} · tes chances ≈ ${Math.round(pl.eq * 100)} %</span></div>
+      <div class="qg-opp"><span class="muted">Contre</span><div class="stepper">
+        <button data-a="qg-opp" data-d="-1" aria-label="Un adversaire de moins">−</button><b>${pl.opps}</b><button data-a="qg-opp" data-d="1" aria-label="Un adversaire de plus">+</button>
+      </div><span class="muted">adversaire${pl.opps > 1 ? 's' : ''} encore dans le coup</span></div>
+      <ul>${pl.lines.map((l, i) => `<li class="ps-${cat(l.a)} ${l === dec ? 'main' : ''}"><span>${esc(l.label)}</span><b>${txt(l)}</b></li>`).join('')}</ul>
+      ${plain(dec.a.plain, 'qgpost', 'En clair : pourquoi')}
+    </div>`;
+  }
+  // La fenêtre des cartes pour le tableau (flop : 3 cartes, turn et river : 1) ; mes cartes d'abord si je ne les ai pas données
+  function openBoardPop() {
+    const mine = qg.cards && qg.cards.length === 2 && ODDS.handClass(qg.cards[0], qg.cards[1]) === qg.cls;
+    if (!mine) { ui.qgPick = { kind: 'hand', need: 2, cards: [], rank: null, then: 'board' }; return; }
+    ui.qgPick = { kind: 'board', need: (qg.board || []).length === 0 ? 3 : 1, cards: [], rank: null };
+  }
+  const pickUsed = (pk) => new Set(pk.cards.concat(pk.kind === 'board' ? (qg.cards || []).concat(qg.board || []) : []));
 
   // Le plan selon la taille de la relance, calé sur les tailles les plus courantes : on lit la ligne qui correspond
   const SIZE_ROWS = [[0, 3, 60], [3, 6, 100], [6, 15, 200], [15, Infinity, 2000]]; // [de, à (en BB), relance type en jetons]
@@ -2064,6 +2221,14 @@
       if (qgLongOf === qgPress) { qgLongOf = -1; return; } // c'est le relâchement de l'appui long : déjà traité
       if (qg.btn == null) { qgSetBtn(i, false, 'jeton D placé'); openCardPop(); render(); return; }
       if (i === 0) { openCardPop(); render(); return; } // clic sur moi : saisir ou changer mes cartes
+      if ((qg.board || []).length >= 3) {
+        qgPush(`clic sur Joueur ${i + 1} (${STREET_NAME(qg.board.length)})`);
+        qg.smarks = qg.smarks || {};
+        const m2 = ((qg.smarks[i] || 0) + 1) % 3;
+        if (m2) qg.smarks[i] = m2; else delete qg.smarks[i];
+        saveQg(); render();
+        return;
+      }
       qgPush(`clic sur Joueur ${i + 1}`);
       qg.marks = qg.marks || {};
       const m = ((qg.marks[i] || 0) + 1) % 3;
@@ -2086,7 +2251,9 @@
       }
       qg.marks = {};
       qg.btn = (qg.btn + 1) % qg.n; // le jeton D passe au joueur suivant (sens des aiguilles d'une montre)
-      qg.cls = null; qg.cards = null; ui.chart = null; saveQg();
+      qg.cls = null; qg.cards = null; ui.chart = null;
+      qg.board = []; qg.smarks = {}; qg.past = []; qg.pot = null; qg.stack = null; qg.opp = null; qg.seenPost = []; // le tableau s'efface
+      saveQg();
       openCardPop(); render(); // la fenêtre dit déjà « tu es … »
     },
     'qp-rank'(d) { if (ui.qgPick) { ui.qgPick.rank = d.r; render(); } },
@@ -2094,17 +2261,44 @@
       const pk = ui.qgPick;
       if (!pk || !pk.rank) return;
       const c = pk.rank + d.s;
-      if (pk.cards.includes(c)) return;
+      if (pickUsed(pk).has(c)) return;
       pk.cards.push(c); pk.rank = null;
-      if (pk.cards.length === 2) {
+      if (pk.kind === 'board' && pk.cards.length === pk.need) {
+        // nouvelle carte du tableau : le tour précédent est rangé (pot estimé, qui a misé), les clics repartent de zéro
+        qgPush((qg.board || []).length ? 'la ' + (qg.board.length === 3 ? 'turn' : 'river') : 'le flop');
+        const pl = (qg.board || []).length >= 3 ? postPlan() : null;
+        if (pl) {
+          qg.past = (qg.past || []).concat([{ street: STREET_NO(qg.board.length), acts: Object.fromEntries(Object.entries(pl.acts).filter(([k]) => k !== '0')) }]);
+          qg.pot = pl.endPot; qg.stack = pl.endStack;
+          qg.seenPost = [...new Set((qg.seenPost || []).concat(Object.keys(qg.smarks || {}).map(Number)))];
+        }
+        qg.board = (qg.board || []).concat(pk.cards); qg.smarks = {};
+        ui.qgPick = null; saveQg(); render();
+        if (!wide()) { const el = document.querySelector('.size-plan.post'); if (el) el.scrollIntoView({ block: 'center' }); }
+        return;
+      }
+      if (pk.kind !== 'board' && pk.cards.length === 2) {
         qgPush('tes cartes');
         qg.cards = pk.cards.slice(); qg.cls = ODDS.handClass(qg.cards[0], qg.cards[1]);
-        ui.qgPick = null; saveQg(); render();
+        const then = pk.then;
+        ui.qgPick = null;
+        if (then === 'board') openBoardPop();
+        saveQg(); render();
+        if (then === 'board') return;
         // sur téléphone : on montre directement le conseil
         if (!wide()) { const el = document.querySelector('.size-plan'); if (el) el.scrollIntoView({ block: 'center' }); }
         return;
       }
       render();
+    },
+    'qg-board'() { if (!qg || qg.btn == null || (qg.board || []).length >= 5) return; openBoardPop(); render(); },
+    'qg-opp'(d) {
+      const pl = postPlan();
+      const cur = qg.opp != null ? qg.opp : pl ? pl.opps : 1;
+      const nn = Math.max(1, Math.min(qg.n - 1, cur + Number(d.d)));
+      if (nn === cur) return;
+      qgPush("nombre d'adversaires");
+      qg.opp = nn; saveQg(); render();
     },
     'qp-back'() { const pk = ui.qgPick; if (!pk) return; if (pk.rank) pk.rank = null; else pk.cards.pop(); render(); },
     'qp-close'() { ui.qgPick = null; render(); },
@@ -2447,7 +2641,7 @@
         if (k === 'Backspace') return run(handlers['qp-back']);
         if (!pk.rank && RANK_KEYS[key]) return run(() => handlers['qp-rank']({ r: RANK_KEYS[key] }));
         const sk = pk.rank && (SUIT_KEYS[key] || { 1: 'p', 2: 'c', 3: 'k', 4: 't' }[key]);
-        if (sk) return run(() => (pk.cards.includes(pk.rank + sk) ? toast('Cette carte est déjà prise.') : handlers['qp-suit']({ s: sk })));
+        if (sk) return run(() => (pickUsed(pk).has(pk.rank + sk) ? toast('Cette carte est déjà prise.') : handlers['qp-suit']({ s: sk })));
         if (k === 'Enter' || k === ' ') ev.preventDefault(); // pas de main suivante tant que la fenêtre est ouverte
         return;
       }
@@ -2515,7 +2709,7 @@
   // Ne se lance jamais tout seul. Il montre une partie d'exemple, puis remet tout comme avant (rien n'est enregistré).
   const TOUR = (() => {
     const L = (txt) => txt; // textes en clair
-    const ex = { on: true, n: 6, btn: 1, cls: null, cards: null, marks: {}, st: {} }; // D chez Joueur 2 : moi en CO
+    const ex = { on: true, n: 6, btn: 1, cls: null, cards: null, marks: {}, st: {}, board: [], smarks: {}, past: [] }; // D chez Joueur 2 : moi en CO
     const steps = [
       { sel: '.qg-n', title: 'Le nombre de joueurs', set: {},
         text: L("Pour commencer : bouton « Partie rapide » en haut de cette page. Ensuite, règle le nombre de joueurs autour de la table avec − et +. Toi, tu es toujours en bas. En haut à droite : ↶ annule ton dernier geste (Ctrl+Z), la croix rouge arrête la partie rapide.") },
@@ -2535,6 +2729,8 @@
         text: L("Il suit ce que tu as touché : qui a relancé, depuis quelle place, et combien de joueurs ont suivi. Le tableau se colore pour cette situation. « En clair » explique pourquoi.") },
       { sel: '.qg-pt .seat[data-i="4"]', title: 'La mémoire', set: { cls: 'AJs', cards: ['Ap', 'Jp'], st: { 4: { c: 12, r: 6 } } },
         text: L("Au fil des mains, l'appli retient qui relance souvent quand il parle avant toi : « relance souvent » ou « relance peu » s'affiche sous son nom, et le conseil en tient compte. Pense à toucher tous ceux qui relancent.") },
+      { sel: '.pt-center [data-a="qg-board"]', title: 'Le flop (facultatif)', set: { cls: 'AJs', cards: ['Ap', 'Jp'] },
+        text: L("Si tu as le temps : « Flop » ouvre la même fenêtre pour les 3 cartes du milieu, puis « Turn » et « River ». L'appli te dit alors check, mise, suis ou couche-toi ; touche un joueur qui mise (1 fois = mise, 2 fois = grosse mise). Pas le temps ? Ignore-le : rien n'est bloqué.") },
       { sel: '[data-a="qg-next"]', title: 'Main suivante', set: { cls: 'AJs', cards: ['Ap', 'Jp'] },
         text: L("Quand la main est finie : Entrée ou ce bouton. Le jeton D avance, ta place suit, et la fenêtre des cartes revient. Ce rappel se relance avec le « ? » en haut.") },
     ];
