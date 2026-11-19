@@ -16,6 +16,8 @@ L'interrupteur **Manuel | Auto**, en haut à droite, permet de changer de mode �
 
 ## Utilisation (mode Manuel)
 
+Les onglets : **Partie** (la partie en cours), **Mains** (tableaux des mains de départ et partie rapide), **Apprendre**, **Prompt**, **Réglages**.
+
 **Au départ (une fois)**
 
 Les onglets **Mains** et **Apprendre** sont accessibles même sans partie en cours, pour étudier avant de s'asseoir à une table.
@@ -64,7 +66,7 @@ En mode Auto, c'est Claude qui retient le style des joueurs au fil des captures.
 
 **Onglet Mains** : les tableaux des mains de départ (13 × 13) pour chaque place, la défense en grosse blinde et « face à une relance », avec ta main encadrée. Pour les apprendre petit à petit.
 
-**Les joueurs** (plus d'onglet Table) : dans la page Main, touche un joueur (son siège sur la table sur PC, sa ligne dans la liste sur téléphone) pour corriger ses jetons, changer son pseudo, le mettre en pause, lui donner le jeton D pour la prochaine main, dire que c'est toi, ou le faire partir. Pour ajouter quelqu'un, même en pleine main (il jouera à la suivante) : sur PC, le « + » entre deux sièges de la table ; sur téléphone, « + Un joueur arrive » sous la liste. Pendant une main, seul le pseudo se change ; le reste entre deux mains.
+**Les joueurs** (plus d'onglet Table) : dans l'onglet Partie, touche un joueur (son siège sur la table sur PC, sa ligne dans la liste sur téléphone) pour corriger ses jetons, changer son pseudo, le mettre en pause, lui donner le jeton D pour la prochaine main, dire que c'est toi, ou le faire partir. Pour ajouter quelqu'un, même en pleine main (il jouera à la suivante) : sur PC, le « + » entre deux sièges de la table ; sur téléphone, « + Un joueur arrive » sous la liste. Pendant une main, seul le pseudo se change ; le reste entre deux mains.
 **Main trop rapide ?** « ⏭ Passer le tour » (en haut de la main) la passe sans la saisir : le jeton D avance comme sur le site et la main suivante commence ; les jetons reviennent à leur valeur d'avant la main (à corriger en touchant un joueur si besoin) et la main ne compte pas dans les profils. Ctrl+Z annule.
 
 **En cas d'erreur** : « ↶ Annuler » revient en arrière d'une action. « Effacer cette main » efface toute la saisie de la main en cours (ce n'est pas se coucher : pour ça, c'est « Couché »).

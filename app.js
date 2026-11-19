@@ -103,7 +103,7 @@
     positions: "UTG (« under the gun ») parle en premier avant le flop : c'est la place la plus délicate. MP = milieu de table. CO (cut-off) = juste avant le bouton. BTN = joueur avec le jeton D, il parle en dernier après le flop. SB et BB = les blindes : elles parlent en dernier avant le flop, mais en premier après.",
     actions: "Couché : tu abandonnes la main (et ce que tu as déjà misé). Check : tu passes sans miser, possible seulement si personne n'a misé avant toi. Suit : tu mets autant que la mise en cours. Mise / Relance : tu mets plus que les autres (le montant est le total misé sur ce tour). Tapis : tu mets tous tes jetons.",
     instant: "Calculs faits par l'appli, sans IA, en une fraction de seconde. Avant le flop : le tableau des mains de départ (onglet Mains), adapté au relanceur quand on connaît sa façon de jouer. La probabilité de gagner est calculée contre les mains probables de chacun : un joueur qui a relancé a surtout de bonnes mains, et un joueur qui mise après le flop a souvent touché quelque chose. Plus l'appli a vu jouer un joueur, plus l'estimation est juste. « Il faut x % » : la part du pot qu'il faut gagner pour que suivre soit rentable à long terme.",
-    'tab-main': "Main : la partie en cours. Tes cartes, ce que fait chaque joueur, le message à envoyer à Claude et l'aide instantanée. Touche un joueur pour corriger ses jetons, le mettre en pause, le faire partir ou lui donner le jeton D.",
+    'tab-main': "Partie : la partie en cours. Tes cartes, ce que fait chaque joueur, le message à envoyer à Claude et l'aide instantanée. Touche un joueur pour corriger ses jetons, le mettre en pause, le faire partir ou lui donner le jeton D.",
     'tab-charts': "Mains : les tableaux des mains de départ, quoi faire avant le flop selon ta place. À étudier pour progresser.",
     'tab-learn': "Apprendre : toutes les notions du poker expliquées simplement, avec une recherche et un mode « Teste-toi ».",
     'tab-prompt': "Prompt : le texte de départ à coller dans une nouvelle conversation Claude, pour qu'il comprenne les messages de l'appli.",
@@ -383,7 +383,7 @@
     s.anteType = r.anteType || 'chacun';
   }
 
-  /* ---- onglet Main */
+  /* ---- onglet Partie (data-tab="main") */
 
   function viewMain() {
     const h = state.hand;
@@ -451,7 +451,7 @@
     }).join('')}</ol>`;
   }
 
-  /* ---- joueurs : modifier, ajouter (dans la page Main, plus d'onglet Table) */
+  /* ---- joueurs : modifier, ajouter (dans l'onglet Partie, plus d'onglet Table) */
 
   const wide = () => !!(window.matchMedia && window.matchMedia('(min-width: 1000px)').matches); // PC : la table est affichée
 
