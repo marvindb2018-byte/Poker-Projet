@@ -780,6 +780,10 @@
     for (const o of best.slice(1)) {
       if (top - o.ev <= tol && (order.indexOf(o.k) < order.indexOf(pick.k) || (o.k === pick.k && o.add < pick.add))) pick = o;
     }
+    // Une mise qui engage la moitié de ton tapis ou plus : autant mettre tapis, si ça rapporte presque autant
+    // (garder un petit reste ne sert à rien : tu ne pourras plus te coucher, et l'adversaire voit que tu es engagé).
+    const ai = opts.find((o) => o.k === 'allin');
+    if (ai && (pick.k === 'bet' || pick.k === 'raise') && pick.add >= stack * 0.5 && top - ai.ev <= tol * 2) pick = ai;
     return describePostflop(pick, opts, { ctx, eq, pot, toCall, stack, river });
   }
 
