@@ -274,14 +274,48 @@
         "Ta main n'est pas assez bonne pour ta place" + (early ? " : beaucoup de joueurs parlent encore après toi, et l'un d'eux aura souvent mieux" : '') + '. '
         + (ctx.pos === 'SB' ? 'Te coucher ne te coûte que la petite blinde déjà posée.' : 'Te coucher ne te coûte rien.'));
     }
+    // Face à une seule relance plus grosse que la normale (tier : 1 grosse, 2 très grosse, 3 tapis ou énorme)
+    function bigRaise(tier) {
+      const sizeTxt = ['', 'grosse relance (3 à 6 grosses blindes)', 'très grosse relance (6 à 15 grosses blindes)', 'relance énorme ou un tapis'][tier];
+      const allInMe = ctx.cb >= ctx.myStack + ctx.myBet; // sa relance couvre tous mes jetons
+      const deep = stackBB >= 60;
+      if (tier === 1) {
+        if (has(RANGES.threeBet)) return R(ctx.cb * (late ? 2.5 : 3), `${hc} : main premium, sur-relance même face à une grosse relance`, "La relance est grosse, mais ta main est l'une des toutes meilleures : relance par-dessus pour faire grossir le pot.");
+        const callR = parseRange((deep ? '22+, ' : '77+, ') + 'AJs+, KQs, AQo+' + (ctx.pos === 'BB' ? ', ATs, KJs, QJs, JTs' : ''));
+        if (has(callR)) {
+          const smallPair = hc.length === 2 && 'AKQJT98'.indexOf(hc[0]) < 0;
+          return call(`${hc} : assez forte pour payer une ${sizeTxt}`, `C'est une ${sizeTxt} : il a souvent une bonne main. `
+            + (smallPair ? 'Ta petite paire peut faire un brelan et gagner un gros pot : avec beaucoup de jetons derrière, payer reste rentable.' : 'Ta main est assez forte pour payer, pas pour relancer.'));
+        }
+        return fold(`${hc} : trop faible face à une ${sizeTxt}`, `C'est une ${sizeTxt} : il a souvent une bonne main, et la tienne ne suffit pas pour payer aussi cher.`);
+      }
+      if (tier === 2) {
+        if (has(parseRange('KK+'))) return stackBB <= 40 ? allin(`${hc} : la meilleure main, tapis`, `Même face à une ${sizeTxt}, tu as l'une des deux meilleures mains possibles : mets tapis.`)
+          : R(ctx.cb * 2.3, `${hc} : la meilleure main, relance encore`, `Même face à une ${sizeTxt}, tu as l'une des deux meilleures mains possibles : relance encore.`);
+        if (has(parseRange('QQ, JJ, AKs, AKo'))) return call(`${hc} : assez forte pour payer une ${sizeTxt}`, `C'est une ${sizeTxt} : il a souvent une très bonne main. La tienne est assez forte pour payer et voir le flop.`);
+        return fold(`${hc} : trop faible face à une ${sizeTxt}`, `C'est une ${sizeTxt} : il a presque toujours une très bonne main. Seules les meilleures mains (QQ et plus, AK) continuent.`);
+      }
+      // tapis ou relance énorme
+      if (has(parseRange('KK+'))) return allInMe ? call(`${hc} : paie son tapis`, "Il met tapis, mais tu as l'une des deux meilleures mains possibles : paie.")
+        : allin(`${hc} : la meilleure main, tapis`, "Face à une relance énorme, tu as l'une des deux meilleures mains possibles : mets tapis.");
+      if (has(parseRange('QQ, AKs, AKo'))) return call(`${hc} : assez forte pour payer`, `Face à une ${sizeTxt}, seules les toutes meilleures mains continuent : la tienne (QQ ou AK) en fait partie, paie.`);
+      return fold(`${hc} : trop faible face à une ${sizeTxt}`, `Face à une ${sizeTxt}, il a presque toujours une très grosse main. Ne risque pas tes jetons avec moins que QQ ou AK : couche-toi.`);
+    }
+
     // Une relance avant moi. Si on connaît le relanceur : on s'adapte à sa façon de jouer.
     if (ctx.raises === 1) {
-      const big = ctx.cb > bb * 4.5;
       const r = ctx.raiser; // { name, pfr } si on le connaît assez
       const loose = r && r.pfr >= 0.25, tight = r && r.pfr < 0.08;
       const who = r ? r.name + ' relance ' + Math.round(r.pfr * 100) + ' % de ses mains' : '';
       const rare = r ? `${r.name} relance très rarement : quand il le fait, il a souvent une très bonne main.` : '';
       const threeBet = loose ? parseRange('TT+, AQs+, AKo, AQo') : tight ? parseRange('KK+') : RANGES.threeBet;
+      // Taille de la relance, calée sur les tailles les plus courantes : 0 normale (jusqu'à 3 BB), 1 grosse (3 à 6 BB),
+      // 2 très grosse (6 à 15 BB), 3 tapis ou plus de 15 BB. Plus elle est grosse, plus il a une grosse main.
+      const sizeBB = ctx.cb / bb;
+      let tier = sizeBB <= 3 ? 0 : sizeBB <= 6 ? 1 : sizeBB <= 15 ? 2 : 3;
+      if (loose && tier > 0) tier -= 1; // il relance tout : sa grosse relance vaut une relance normale d'un autre
+      else if (tight && tier > 0 && tier < 3) tier += 1; // il relance rarement : sa relance vaut plus
+      if (tier > 0) return bigRaise(tier);
       const callers = ctx.callers || 0; // joueurs qui ont suivi la relance avant moi
       const size = ctx.cb * (late ? 3 : 3.5) + ctx.cb * callers; // plus gros s'il y a déjà des suiveurs (« squeeze »)
       // Sur-relance « bluff » : un As bloque ses meilleures mains, contre une relance tardive, quand je suis bien placé
@@ -301,11 +335,6 @@
       if (tight) {
         if (has(parseRange('TT+, AQs+, AKo, AQo'))) return call(`${hc} : ${who}, c'est peu : sa relance est sérieuse, suis seulement`, rare + ' Ta main est assez bonne pour payer et voir le flop, mais pas pour relancer.');
         return fold(`${hc} : ${who}, c'est peu : sa relance est sérieuse`, rare + ' La tienne ne suffit pas : couche-toi.');
-      }
-      if (big && !loose) {
-        const p0 = 'La relance est grosse, ce qui montre souvent une bonne main.';
-        return has(RANGES.vsBig) ? call(hc + ' : assez forte pour payer une grosse relance', p0 + ' La tienne est assez forte pour payer.')
-          : fold(hc + ' : trop faible face à une grosse relance', p0 + " La tienne n'est pas assez forte pour payer aussi cher.");
       }
       const range = ctx.pos === 'BB' || loose ? RANGES.callBB
         : ctx.pos === 'BTN' ? parseRange('22+, A9s+, KTs+, QTs+, JTs, T9s, 98s, 87s, 76s, AJo+, KQo') // en position : on peut payer plus large

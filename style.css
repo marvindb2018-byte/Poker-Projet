@@ -871,3 +871,15 @@ details.plain > div p + p { margin-top: 6px; }
 .pt-bet { background: rgba(0, 0, 0, .5); border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 3px 8px rgba(0, 0, 0, .4); }
 .pt-bet i { width: 17px; height: 17px; background: radial-gradient(circle, #f3c75e 0 28%, #fff 29% 38%, #c8952e 39% 60%, #fff 61% 68%, #a87a20 69%); box-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
 .pt-pot { background: rgba(0, 0, 0, .45); border: 1px solid rgba(241, 195, 95, .35); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+
+/* ---------- plan selon la taille de la relance (onglet Mains) */
+.size-plan { margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; border: 2px solid rgba(241, 195, 95, .45); background: rgba(241, 195, 95, .06); }
+.sp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 6px; }
+.sp-head .v-hand { font: 800 20px var(--sans); }
+.sp-head .v-hand small { font-size: 1em; }
+.sp-head .muted { font-size: 13px; }
+.size-plan ul { list-style: none; margin: 0; padding: 0; }
+.size-plan li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; margin-top: 4px; background: rgba(0, 0, 0, .2); font-size: 14.5px; }
+.size-plan li b { font-size: 16px; white-space: nowrap; }
+.ps-raise b { color: #6fe0a5; } .ps-r3 b { color: var(--gold); } .ps-call b { color: #9cc4ff; } .ps-fold b { color: #c9d3cd; }
+.ps-raise { border-left: 4px solid #2c8f5c; } .ps-r3 { border-left: 4px solid #b98a2a; } .ps-call { border-left: 4px solid #2b5e9b; } .ps-fold { border-left: 4px solid #4a5a52; }

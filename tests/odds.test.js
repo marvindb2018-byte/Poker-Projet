@@ -90,4 +90,19 @@ for (let i = 0; i < 5000; i++) {
   assert.ok(a.plain && a.plain.length > 30 && a.why, JSON.stringify(ctx) + ' → ' + JSON.stringify(a));
 }
 console.log('✓ conseils avant le flop (avec explication en clair)');
+// taille de la relance : normale (≤ 3 BB), grosse (3-6), très grosse (6-15), tapis (> 15)
+const vsSize = (cards, pos, cb, extra) => adv(Object.assign({ cards, pos, cb, raises: 1, myBet: pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0 }, extra)).action;
+const sizes = [60, 100, 200, 2000];
+assert.deepStrictEqual(sizes.map((cb) => vsSize(['Ac', 'Jk'], 'BTN', cb)), ['call', 'fold', 'fold', 'fold']);
+assert.deepStrictEqual(sizes.map((cb) => vsSize(['7c', '7k'], 'CO', cb)), ['call', 'call', 'fold', 'fold']);
+assert.deepStrictEqual(sizes.map((cb) => vsSize(['Kp', 'Qp'], 'BB', cb)), ['call', 'call', 'fold', 'fold']);
+assert.deepStrictEqual(sizes.map((cb) => vsSize(['Qc', 'Qk'], 'CO', cb)), ['raise', 'raise', 'call', 'call']);
+assert.deepStrictEqual(sizes.map((cb) => vsSize(['Ac', 'Ak'], 'CO', cb)), ['raise', 'raise', 'raise', 'call']);
+// jamais payer un tapis de 100 BB avec une petite paire ou deux figures
+for (const c of [['7c', '7k'], ['Kp', 'Qp'], ['Ac', 'Jk'], ['Tc', 'Tk']]) for (const pos of ['CO', 'BTN', 'BB']) assert.strictEqual(vsSize(c, pos, 2000), 'fold', c + ' ' + pos);
+// contre un joueur qui relance n'importe quoi, on paie plus large (5 BB traité comme une relance normale)
+assert.strictEqual(vsSize(['7c', '7k'], 'CO', 100, { raiser: { name: 'Paul', pfr: 0.4 } }), 'call');
+// contre un joueur très serré, une relance de 5 BB est traitée comme une très grosse
+assert.strictEqual(vsSize(['7c', '7k'], 'CO', 100, { raiser: { name: 'Léa', pfr: 0.04 } }), 'fold');
+console.log('✓ conseils selon la taille de la relance');
 console.log('\nTests probabilités OK');

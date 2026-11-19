@@ -42,15 +42,19 @@ const STYLES = {
   },
   // Relance et mise tout le temps
   maniaque: {
-    pre(x) { const q = pct(x.cards); if (q <= 0.15 || (q <= 0.5 && !x.raisedBefore)) return raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; return q <= 0.6 ? { type: 's' } : { type: 'f' }; },
+    pre(x) { const q = pct(x.cards); if (q <= 0.15 || (q <= 0.5 && !x.raisedBefore)) return Math.random() < 0.12 ? { type: 'AI' } : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; return q <= 0.6 ? { type: 's' } : { type: 'f' }; },
     post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return Math.random() < 0.7 || c.level >= 1 ? bet(x, 0.75) : { type: 'x' }; if (c.level >= 3 || Math.random() < 0.12) return raise(x, 2.5); return c.level >= 1 || c.draw || Math.random() < 0.3 ? { type: 's' } : { type: 'f' }; },
   },
   // L'ami typique : joue beaucoup, suit beaucoup, relance peu, bluffe un peu
   ami: {
-    pre(x) { const q = pct(x.cards); if (q <= 0.08) return raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; if (!x.raisedBefore) return q <= 0.45 ? { type: 's' } : { type: 'f' }; return q <= 0.3 ? { type: 's' } : { type: 'f' }; },
+    pre(x) { const q = pct(x.cards); if (q <= 0.08) return x.h.cb === BB && Math.random() < 0.5 ? openTo(x, 6) : raise(x, 3); if (x.o.toCall === 0) return { type: 'x' }; if (!x.raisedBefore) return q <= 0.45 ? { type: 's' } : { type: 'f' }; return q <= 0.3 ? { type: 's' } : { type: 'f' }; },
     post(x) { const c = conn(x.cards, x.h.board); if (x.o.toCall === 0) return c.level >= 2 || Math.random() < 0.1 ? bet(x, 0.5) : { type: 'x' }; if (c.level >= 4) return raise(x, 2.5); return c.level >= 1 || c.draw || Math.random() < 0.15 ? { type: 's' } : { type: 'f' }; },
   },
 };
+function openTo(x, nbb) {
+  const to = Math.max(x.o.minTo, BB * nbb);
+  return to >= x.o.maxTo ? { type: 'AI' } : { type: 'r', to };
+}
 function raise(x, mult) {
   const to = Math.max(x.o.minTo, Math.round((x.h.cb === 0 ? x.pot * 0.75 : x.h.cb * mult) / 10) * 10, BB * 2.5);
   return to >= x.o.maxTo ? { type: 'AI' } : { type: 'r', to };

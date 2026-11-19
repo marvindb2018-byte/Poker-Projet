@@ -990,17 +990,44 @@
       <div class="ptable qg-pt"><div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
       ${mine ? `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'} pour savoir si tu la joues. Quelqu'un a relancé avant toi ? Choisis « Face à une relance ».</p>`
+        <p class="hint">Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'} : l'appli te dit quoi faire si personne n'a relancé, et selon la taille de la relance s'il y en a une.</p>`
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
   }
 
-  // Verdict pour la main touchée dans le tableau
-  function verdict(v, c, cls) {
-    const label = { raise: 'Relance', r3: 'Sur-relance', call: 'Suis', fold: 'Couche-toi' }[c];
-    const ctx = v === 'vs' ? 'face à une relance' : v === 'BB' ? 'en grosse blinde, face à une relance' : "si personne n'a relancé avant toi";
-    const extra = v === 'BB' && c === 'fold' ? " (si personne n'a relancé : check, c'est gratuit)" : '';
-    return `<div class="verdict v-${c}"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><b>${label}</b><span class="v-ctx">${ctx}${extra}</span></div>`;
+  // Deux cartes qui représentent une main du tableau (pour l'algorithme : les couleurs exactes ne comptent pas ici)
+  function classCards(cls) {
+    if (cls.length === 2) return [cls[0] + 'p', cls[1] + 'c'];
+    return cls[2] === 's' ? [cls[0] + 'p', cls[1] + 'p'] : [cls[0] + 'p', cls[1] + 'c'];
+  }
+
+  // Conseil de l'algorithme (le même que dans l'onglet Partie) pour une main, une place et une relance de cb (blindes 10/20)
+  function chartAdvice(cls, pos, n, raises, cb) {
+    return ODDS.preflopAdvice({ cards: classCards(cls), pos, n, bb: 20, sb: 10, cb, myBet: pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0, myStack: 2000, raises, limpers: 0, callers: 0 });
+  }
+
+  // Le plan selon la taille de la relance, calé sur les tailles les plus courantes : on lit la ligne qui correspond
+  const SIZE_ROWS = [[0, 3, 60], [3, 6, 100], [6, 15, 200], [15, Infinity, 2000]]; // [de, à (en BB), relance type en jetons]
+  function sizePlan(cls, pos, n) {
+    const open = chartAdvice(cls, pos, n, 0, 20);
+    const openTxt = { raise: `Relance à ${String(Math.round((open.to / 20) * 10) / 10).replace('.', ',')} BB`, check: 'Check', fold: 'Couche-toi', allin: 'Tapis', call: 'Suis' }[open.action];
+    const rows = SIZE_ROWS.map(([lo, hi, cb]) => {
+      const a = chartAdvice(cls, pos, n, 1, cb);
+      const txt = { raise: 'Sur-relance', allin: 'Tapis', call: 'Suis', fold: 'Couche-toi', check: 'Check' }[a.action];
+      return { lo, hi, txt, cat: a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : 'fold' };
+    });
+    // lignes voisines avec le même conseil : regroupées
+    const merged = [];
+    rows.forEach((r) => { const last = merged[merged.length - 1]; if (last && last.txt === r.txt) last.hi = r.hi; else merged.push(Object.assign({}, r)); });
+    const first = (E.POSITIONS[n] || E.POSITIONS[6])[0] === pos; // je parle en premier : personne n'a pu relancer avant moi
+    const label = (r) => (r.lo === 0 && r.hi === Infinity ? 'Quelle que soit la relance' : r.lo === 0 ? `Relance jusqu'à ${r.hi} BB` : r.hi === Infinity ? `Relance de plus de ${r.lo} BB, ou tapis` : `Relance de ${r.lo} à ${r.hi} BB`);
+    return `<div class="size-plan">
+      <div class="sp-head"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><span class="muted">en ${pos} · ${first ? 'tu parles en premier, personne ne peut relancer avant toi' : "lis la ligne qui correspond à ce qui s'est passé avant toi"}</span></div>
+      <ul>
+        <li class="ps-${open.action === 'raise' ? 'raise' : open.action === 'fold' ? 'fold' : 'call'}"><span>Personne n'a relancé</span><b>${openTxt}</b></li>
+        ${first ? '' : merged.map((r) => `<li class="ps-${r.cat}"><span>${label(r)}</span><b>${r.txt}</b></li>`).join('')}
+      </ul>
+    </div>`;
   }
 
   function viewCharts() {
@@ -1023,15 +1050,21 @@
       v = k === 'UTG9' ? 'UTG' : k || 'CO';
     }
     const R = ODDS.RANGES;
+    // place pour « Face à une relance » : la mienne si je la connais, sinon la dernière place choisie
+    const vsPos = myPos && myPos !== 'BB' ? myPos : ui.chartPos && ui.chartPos !== 'BB' ? ui.chartPos : 'CO';
+    const vsCat = (pos) => (c) => {
+      const a = chartAdvice(c, pos, n, 1, 60);
+      return a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : 'fold';
+    };
     let cat, legend, text;
     if (v === 'BB') {
-      cat = (c) => (R.threeBet.has(c) ? 'r3' : R.callBB.has(c) ? 'call' : 'fold');
+      cat = vsCat('BB');
       legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
-      text = "En grosse blinde, face à une seule relance (jusqu'à 4,5 grosses blindes) : tu as déjà misé, donc tu peux payer avec beaucoup de mains. Si personne n'a relancé : check (ou relance avec TT+, AQs+, AKo).";
+      text = "En grosse blinde, face à une relance normale (jusqu'à 3 grosses blindes) : tu as déjà misé, donc tu peux payer avec beaucoup de mains. Si personne n'a relancé : check (ou relance avec TT+, AQs+, AKo). Relance plus grosse : touche ta main pour voir le plan selon la taille.";
     } else if (v === 'vs') {
-      cat = (c) => (R.threeBet.has(c) ? 'r3' : R.call.has(c) ? 'call' : 'fold');
+      cat = vsCat(vsPos);
       legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
-      text = "Face à une seule relance, à une autre place que la grosse blinde. Face à une grosse relance (plus de 4,5 grosses blindes) : continue seulement avec 77+, AJs+, KQs, AQo+. Face à deux relances : relance encore avec AA et KK, suis avec QQ et AK, couche le reste.";
+      text = `Face à une relance normale (jusqu'à 3 grosses blindes), ${vsPos === myPos ? 'à ta place' : 'en'} ${vsPos}. Relance plus grosse : touche ta main pour voir le plan selon la taille. Face à deux relances : relance encore avec AA et KK, suis avec QQ et AK, couche le reste.`;
     } else {
       const key = v === 'UTG' && n >= 8 ? 'UTG9' : v;
       const range = R.open[key];
@@ -1045,7 +1078,7 @@
       <h2>Mains de départ</h2>
       ${quick ? '' : '<p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c\'est ce qui fait le plus progresser un débutant.</p>'}
       <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : 'pos:' + k}">${l}</button>`).join('')}</div>
-      ${myClass ? verdict(v, cat(myClass), myClass) : quick && myPos ? '<p class="v-empty">Touche ta main dans le tableau.</p>' : ''}
+      ${myClass ? sizePlan(myClass, quick && myPos ? myPos : v === 'vs' ? vsPos : v, n) : quick && myPos ? '<p class="v-empty">Touche ta main dans le tableau.</p>' : ''}
       <div class="hc-grid">${grid}</div>
       <div class="hc-legend">${legend.map(([c, l]) => `<span><i class="hc ${c}"></i>${l}</span>`).join('')}${myClass ? `<span><i class="hc mine"></i>Ta main (${myClass})</span>` : ''}</div>
       <p class="hint">${text}</p>
@@ -1799,6 +1832,7 @@
     'share-msg'() { share(E.buildMessage(state)); },
     chart(d) {
       ui.chart = d.v;
+      if (d.v !== 'vs') ui.chartPos = d.v;
       render();
       // téléphone (pas de survol) : la bulle de la place touchée s'ouvre, jusqu'au prochain toucher
       if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
