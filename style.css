@@ -1007,3 +1007,21 @@ details.plain > div p + p { margin-top: 6px; }
 .size-plan.past { opacity: .55; }
 .size-plan.past:hover { opacity: .9; }
 .sp-past { font: 700 11.5px var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+
+/* colonne de droite plus compacte (Ta main + Combinaisons tiennent sans défiler) */
+@media (min-width: 1000px) {
+  .side-box { padding: 10px 14px; margin-bottom: 10px; }
+  .side-box h3 { margin: 0 0 6px; font-size: 15px; }
+  .combos li { padding: 4px 8px; }
+  .combos li + li { margin-top: 0; }
+  .combos small { font-size: 11.5px; line-height: 1.25; margin-top: 1px; }
+  .combos .card.xs { width: 19px; height: 26px; }
+  .combos .card.xs b { font-size: 10.5px; }
+  .combos .card.xs i { font-size: 9px; }
+}
+@media (min-width: 1000px) {
+  .combos li { padding: 3px 8px; }
+  .cb-top > b { font-size: 13.5px; }
+  .combos .card.xs { width: 18px; height: 24px; }
+  .side-box h3 { margin-bottom: 4px; }
+}
