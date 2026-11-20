@@ -1335,6 +1335,7 @@
   }
   const pickUsed = (pk) => new Set(pk.cards.concat(pk.kind === 'board' ? (qg.cards || []).concat(qg.board || []) : []));
 
+  const pastFlop = () => !!(qg && qg.on && (qg.board || []).length >= 3);
   // Le plan selon la taille de la relance, calé sur les tailles les plus courantes : on lit la ligne qui correspond
   const SIZE_ROWS = [[0, 3, 60], [3, 6, 100], [6, 15, 200], [15, Infinity, 2000]]; // [de, à (en BB), relance type en jetons]
   function sizePlan(cls, pos, n) {
@@ -1353,13 +1354,13 @@
     const sit = qg && qg.on ? quickSituation(cls) : null;
     if (sit) {
       const { head, lines } = situationLines(cls, pos, n, sit);
-      return `<div class="size-plan sit">
+      return `<div class="size-plan sit ${pastFlop() ? 'past' : ''}">${pastFlop() ? '<div class="sp-past">Avant le flop · le conseil du moment est sous la table</div>' : ''}
       <div class="sp-head"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><span class="muted">en ${pos} · ${esc(head)}</span></div>
       <ul>${lines.map((l, i) => `<li class="ps-${catOf(l.a)} ${i === 0 ? 'main' : ''}"><span>${esc(l.label)}</span><b>${l.again && l.a.action === 'raise' ? 'Relance encore' : l.open && l.a.action === 'raise' ? `Relance à ${String(Math.round((l.a.to / 20) * 10) / 10).replace('.', ',')} BB` : ACT_TXT[l.a.action]}</b></li>`).join('')}</ul>
       ${plain(decisive({ lines }).a.plain, 'qgsit', 'En clair : pourquoi')}
     </div>`;
     }
-    return `<div class="size-plan">
+    return `<div class="size-plan ${pastFlop() ? 'past' : ''}">${pastFlop() ? '<div class="sp-past">Avant le flop · le conseil du moment est sous la table</div>' : ''}
       <div class="sp-head"><span class="v-hand">${cls.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span><span class="muted">en ${pos} · ${first ? 'tu parles en premier, personne ne peut relancer avant toi' : "lis la ligne qui correspond à ce qui s'est passé avant toi"}</span></div>
       <ul>
         <li class="ps-${open.action === 'raise' ? 'raise' : open.action === 'fold' ? 'fold' : 'call'}"><span>Personne n'a relancé</span><b>${openTxt}</b></li>

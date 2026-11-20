@@ -1002,3 +1002,8 @@ details.plain > div p + p { margin-top: 6px; }
 .qp-mine { display: inline-flex; gap: 3px; align-items: center; margin-left: 8px; }
 .qp-mine i { color: var(--muted); font-style: normal; margin: 0 2px; }
 .qp-mine .card.xs { width: 22px; height: 30px; }
+
+/* après le flop, le cadre « avant le flop » passe au second plan */
+.size-plan.past { opacity: .55; }
+.size-plan.past:hover { opacity: .9; }
+.sp-past { font: 700 11.5px var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
