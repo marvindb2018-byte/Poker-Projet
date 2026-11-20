@@ -390,8 +390,8 @@ kbd {
 }
 @media (min-width: 1600px) {
   /* onglet Mains : pas de colonne « raccourcis », la place va à la table et au tableau */
-  body.tab-charts .layout { grid-template-columns: minmax(0, 1fr) 400px; }
-  body.tab-charts .side { display: block; overflow: auto; max-height: calc(100vh - 100px); }
+  body.tab-charts .layout, body.tab-learn .layout { grid-template-columns: minmax(0, 1fr) 400px; }
+  body.tab-charts .side, body.tab-learn .side { display: block; overflow: auto; max-height: calc(100vh - 100px); }
 }
 
 /* ---------- table de poker (PC uniquement) */
@@ -1078,3 +1078,24 @@ details.plain > div p + p { margin-top: 6px; }
 .dr-res.ko { background: rgba(214, 69, 69, .1); border: 1px solid rgba(214, 69, 69, .5); }
 .dr-res b { font-size: 16px; }
 .dr-res p { margin: 6px 0 10px; line-height: 1.5; }
+
+/* ---------- page Apprendre : notions à gauche, entraînement au milieu */
+.learn-play { display: grid; gap: 14px; }
+@media (min-width: 1000px) {
+  .learn-play { grid-template-columns: minmax(400px, 600px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .learn-play .lp-b { order: -1; }
+  .lp-zone { max-width: 640px; margin: 0 auto; }
+  .lp-zone .dr-start { margin-top: 0; }
+  /* Combinaisons : plus aéré sur cette page (il y a la place) */
+  body.tab-learn .combos li { padding: 8px 8px; }
+  body.tab-learn .combos li + li { margin-top: 3px; }
+  body.tab-learn .cb-top > b { font-size: 14.5px; }
+  body.tab-learn .combos small { font-size: 12.5px; line-height: 1.35; margin-top: 3px; }
+  body.tab-learn .combos .card.xs { width: 22px; height: 30px; }
+  body.tab-learn .combos .card.xs b { font-size: 11px; }
+}
+/* page Mains : ton tapis */
+.stk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.stk-chips .chip { padding: 5px 11px; font-size: 13px; }
+.stack-box .hint { margin: 0; font-size: 12.5px; }
+.stack-box .link-btn { font-size: 12.5px; margin-left: 4px; }

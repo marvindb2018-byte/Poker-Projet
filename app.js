@@ -279,6 +279,7 @@
     // en mode Auto, Prompt et Réglages (qui ne servent qu'à la saisie manuelle) sont masqués : on revient sur Partie
     if (mode === 'auto' && (ui.tab === 'prompt' || ui.tab === 'settings')) ui.tab = 'main';
     document.body.classList.toggle('tab-charts', curPage() === 'charts');
+    document.body.classList.toggle('tab-learn', curPage() === 'learn');
     const auto = autoPage();
     document.body.classList.toggle('auto', auto);
     $('undo').disabled = !state || !hist.length;
@@ -304,7 +305,7 @@
     else if (ui.tab === 'charts') html = viewCharts();
     else if (ui.tab === 'learn') html = viewLearn();
     else { ui.tab = 'main'; html = viewMain(); }
-    if (curPage() === 'charts') html = `<div class="wide-page">${html}</div>`; // tableau + table (ou boutons) côte à côte sur PC
+    if (curPage() === 'charts' || curPage() === 'learn') html = `<div class="wide-page">${html}</div>`; // côte à côte sur PC
     else if (!state || ui.tab !== 'main') html = `<div class="narrow">${curPage() === 'main' ? modeBar() : ''}${html}</div>`;
     if (state && ui.tab === 'main') html = modeBar() + html;
     $('view').innerHTML = html;
@@ -970,7 +971,7 @@
       <p class="hint lr-none" hidden>Aucune notion ne correspond.</p>
     </section>`;
     if (ui.quiz) out += quizCard();
-    out += ui.drill ? drillCard() : `<button class="btn quick-btn wide dr-start" data-a="drill-start">🎯 Entraînement : les mains de départ
+    const drillHtml = ui.drill ? drillCard() : `<button class="btn quick-btn wide dr-start" data-a="drill-start">🎯 Entraînement : les mains de départ
       <small>une main, une place, une situation : tu décides, l'appli corrige${drillStats.n ? ` · ${drillStats.ok} / ${drillStats.n} jusqu'ici` : ''}</small></button>`;
     LEARN.SECTIONS.forEach((sec) => {
       const known = sec.items.filter((it) => learned.has(it.id)).length;
@@ -985,7 +986,8 @@
         <ul class="lr-list">${sec.items.map(learnItem).join('')}</ul>
       </details>`;
     });
-    return out;
+    // comme la page Mains : les notions à gauche, l'entraînement au milieu
+    return `<div class="learn-play"><div class="lp-a"><div class="lp-zone">${drillHtml}</div></div><div class="lp-b">${out}</div></div>`;
   }
 
   // Filtre sans redessiner (pour garder le curseur dans la recherche)
@@ -1203,7 +1205,8 @@
 
   // Conseil de l'algorithme (le même que dans l'onglet Partie) pour une main, une place et une relance de cb (blindes 10/20)
   function chartAdvice(cls, pos, n, raises, cb, extra) {
-    return ODDS.preflopAdvice(Object.assign({ cards: classCards(cls), pos, n, bb: 20, sb: 10, cb, myBet: pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0, myStack: 2000, raises, limpers: 0, callers: 0 }, extra || {}));
+    const myBet = pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0;
+    return ODDS.preflopAdvice(Object.assign({ cards: classCards(cls), pos, n, bb: 20, sb: 10, cb, myBet, myStack: stackBB() * 20 - myBet, raises, limpers: 0, callers: 0 }, extra || {}));
   }
   const catOf = (a) => (a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : a.action === 'check' ? 'call' : 'fold');
   const ACT_TXT = { raise: 'Sur-relance', allin: 'Tapis', call: 'Suis', fold: 'Couche-toi', check: 'Check' };
@@ -1301,12 +1304,12 @@
   const postCache = new Map();
   function postPlan() {
     if (!qg || !qg.on || qg.btn == null || !qg.cards || !qg.board || qg.board.length < 3) return null;
-    const key = JSON.stringify([qg.cards, qg.board, qg.smarks, qg.marks, qg.opp, qg.n, qg.btn, qg.past, qg.pot, qg.stack, qg.seenPost]);
+    const key = JSON.stringify([qg.cards, qg.board, qg.smarks, qg.marks, qg.opp, qg.n, qg.btn, qg.past, qg.pot, qg.stack, qg.seenPost, stackBB()]);
     if (postCache.has(key)) return postCache.get(key);
     const pre = prePot(), A = pre.A, P = A.P;
     const len = qg.board.length, sno = STREET_NO(len);
     const pot0 = len === 3 ? pre.pot : qg.pot || pre.pot;
-    const stack0 = Math.max(20, len === 3 ? 2000 - pre.level : qg.stack || 2000 - pre.level);
+    const stack0 = Math.max(20, len === 3 ? stackBB() * 20 - pre.level : qg.stack || stackBB() * 20 - pre.level);
     const O = postOpps(A, pre.level);
     const order = POST_ORDER(qg.n), ord = (k) => order.indexOf(P[k]), me = ord(0);
     const sm = qg.smarks || {};
@@ -1468,7 +1471,12 @@
       const range = R.open[key];
       cat = (c) => (range.has(c) ? 'raise' : 'fold');
       legend = [['raise', 'Relance'], ['fold', 'Couche-toi']];
-      text = `Personne n'a relancé avant toi : relance (${String(v === 'CO' || v === 'BTN' ? ODDS.TUNE.openLate : ODDS.TUNE.openEarly).replace('.', ',')} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
+      if (stackBB() <= 25) {
+        cat = (c) => { const a = chartAdvice(c, v, n, 0, 20); return a.action === 'allin' ? 'r3' : a.action === 'raise' ? 'raise' : 'fold'; };
+        legend = [['r3', 'Tapis'], ['raise', 'Relance'], ['fold', 'Couche-toi']];
+        text = `Il te reste ${stackBB()} grosses blindes et personne n'a relancé avant toi : avec un petit tapis, on met tapis avec les mains en doré, et on se couche avec les autres. Tapis plus grand ? Change-le à droite (« Ton tapis »).`;
+      }
+      if (stackBB() > 25) text = `Personne n'a relancé avant toi : relance (${String(v === 'CO' || v === 'BTN' ? ODDS.TUNE.openLate : ODDS.TUNE.openEarly).replace('.', ',')} grosses blindes, plus 1 par joueur qui a seulement suivi) avec les mains en vert, couche-toi avec les autres. Soit ${ODDS.pct(range)} % des mains${key === 'UTG9' ? ' (tableau plus serré à 8 joueurs et plus)' : ''}.`;
     }
     if (sit) {
       // les couleurs suivent ce qui s'est passé à la table (le joueur touché, sa place, la taille de sa relance)
@@ -1600,13 +1608,28 @@
 
   /* ---- colonne de droite (PC) : ma main, combinaisons, raccourcis */
 
+  // Ton tapis en grosses blindes (facultatif) : pas indiqué = 100, rien ne change
+  const SKEY = 'pokercode:stackbb';
+  let myStackBB = Number(store.get(SKEY)) || null;
+  const STACK_CHIPS = [8, 10, 12, 15, 20, 25, 40, 100];
+  const stackBB = () => (curPage() === 'charts' && myStackBB ? myStackBB : 100);
+  function stackBox() {
+    const v = myStackBB;
+    return `<section class="side-box stack-box"><h3>Ton tapis <small>facultatif · en grosses blindes</small></h3>
+      <div class="stk-chips">${STACK_CHIPS.map((x) => `<button class="chip ${v === x ? 'on' : ''}" data-a="stk" data-v="${x}">${x === 100 ? '100+' : x}</button>`).join('')}</div>
+      <p class="hint">${!v ? "Pas indiqué : l'appli compte 100 grosses blindes, comme en début de partie. Indique-le quand il te reste peu de jetons."
+        : v <= 25 ? `Il te reste ${v} grosses blindes : petit tapis, l'appli conseille « tapis ou couché ». <button class="link-btn" data-a="stk" data-v="0">Effacer</button>`
+          : `${v === 100 ? '100 grosses blindes ou plus' : v + ' grosses blindes'} : conseils habituels. <button class="link-btn" data-a="stk" data-v="0">Effacer</button>`}</p>
+    </section>`;
+  }
+
   function viewSide() {
     if (autoPage()) return viewSideAuto();
     const h = state && state.hand;
     const cur = h && h.cards.length === 2 ? HANDS.describe(h.cards, h.board) : null;
-    // page Apprendre : pas de « Ta main » (rien à y afficher)
-    const showHand = curPage() !== 'learn';
-    let out = `<div class="side-a">${showHand ? `<section class="side-box"><h3>Ta main ${tip('hand')}</h3>` : ''}`;
+    // pages Apprendre et Mains : pas de « Ta main » ; sur Mains, le réglage « Ton tapis » à la place
+    const showHand = curPage() !== 'learn' && curPage() !== 'charts';
+    let out = `<div class="side-a">${curPage() === 'charts' ? stackBox() : ''}${showHand ? `<section class="side-box"><h3>Ta main ${tip('hand')}</h3>` : ''}`;
     if (!showHand) { /* rien */ } else if (cur) {
       const mineSet = new Set(h.cards);
       const show = (c, cls) => `<span class="${cls}${mineSet.has(c) ? ' from-me' : ''}">${cardHtml(c, 'sm')}</span>`;
@@ -1631,7 +1654,7 @@
     out += '</ol></section></div>';
 
     // onglet Mains : pas de raccourcis (la place va à la table et au tableau)
-    if (curPage() !== 'charts') out += `<div class="side-b"><section class="side-box keys">
+    if (curPage() !== 'charts' && curPage() !== 'learn') out += `<div class="side-b"><section class="side-box keys">
       <h3>Raccourcis clavier</h3>
       <p class="hint">Les mêmes lettres que dans les messages pour Claude.</p>
       <dl>
@@ -2365,6 +2388,12 @@
       if (qg && qg.on) { qgPush('ta main'); qg.cls = qg.cls === d.c ? null : d.c; qg.cards = null; saveQg(); }
       else ui.chartHand = ui.chartHand === d.c ? null : d.c;
       render();
+    },
+    stk(d) {
+      const v = Number(d.v) || null;
+      myStackBB = myStackBB === v ? null : v;
+      if (myStackBB) store.set(SKEY, String(myStackBB)); else store.del(SKEY);
+      postCache.clear(); render();
     },
     'drill-start'() { ui.drill = newDrill(); render(); },
     'drill-stop'() { ui.drill = null; render(); },
