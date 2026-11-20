@@ -139,6 +139,22 @@
       ],
     },
     {
+      id: 'bluffs', title: 'Le bluff : quand et comment',
+      intro: "Bluffer, c'est miser avec une main faible pour faire coucher une meilleure. Bien utilisé, c'est rentable ; mal utilisé, c'est la façon la plus rapide de perdre ses jetons. Les règles simples ci-dessous suffisent pour une partie entre amis.",
+      items: [
+        { id: 'bl-pourquoi', t: 'Pourquoi bluffer un peu', d: "Si tu ne bluffes jamais, les autres le remarquent : ils se couchent dès que tu mises, et tes bonnes mains ne rapportent plus rien. Quelques bluffs bien choisis rendent tes mises crédibles, et on paie plus souvent tes vraies mains." },
+        { id: 'bl-qui', t: 'Contre qui bluffer', d: "Contre un seul adversaire, et de préférence un joueur qui se couche souvent face à une mise (3e chiffre de son profil élevé, ou un joueur « serré »). Jamais contre un « payeur » qui suit tout : contre lui, mise seulement tes bonnes mains, il les paiera.", ex: "Paul se couche 60 % des fois face à une mise : bon candidat. Léa paie tout : on ne la bluffe pas." },
+        { id: 'bl-plusieurs', t: 'Pas contre plusieurs joueurs', d: "Plus il y a de joueurs dans le coup, plus il y a de chances que l'un d'eux ait quelque chose et paie. À trois joueurs ou plus, on ne bluffe (presque) pas." },
+        { id: 'bl-cbet', t: 'Le bluff le plus simple : la mise de continuation', a: 'c-bet', d: "Tu as relancé avant le flop, et tu mises au flop même si tu n'as rien touché. Ça marche souvent contre un seul adversaire : lui non plus n'a souvent rien touché, et ta relance d'avant le flop rend ta mise crédible. Une mise du tiers à la moitié du pot suffit.", ex: "Tu relances avec A-K, un joueur suit. Flop 9-6-2 : tu n'as rien, mais une mise de la moitié du pot le fait souvent coucher." },
+        { id: 'bl-histoire', t: 'Raconter une histoire crédible', d: "Ton bluff doit correspondre à une main que tu pourrais vraiment avoir. Un As qui tombe au flop après ta relance avant le flop fait peur (tu pourrais avoir A-K) ; une troisième carte de la même couleur aussi. Si ton histoire ne tient pas, il paiera." },
+        { id: 'bl-tirage', t: 'Le meilleur bluff : avec un tirage', d: "Bluffe de préférence avec un tirage (couleur, quinte) : c'est le semi-bluff. S'il se couche, tu gagnes tout de suite ; s'il paie, tu peux encore toucher ta carte et gagner. Avec rien du tout, si on te paie, c'est perdu." },
+        { id: 'bl-taille', t: 'Combien miser pour bluffer', d: "La même taille que quand tu as une vraie main, sinon les autres te liront. La moitié à deux tiers du pot suffit en général : miser énorme risque beaucoup pour le même résultat." },
+        { id: 'bl-seuil', t: "Combien de fois un bluff doit marcher", d: "Une mise de la moitié du pot doit faire coucher l'adversaire au moins 1 fois sur 3 pour être rentable ; une mise du pot, 1 fois sur 2. C'est ce que l'appli calcule quand elle te conseille un bluff : elle estime à quelle fréquence l'adversaire se couche, d'après sa main probable et son profil.", ex: "Pot de 300, tu mises 150 : tu risques 150 pour gagner 300. Il suffit qu'il se couche une fois sur trois." },
+        { id: 'bl-abandon', t: 'Savoir abandonner', d: "Si on paie ton bluff au flop et que la carte suivante ne t'aide pas, n'insiste pas : un joueur qui a payé une fois a souvent quelque chose. Un bluff, parfois deux, jamais trois de suite contre le même joueur." },
+        { id: 'bl-erreurs', t: 'Les erreurs du débutant', d: "Bluffer un payeur. Bluffer à plusieurs. Bluffer à la river après avoir été payé deux fois. Bluffer avec une main moyenne qui peut gagner sans miser (une petite paire) : là, mieux vaut checker et voir. Et montrer ses bluffs pour frimer : les autres paieront plus souvent ensuite." },
+      ],
+    },
+    {
       id: 'messages', title: 'Les messages pour Claude',
       intro: "Le code des messages que l'appli prépare. Tu n'as pas besoin de les écrire, mais les comprendre aide à suivre les réponses de Claude.",
       items: [
