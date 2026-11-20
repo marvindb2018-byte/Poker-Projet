@@ -1036,3 +1036,24 @@ details.plain > div p + p { margin-top: 6px; }
   .combos .card.xs { width: 20px; height: 27px; }
   .combos .card.xs b { font-size: 10.5px; }
 }
+
+/* ---------- mise en évidence au survol de la souris (ordinateur seulement) */
+@media (hover: hover) and (pointer: fine) {
+  .btn, .chip, .rk, .su, .stepper button, .nav button, .link-btn, .undo, .mode-switch button, .qg-street, .qg-undo, .qg-x, .tour-btn, .hc[data-a], .seat-box {
+    transition: background-color .12s, border-color .12s, color .12s, box-shadow .12s, transform .12s, filter .12s;
+  }
+  .btn:not(:disabled):hover { filter: brightness(1.12); box-shadow: 0 0 0 2px rgba(241, 195, 95, .55); transform: translateY(-1px); }
+  .btn.primary:not(:disabled):hover { box-shadow: 0 0 0 3px rgba(60, 196, 127, .45), 0 6px 16px rgba(0, 0, 0, .35); }
+  .chip:not(.on):hover { border-color: var(--gold); color: var(--gold); background: rgba(241, 195, 95, .08); }
+  .chip.on:hover { filter: brightness(1.1); }
+  .rk:not(:disabled):not(.on):hover { border-color: var(--gold); background: rgba(241, 195, 95, .12); color: var(--gold); }
+  .su:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 0 0 3px var(--gold), 0 4px 0 rgba(0, 0, 0, .35); }
+  .stepper button:not(:disabled):hover { background: rgba(241, 195, 95, .14); color: var(--gold); border-radius: 10px; }
+  .nav button:not(.on):hover { color: var(--text); background: rgba(255, 255, 255, .06); }
+  .link-btn:hover { color: var(--gold); }
+  .undo:not(:disabled):hover, .mode-switch button:not(.on):hover { color: var(--gold); border-color: var(--gold); }
+  .hc[data-a]:hover { filter: brightness(1.3); box-shadow: inset 0 0 0 2px rgba(241, 195, 95, .8); }
+  .qg-pt .seat:hover .seat-box, .seat[data-a]:hover .seat-box { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(241, 195, 95, .3), 0 6px 14px rgba(0, 0, 0, .45); }
+  .qg-x:hover { transform: scale(1.08); }
+  .qg-undo:not(:disabled):hover, .qg-street:hover, .tour-btn:hover { transform: scale(1.06); }
+}
