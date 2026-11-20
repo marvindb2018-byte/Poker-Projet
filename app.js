@@ -1033,8 +1033,7 @@
       <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
       ${mine ? `${postOn ? (post ? postBox() : '<p class="q-me-txt">Donne tes cartes (clic sur toi) pour le conseil après le flop.</p>') : `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>`}
         <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
-        <p class="hint">${postOn ? `Au ${STREET_NAME(bd.length)} : touche un joueur qui mise (1 fois = mise, 2 fois = grosse mise ou tapis) ; après une mise, la tienne comprise, 1 fois = il suit, 2 fois = il relance. Le pot est estimé, sans montants.` : ''}
-        ${postOn ? '' : `Touche ta main dans le tableau${wide() ? ' à gauche' : ' en dessous'}. Quelqu'un relance ? Touche-le : 1 fois = relance, 2 fois = grosse relance ou tapis. Ceux qui parlent après une relance (la tienne comprise) : 1 fois = il suit, 2 fois = il relance la relance. 3 fois = annuler. Le jeton D : ${touchUI() ? 'appui long' : 'clic droit'} sur le joueur. Facultatif : « Flop » au milieu de la table pour un conseil après le flop.`}</p>`
+`
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;
   }
