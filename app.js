@@ -1127,7 +1127,7 @@
         <div class="suits">${E.SUITS.map((x) => `<button class="su s-${x}" data-a="qp-suit" data-s="${x}" ${used.has(pk.rank + x) ? 'disabled' : ''}>${SUIT_SYM[x]}<small>${SUIT_NAME[x]}</small>${K(x.toUpperCase())}</button>`).join('')}</div>`;
     const mineSmall = board && qg.cards ? `<span class="qp-mine">${qg.cards.map((c) => cardHtml(c, 'xs')).join('')}${(qg.board || []).length ? '<i>·</i>' + qg.board.map((c) => cardHtml(c, 'xs')).join('') : ''}</span>` : '';
     return `<div class="qp-back"><div class="qp ${pk.cards.length || pk.rank ? '' : 'qp-in'}" role="dialog" aria-label="${board ? street : 'Tes cartes'}">
-      <div class="qp-head"><b>${board ? (need === 3 ? 'Le flop' : street === 'Turn' ? 'La turn' : 'La river') : 'Tes cartes'}</b><span class="muted">${board ? '' : 'tu es ' + seatPositions(qg.n, qg.btn)[0]}</span>${mineSmall}
+      <div class="qp-head"><b>${board ? (need === 3 ? 'Le flop' : street === 'Turn' ? 'La turn' : 'La river') : 'Tes cartes'}</b>${mineSmall}
         <button class="link-btn" data-a="qp-close">Passer ${K('Échap')}</button></div>
       <div class="slots qp-slots">${slots}</div>
       ${body}
