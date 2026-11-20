@@ -1025,3 +1025,14 @@ details.plain > div p + p { margin-top: 6px; }
   .combos .card.xs { width: 18px; height: 24px; }
   .side-box h3 { margin-bottom: 4px; }
 }
+/* un peu moins serré (entre l'ancien et le compact) */
+@media (min-width: 1000px) {
+  .side-box { padding: 12px 15px; margin-bottom: 12px; }
+  .side-box h3 { margin-bottom: 6px; font-size: 15.5px; }
+  .combos li { padding: 5px 8px; }
+  .combos li + li { margin-top: 1px; }
+  .cb-top > b { font-size: 14px; }
+  .combos small { font-size: 12px; line-height: 1.3; margin-top: 2px; }
+  .combos .card.xs { width: 20px; height: 27px; }
+  .combos .card.xs b { font-size: 10.5px; }
+}
