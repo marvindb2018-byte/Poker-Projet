@@ -1057,3 +1057,24 @@ details.plain > div p + p { margin-top: 6px; }
   .qg-x:hover { transform: scale(1.08); }
   .qg-undo:not(:disabled):hover, .qg-street:hover, .tour-btn:hover { transform: scale(1.06); }
 }
+
+/* ---------- entraînement aux mains de départ (page Apprendre) */
+.dr-start { margin: 0 0 14px; }
+.drill .dr-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.drill .dr-top .muted { font-size: 13px; margin-left: auto; }
+.drill .dr-top .link-btn { margin: 0; }
+.dr-q { display: flex; align-items: center; gap: 18px; margin: 12px 0; }
+.dr-cards { display: flex; gap: 6px; }
+.dr-pos { font-size: 18px; }
+.dr-pos b { color: var(--gold); font-size: 22px; }
+.dr-sit { margin-top: 4px; font-size: 15px; }
+.dr-btns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.dr-btns .btn { min-height: 48px; font-size: 16px; }
+.dr-btns .btn.dr-good { background: rgba(60, 196, 127, .25); border-color: var(--accent); color: #fff; opacity: 1; }
+.dr-btns .btn.dr-bad { background: rgba(214, 69, 69, .25); border-color: #d64545; color: #fff; opacity: 1; }
+.dr-btns .btn.dr-off { opacity: .35; }
+.dr-res { margin-top: 12px; padding: 10px 12px; border-radius: 10px; }
+.dr-res.ok { background: rgba(60, 196, 127, .1); border: 1px solid rgba(60, 196, 127, .5); }
+.dr-res.ko { background: rgba(214, 69, 69, .1); border: 1px solid rgba(214, 69, 69, .5); }
+.dr-res b { font-size: 16px; }
+.dr-res p { margin: 6px 0 10px; line-height: 1.5; }

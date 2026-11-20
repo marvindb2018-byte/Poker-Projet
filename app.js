@@ -900,6 +900,63 @@
     return { id: list[Math.floor(Math.random() * list.length)].id, shown: false };
   }
 
+  /* ---- Entraînement aux mains de départ (page Apprendre) : une main, une place, une situation ; tu réponds, l'appli corrige */
+  const DKEY = 'pokercode:drill';
+  let drillStats = (() => { try { return JSON.parse(store.get(DKEY)) || null; } catch (e) { return null; } })() || { n: 0, ok: 0, streak: 0, best: 0 };
+  const DR_POS = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+  function newDrill() {
+    const pos = DR_POS[Math.floor(Math.random() * 6)];
+    const before = DR_POS.slice(0, DR_POS.indexOf(pos)).filter((x) => x !== 'SB' || pos === 'BB');
+    const r = Math.random();
+    const kind = !before.length || r < 0.5 ? 'none' : r < 0.85 ? 'r' : 'R';
+    const raiserPos = kind === 'none' ? null : before[Math.floor(Math.random() * before.length)];
+    let cls, adv;
+    for (let t = 0; t < 30; t++) {
+      // une main au hasard (comme à table), mais moins de mains qu'on jette sans réfléchir
+      const all = ODDS.HAND_RANK;
+      let c = all[Math.floor(Math.random() * all.length)];
+      const w = c.length === 2 ? 6 : c[2] === 's' ? 4 : 12;
+      if (Math.random() > w / 12) continue;
+      const a = chartAdvice(c, pos, 6, kind === 'none' ? 0 : 1, kind === 'none' ? 20 : kind === 'r' ? 60 : 100, { raiserPos });
+      if (a.action === 'fold' && ODDS.rankPct(c) > 0.55 && Math.random() < 0.65) continue;
+      cls = c; adv = a; break;
+    }
+    if (!cls) { cls = 'AJo'; adv = chartAdvice(cls, pos, 6, kind === 'none' ? 0 : 1, kind === 'none' ? 20 : kind === 'r' ? 60 : 100, { raiserPos }); }
+    const S = ['p', 'c', 'k', 't'].sort(() => Math.random() - 0.5);
+    const cards = cls.length === 2 || cls[2] === 'o' ? [cls[0] + S[0], cls[1] + S[1]] : [cls[0] + S[0], cls[1] + S[0]];
+    return { pos, kind, raiserPos, cls, cards, adv, answer: null };
+  }
+  const drillGood = (a) => (a.action === 'raise' || a.action === 'allin' ? 'r' : a.action === 'call' ? 's' : a.action === 'check' ? 'x' : 'f');
+  function drillCard() {
+    const d = ui.drill;
+    const st = drillStats;
+    const sit = d.kind === 'none' ? "Personne n'a relancé avant toi."
+      : `Le joueur en ${d.raiserPos} a relancé${d.kind === 'r' ? ' normalement (3 grosses blindes)' : ' gros (5 grosses blindes)'}.`;
+    const opts = d.pos === 'BB' && d.kind === 'none' ? [['x', 'Check', 'X'], ['r', 'Relance', 'R']]
+      : [['r', d.kind === 'none' ? 'Relance' : 'Sur-relance', 'R'], ['s', 'Suis', 'S'], ['f', 'Couche-toi', 'F']];
+    const good = drillGood(d.adv);
+    const goodTxt = good === 'r' ? (d.adv.action === 'allin' ? 'Tapis' : d.kind === 'none' ? `Relance à ${String(Math.round((d.adv.to / 20) * 10) / 10).replace('.', ',')} grosses blindes` : 'Sur-relance') : { s: 'Suis', x: 'Check', f: 'Couche-toi' }[good];
+    const btns = opts.map(([k, l, key]) => {
+      const cls = d.answer ? (k === good ? 'dr-good' : k === d.answer ? 'dr-bad' : 'dr-off') : '';
+      return `<button class="btn ${cls}" data-a="drill-answer" data-k="${k}" ${d.answer ? 'disabled' : ''}>${l} ${K(key)}</button>`;
+    }).join('');
+    const res = !d.answer ? '' : `<div class="dr-res ${d.answer === good ? 'ok' : 'ko'}">
+        <b>${d.answer === good ? '✓ Bonne réponse' : `✗ Pas tout à fait : ici, ${esc(goodTxt)}`}</b>
+        <p>${esc(d.adv.plain || '')}</p>
+        <button class="btn primary" data-a="drill-next">Main suivante ${K('Entrée')}</button>
+      </div>`;
+    const pct = st.n ? Math.round((st.ok / st.n) * 100) : 0;
+    return `<section class="panel drill ${d.answer ? '' : 'todo'}">
+      <div class="dr-top"><div class="mt-label">${d.answer ? 'Entraînement · mains de départ' : 'À faire · que fais-tu ?'}</div>
+        <span class="muted">${st.n ? `${st.ok} / ${st.n} bonnes réponses (${pct} %) · série ${st.streak}${st.best > 1 ? ` · record ${st.best}` : ''}` : 'Table de 6 joueurs'}</span>
+        <button class="link-btn" data-a="drill-stop">Arrêter</button></div>
+      <div class="dr-q"><span class="dr-cards">${d.cards.map((c) => cardHtml(c)).join('')}</span>
+        <div><div class="dr-pos">Tu es <b class="tipped" data-tip="pos:${d.pos}">${d.pos}</b></div><div class="dr-sit">${esc(sit)}</div></div></div>
+      <div class="dr-btns">${btns}</div>
+      ${res}
+    </section>`;
+  }
+
   function viewLearn() {
     const pr = learnProgress();
     let out = `<section class="panel">
@@ -913,6 +970,8 @@
       <p class="hint lr-none" hidden>Aucune notion ne correspond.</p>
     </section>`;
     if (ui.quiz) out += quizCard();
+    out += ui.drill ? drillCard() : `<button class="btn quick-btn wide dr-start" data-a="drill-start">🎯 Entraînement : les mains de départ
+      <small>une main, une place, une situation : tu décides, l'appli corrige${drillStats.n ? ` · ${drillStats.ok} / ${drillStats.n} jusqu'ici` : ''}</small></button>`;
     LEARN.SECTIONS.forEach((sec) => {
       const known = sec.items.filter((it) => learned.has(it.id)).length;
       let combos = '';
@@ -2307,6 +2366,18 @@
       else ui.chartHand = ui.chartHand === d.c ? null : d.c;
       render();
     },
+    'drill-start'() { ui.drill = newDrill(); render(); },
+    'drill-stop'() { ui.drill = null; render(); },
+    'drill-next'() { ui.drill = newDrill(); render(); },
+    'drill-answer'(d) {
+      const dr = ui.drill;
+      if (!dr || dr.answer) return;
+      dr.answer = d.k;
+      const ok = d.k === drillGood(dr.adv);
+      drillStats.n++; if (ok) { drillStats.ok++; drillStats.streak++; drillStats.best = Math.max(drillStats.best, drillStats.streak); } else drillStats.streak = 0;
+      store.set(DKEY, JSON.stringify(drillStats));
+      render();
+    },
     'quiz-start'() { ui.quiz = pickQuiz(null); render(); window.scrollTo(0, 0); },
     'quiz-show'() { if (ui.quiz) { ui.quiz.shown = true; render(); } },
     'quiz-yes'() { if (!ui.quiz) return; learned.add(ui.quiz.id); saveLearned(); ui.quiz = pickQuiz(ui.quiz.id); render(); },
@@ -2631,6 +2702,13 @@
       if (t.tagName === 'BUTTON' && (k === 'Enter' || k === ' ')) return; // le bouton s'en charge
       if (k === ' ' || k.toLowerCase() === 'c') { ev.preventDefault(); shoot(); }
       else if (k === 'Escape' && ui.cropping) { ui.cropping = false; render(); }
+      return;
+    }
+    if (curPage() === 'learn' && ui.drill && !inField && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      const key = k.toLowerCase();
+      if (ui.drill.answer) { if (k === 'Enter' || k === ' ') { ev.preventDefault(); handlers['drill-next'](); } return; }
+      const btn = { r: 'r', s: 's', x: 'x', f: 'f' }[key] && document.querySelector(`[data-a="drill-answer"][data-k="${key}"]`);
+      if (btn) { ev.preventDefault(); handlers['drill-answer']({ k: key }); }
       return;
     }
     if (curPage() === 'charts' && qg && qg.on && qg.btn != null && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
