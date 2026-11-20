@@ -141,4 +141,23 @@ console.log('✓ conseils selon la place du relanceur');
   assert.strictEqual(vsSize(['2p', '2c'], 'BTN', 100, { raiserPos: 'CO', myStack: 1100 }), 'fold');
 }
 console.log('✓ cohérence : plus la relance est grosse, moins de mains jouées');
+// tableaux « tapis ou couché » calculés : proches des tableaux de référence (tête-à-tête, 10 grosses blindes : ~58 % / ~37 %)
+{
+  const p = (set) => O.pct(set);
+  assert.ok(p(O.pfSet('push', 10, 1)) >= 52 && p(O.pfSet('push', 10, 1)) <= 66, 'petite blinde 10 BB');
+  assert.ok(p(O.pfSet('callBB', 10, 1)) >= 30 && p(O.pfSet('callBB', 10, 1)) <= 42, 'grosse blinde 10 BB');
+  assert.ok(p(O.pfSet('push', 10, 5)) >= 9 && p(O.pfSet('push', 10, 5)) <= 18, 'UTG 10 BB (6 joueurs)');
+  for (const S of [5, 8, 10, 12, 15, 20]) for (let k = 1; k < 8; k++) assert.ok(O.pfSet('push', S, k).size >= O.pfSet('push', S, k + 1).size - 2, 'moins de mains quand plus de joueurs parlent après');
+  assert.ok(O.pfSet('push', 5, 2).size > O.pfSet('push', 15, 2).size, 'plus de mains avec un plus petit tapis');
+  const pf = (cards, pos, stack, extra) => O.preflopAdvice(Object.assign({ cards, pos, n: 6, bb: 20, sb: 10, cb: 20, myBet: pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0,
+    myStack: stack * 20 - (pos === 'BB' ? 20 : pos === 'SB' ? 10 : 0), raises: 0, limpers: 0, callers: 0 }, extra || {})).action;
+  assert.strictEqual(pf(['Kp', '9c'], 'SB', 10), 'allin');
+  assert.strictEqual(pf(['7p', '2c'], 'UTG', 10), 'fold');
+  assert.strictEqual(pf(['Ap', '5c'], 'BTN', 10), 'allin');
+  assert.strictEqual(pf(['Ap', '5c'], 'BTN', 40), 'raise');          // tapis confortable : relance normale
+  assert.strictEqual(pf(['Ap', 'Kc'], 'BB', 10), 'check');           // personne n'a relancé : check gratuit
+  assert.strictEqual(pf(['Ap', 'Tc'], 'BB', 10, { raises: 1, cb: 200, raiserPos: 'BTN' }), 'call');
+  assert.strictEqual(pf(['Kp', '8c'], 'BB', 10, { raises: 1, cb: 200, raiserPos: 'UTG' }), 'fold');
+}
+console.log('✓ tableaux « tapis ou couché » calculés');
 console.log('\nTests probabilités OK');

@@ -132,14 +132,15 @@ function play(nHands, styles, hero, seed0, opts) {
   const mr = Math.random;
   const results = [];
   const names = ['Moi'].concat(styles.map((st, i) => st + (i + 1)));
-  const s = E.newGame({ names, meIndex: 0, btnIndex: 0, sb: 10, bb: BB, stack: STACK });
+  const ST = (opts && opts.stack) || STACK; // tapis de départ de chaque main (petits tapis : opts.stack)
+  const s = E.newGame({ names, meIndex: 0, btnIndex: 0, sb: 10, bb: BB, stack: ST });
   let db = { v: 1, p: {}, recent: [] };
   const lookup = (name) => db.p[P.keyFor(name, s.gid)];
   const styleOf = {};
   s.players.forEach((p, i) => { styleOf[p.id] = i === 0 ? null : styles[i - 1]; });
   let won = 0, played = 0, errors = 0;
   for (let n = 0; n < nHands; n++) {
-    s.players.forEach((p) => { p.stack = STACK; });
+    s.players.forEach((p) => { p.stack = ST; });
     if (!E.startHand(s).ok) break;
     const h = s.hand;
     const deck = shuffle(DECK.slice(), rng(seed0 * 100003 + n));

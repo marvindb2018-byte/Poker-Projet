@@ -1618,7 +1618,8 @@
     return `<section class="side-box stack-box"><h3>Ton tapis <small>facultatif · en grosses blindes</small></h3>
       <div class="stk-chips">${STACK_CHIPS.map((x) => `<button class="chip ${v === x ? 'on' : ''}" data-a="stk" data-v="${x}">${x === 100 ? '100+' : x}</button>`).join('')}</div>
       <p class="hint">${!v ? "Pas indiqué : l'appli compte 100 grosses blindes, comme en début de partie. Indique-le quand il te reste peu de jetons."
-        : v <= 25 ? `Il te reste ${v} grosses blindes : petit tapis, l'appli conseille « tapis ou couché ». <button class="link-btn" data-a="stk" data-v="0">Effacer</button>`
+        : v <= 12 ? `Il te reste ${v} grosses blindes : petit tapis, c'est « tapis ou couché » (tableaux calculés). <button class="link-btn" data-a="stk" data-v="0">Effacer</button>`
+        : v <= 25 ? `Il te reste ${v} grosses blindes : relance normale si personne n'a relancé ; face à une relance ou un tapis, c'est tapis ou couché. <button class="link-btn" data-a="stk" data-v="0">Effacer</button>`
           : `${v === 100 ? '100 grosses blindes ou plus' : v + ' grosses blindes'} : conseils habituels. <button class="link-btn" data-a="stk" data-v="0">Effacer</button>`}</p>
     </section>`;
   }

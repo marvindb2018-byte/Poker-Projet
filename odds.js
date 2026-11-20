@@ -196,6 +196,39 @@
     return Math.round((combos / 1326) * 100);
   };
 
+
+  /*
+   * Tableaux « tapis ou couché » des petits tapis, calculés par tools/pushfold.js (équilibre de Nash, en jetons) :
+   * pour chaque tapis (5 à 20 grosses blindes) et chaque nombre k de joueurs qui parlent après celui qui met tapis,
+   * les mains avec lesquelles mettre tapis, et celles avec lesquelles payer (grosse blinde, petite blinde, autres).
+   */
+  const PUSHFOLD = {"stacks":[5,8,10,12,15,20],"push":{"5":["fffffffffffffffffffbff9ffcfff783bc0dc02e008","ffffffffe1fc0fe073830c1830c0840220090028008","fffffc3f81f80ee0630208102080840220090028008","ffffe03e01f00cc0420208102080840220090028008","ffffe03e01b00c80420208102080840200080020008","ffffc03e01a00880420208102000800200080020008","ffe7c03e01a00880420208102000800200080020008","ffe7c03c01200880420208002000800200080020008"],"8":["ffffffffffffdffe7fe3ff9dfce3f603b809802c008","fffffc3f81fc0ff067c21e103080840220090028008","ffffe03f01f80ee0430208102000840200080020008","ffe7e03e01b008c0420208002000800200080020008","fe07c03e01200880420008002000800200080020008","fc07c03c01200880020008002000800200080020000","f807002801200880020008002000800200080000000","f807002801200880020008002000800200000000000"],"10":["ffffffffffffcffe7ff3ff99fcc3e603b009802c008","fffffc3f81fc0fe047c20e103080840220090028008","ffffe83f01f80ee043020c002000800200080020008","fe07c03e013008c0020008002000800200080020008","fc07c03e01200880020008002000800200080020000","f807402801200080020008002000800200000000000","f807002801200080020008002000800000000000000","f006002801200080020008002000800000000000000"],"12":["fffffffffbff4ffa7fe37f98fcc0e60330090028008","fffffc3f81fc0fe047c20e103000840220080020008","ffa7e03f01f808e0430008002000800200080020008","fc07c03e01200880020008002000800200080020000","f807c02801200080020008002000800200080000000","f807002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000"],"15":["fffffffff9fe0ff87fc33f187880e40320090028008","fffff83f81fc0ee043820c003000800200080020008","fe07e03e013008c0020008002000800200080020008","f807c02e01200080020008002000800200080000000","f007002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","f006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000"],"20":["ffffff3ff9fe0ff877c21e103880c40320090028008","ff27f83f01f80ce003000c002000800200080020008","f807c02e01200080020008002000800200080000000","f007002800200080020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020000000000000000000000000"]},"callBB":{"5":["fffffffffffffffa7fc3fe1f30f087023809c02e008","ffffffffe1fc0fe077830e1830c0860230090028008","ffffff3f81fc0fe063830c103080840220090028008","fffffc3f81f80ee063820c103080840220090028008","fffff83f01f80ee043020c103080840220090028008","fffff83f01f80ee043020c102080840220090028008","ffffe83f01f80ee043020c102080840220090020008","ffffe83f01f80ee0430208102080840220080020008"],"8":["fffffffff9fe0fe07f03881820c0860230098028008","ffffe03e01f00c80420208102080840220090028008","fff7c03e01a00880420208102000800200080020008","ff07803801200880420008002000800200080020000","fe07003801200880020008002000800200080020000","fc07002801200880020008002000800200080000000","f807002801200880020008002000800200000000000","f807002801200880020008002000800200000000000"],"10":["ffffffffc1fc0fc07203081820c0840220090028008","ffffc03e01a00c80420208102080840200080020008","ff07c03801200880420008002000800200080020000","fc07002801200880020008002000800200080000000","f807002801200880020008002000800200000000000","f006002801200080020008002000800000000000000","f006002801200080020008002000800000000000000","f006002801200080020008002000000000000000000"],"12":["fffffc3f81f80f80620308182080840220090028008","ffe7c03c01a00880420208102000800200080020000","fc07003801200880020008002000800200080000000","f806002801200080020008002000800000000000000","f006002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000"],"15":["fffff03e01f00e80620208102080840220090020008","fe07803801200880420008002000800200080000000","f806002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000"],"20":["fff7e03e01a00c80420208102080800200080020000","f807002801200880020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006000800200080020008000000000000000000000","e006000800200080020000000000000000000000000","e006000800200080020000000000000000000000000","e006000800200080020000000000000000000000000"]},"callSB":{"5":["","ffffff3f81f80ec0620308182080840220090028008","fffff83e01f00c80620208102080840220090028008","ffffe03e01b00c80420208102080840220090028008","ffffc03e01a00c80420208102080840200080020008","ffffc03e01a00880420208102080800200080020008","ffffc03e01a00880420208102000800200080020008","fff7c03e01a00880420208102000800200080020008"],"8":["","ffffe03e01a00c80420208102080840200080020008","ff87c03c01200880420208002000800200080020000","fe07003801200880420008002000800200080000000","fc07002801200880020008002000800200080000000","f807002801200880020008002000800200000000000","f806002801200080020008002000800200000000000","f806002801200080020008002000800000000000000"],"10":["","ffe7c03c01a00880420208102000800200080020008","fe07803801200880420008002000800200080000000","f807002801200880020008002000800200000000000","f806002801200080020008002000800000000000000","f006002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000"],"12":["","ff87c03c01200880420208002000800200080020000","fc07002801200880020008002000800200000000000","f806002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000","e006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000"],"15":["","fe07803801200880420008002000800200080000000","f806002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000","e006000800200080020000000000000000000000000"],"20":["","f807002801200880020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006000800200080020000000000000000000000000","e006000800200080020000000000000000000000000","e006000800200080020000000000000000000000000","c006000800200080020000000000000000000000000"]},"callFirst":{"5":["fffffffffffffffa7fc3fe1f30f087023809c02e008","ffffff3f81f80ec0620308182080840220090028008","ffffe03e01a00c80420208102080840220080020008","ffffc03c01a00880420208102080800200080020008","ffe7c03c01200880420208102000800200080020008","ffa7c03801200880420208002000800200080020008","ff87803801200880420208002000800200080020000","ff07803801200880420208002000800200080020000"],"8":["fffffffff9fe0fe07f03881820c0860230098028008","ffffe03e01a00c80420208102080840200080020008","ff07803801200880420208002000800200080020000","fc07002801200880020008002000800200080000000","f806002801200880020008002000800200000000000","f806002801200880020008002000800000000000000","f806002801200080020008002000800000000000000","f006002801200080020008002000800000000000000"],"10":["ffffffffc1fc0fc07203081820c0840220090028008","ffe7c03c01a00880420208102000800200080020008","fe07003801200880420008002000800200080000000","f806002801200880020008002000800200000000000","f006002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000","f006002800200080020008002000000000000000000"],"12":["fffffc3f81f80f80620308182080840220090028008","ff87c03c01200880420208002000800200080020000","f807002801200880020008002000800200000000000","f006002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000"],"15":["fffff03e01f00e80620208102080840220090020008","fe07803801200880420008002000800200080000000","f006002801200080020008002000800000000000000","f006002800200080020008002000000000000000000","e006002800200080020008000000000000000000000","e006002800200080020008000000000000000000000","e006000800200080020000000000000000000000000","e006000800200080020000000000000000000000000"],"20":["fff7e03e01a00c80420208102080800200080020000","f807002801200880020008002000800000000000000","e006002800200080020008002000000000000000000","e006000800200080020008000000000000000000000","e006000800200080020000000000000000000000000","e006000800200080020000000000000000000000000","c006000800200080020000000000000000000000000","c006000800200080000000000000000000000000000"]}};
+  const PF_CLASSES = (() => {
+    const R = 'AKQJT98765432', out = [];
+    for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) out.push(i === j ? R[i] + R[j] : i < j ? R[i] + R[j] + 's' : R[j] + R[i] + 'o');
+    return out;
+  })();
+  const pfCache = {};
+  function pfSet(kind, S, k) {
+    const st = PUSHFOLD.stacks.reduce((a, b) => (Math.abs(b - S) < Math.abs(a - S) ? b : a));
+    const kk = Math.max(1, Math.min(8, k));
+    const key = kind + st + ':' + kk;
+    if (pfCache[key]) return pfCache[key];
+    const hex = PUSHFOLD[kind][st][kk - 1] || '';
+    const set = new Set();
+    for (let i = 0; i < PF_CLASSES.length; i++) {
+      const nib = parseInt(hex[i >> 2] || '0', 16);
+      if ((nib >> (3 - (i & 3))) & 1) set.add(PF_CLASSES[i]);
+    }
+    return (pfCache[key] = set);
+  }
+  // ordre de parole avant le flop (comme le moteur) : combien de joueurs parlent après cette place
+  const PF_ORDER = {
+    2: ['BTN', 'BB'], 3: ['BTN', 'SB', 'BB'], 4: ['UTG', 'BTN', 'SB', 'BB'], 5: ['UTG', 'CO', 'BTN', 'SB', 'BB'], 6: ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
+    7: ['UTG', 'UTG+1', 'MP', 'CO', 'BTN', 'SB', 'BB'], 8: ['UTG', 'UTG+1', 'MP', 'MP+1', 'CO', 'BTN', 'SB', 'BB'],
+    9: ['UTG', 'UTG+1', 'UTG+2', 'MP', 'MP+1', 'CO', 'BTN', 'SB', 'BB'], 10: ['UTG', 'UTG+1', 'UTG+2', 'MP', 'MP+1', 'MP+2', 'CO', 'BTN', 'SB', 'BB'],
+  };
+  const behindOf = (pos, n) => { const o = PF_ORDER[n] || PF_ORDER[6]; const i = o.indexOf(pos); return i < 0 ? 3 : o.length - 1 - i; };
   const round5 = (x, unit) => Math.max(unit, Math.round(x / unit) * unit);
 
   /*
@@ -235,19 +268,32 @@
       if (has(RANGES.vs3bet.call)) return call(hc + ' : assez forte pour payer la sur-relance', p0 + '. Ta main est assez bonne pour payer et voir le flop, mais pas pour relancer encore.');
       return fold(hc + ' : pas assez forte face à une sur-relance', p0 + " : en général, ça veut dire une très grosse main. La tienne n'est pas assez forte : abandonne ce que tu as déjà misé, plutôt que d'en perdre plus.");
     }
-    // Tapis court : tapis ou couché
+    // Petit tapis : tableaux « tapis ou couché » calculés (équilibre). Personne n'a relancé : tapis ou couché.
+    const nb = Math.round(stackBB);
+    if (stackBB <= T.pfPush && ctx.raises === 0) {
+      if (ctx.pos === 'BB') return check('petit tapis : check gratuit', `Il te reste ${nb} grosses blindes, mais personne n'a relancé : regarde le flop sans rien payer de plus.`);
+      const k = behindOf(ctx.pos, ctx.n);
+      const set = pfSet('push', stackBB, k);
+      if (has(set)) return allin(`${nb} grosses blindes : tapis avec ${hc} (tableau calculé, ${pct(set)} % des mains en ${ctx.pos})`, `Il te reste ${nb} fois la grosse blinde : à ce niveau, on ne fait plus de petite relance, c'est tapis ou couché. D'après le tableau calculé pour ta place (${k} joueur${k > 1 ? 's' : ''} parle${k > 1 ? 'nt' : ''} après toi), ${hc} est assez forte : mets tapis. Souvent tout le monde se couche et tu prends les blindes ; si on paie, tu as encore de bonnes chances.`);
+      return fold(`${nb} grosses blindes : ${hc} ne fait pas partie des mains à mettre tapis en ${ctx.pos} (${pct(set)} % des mains)`, `Il te reste ${nb} fois la grosse blinde : c'est tapis ou couché, et d'après le tableau calculé pour ta place, ${hc} n'est pas assez forte pour mettre tapis. Garde tes jetons pour une meilleure main ou une meilleure place.`);
+    }
+    // Quelqu'un met tapis (ou une relance qui engage la moitié de mon tapis) et j'ai un petit tapis : payer ou non, d'après le tableau calculé
+    if (ctx.raises === 1 && stackBB <= T.pfCall && ctx.cb >= 0.5 * (ctx.myStack + ctx.myBet) && !ctx.callers) {
+      const k = ctx.raiserPos ? behindOf(ctx.raiserPos, ctx.n) : 3;
+      const kind = ctx.pos === 'BB' ? 'callBB' : ctx.pos === 'SB' && k >= 2 ? 'callSB' : 'callFirst';
+      const set = pfSet(kind, stackBB, k);
+      if (has(set)) return call(`${hc} : paie son tapis (tableau calculé : ${pct(set)} % des mains ici)`, `Il met tapis (ou presque) et il te reste ${nb} grosses blindes. D'après le tableau calculé pour cette situation, ${hc} est assez forte : paie. Avec un petit tapis, celui qui met tapis le fait avec beaucoup de mains.`);
+      return fold(`${hc} : trop faible pour payer son tapis (on paie avec ${pct(set)} % des mains ici)`, `Il met tapis (ou presque) et il te reste ${nb} grosses blindes. D'après le tableau calculé pour cette situation, ${hc} ne suffit pas pour payer : couche-toi.`);
+    }
+    // Tapis court face à une relance normale : tapis ou couché
     if (stackBB <= 12) {
-      const key = openRangeKey(ctx.pos, ctx.n) || 'SB';
-      const pushOk = ctx.raises === 0 ? has(RANGES.open[key]) || has(RANGES.call) : has(RANGES.threeBet) || has(parseRange('TT+, AQs+, AQo+'));
-      const nb = Math.round(stackBB);
-      if (pushOk) return allin(`tapis court (${nb} grosses blindes) : tapis avec ${hc}`, `Il te reste peu de jetons (${nb} fois la grosse blinde). Dans ce cas, on ne fait pas de petite mise : on met tout avec une bonne main, ce qui oblige les autres à risquer gros pour te suivre.`);
-      if (ctx.pos === 'BB' && ctx.raises === 0) return check('tapis court : check gratuit', "Il te reste peu de jetons, mais personne n'a relancé : regarde le flop sans rien payer de plus.");
-      return fold(`tapis court (${nb} grosses blindes) : ${hc} est trop faible`, `Il te reste peu de jetons (${nb} fois la grosse blinde) : garde-les pour une meilleure main, sur laquelle tu pourras tout miser.`);
+      const pushOk = has(RANGES.threeBet) || has(parseRange('TT+, AQs+, AQo+'));
+      if (pushOk) return allin(`tapis court (${nb} grosses blindes) : tapis avec ${hc}`, `Il te reste peu de jetons (${nb} fois la grosse blinde). Face à une relance, on ne paie pas pour jouer après le flop : on met tout avec une bonne main.`);
+      return fold(`tapis court (${nb} grosses blindes) : ${hc} est trop faible`, `Il te reste peu de jetons (${nb} fois la grosse blinde) : face à une relance, garde-les pour une meilleure main, sur laquelle tu pourras tout miser.`);
     }
     const LATE = ['CO', 'BTN', 'SB'];
     // Tapis moyen (12 à 25 grosses blindes) face à une relance : on ne paie pas pour jouer après le flop, c'est tapis ou couché
     if (ctx.raises === 1 && stackBB <= 25 && ctx.pos !== 'BB') {
-      const nb = Math.round(stackBB);
       if (has(parseRange('77+, ATs+, KQs, AJo+'))) return allin(`${nb} grosses blindes face à une relance : tapis avec ${hc}`, `Il te reste ${nb} fois la grosse blinde. Suivre puis jouer après le flop te laisserait trop peu de jetons pour manœuvrer : avec une main comme la tienne, mets tapis tout de suite. Le relanceur se couchera souvent, et s'il paie, tu as de bonnes chances.`);
       return fold(`${nb} grosses blindes face à une relance : ${hc} trop faible`, `Il te reste ${nb} fois la grosse blinde : face à une relance, c'est tapis ou couché, et ta main ne suffit pas pour mettre tapis.`);
     }
@@ -623,6 +669,8 @@
     mPair: 1, mDraw: 1, mAir: 1, sizeK: 0.9, rr: 1, // modèle de l'adversaire : paie avec une paire, un tirage, rien ; effet de la taille ; sur-relance
     openLate: 2.5, openEarly: 3, tbIP: 3, tbOOP: 3.5, // tailles avant le flop (en grosses blindes / en fois la relance)
     foldMarginal: true, // une relance « bluff » qui ne rapporte presque rien : couché
+    pfPush: 12, pfCall: 20, // tableaux « tapis ou couché » calculés : jusqu'à 12 grosses blindes pour mettre tapis en premier (au-dessus, jouer
+                            // normalement rapporte plus en simulation), jusqu'à 20 pour décider de payer un tapis
   };
   const tuneOf = (t) => (t ? Object.assign({}, TUNE, t) : TUNE);
 
@@ -918,7 +966,7 @@
   })();
   const rankPct = (cls) => RANK_PCT[cls];
 
-  const api = { TUNE, score7, equity, equityVs, postflopAdvice, continueProb, rankPct, makeSampler, playerRange, topRange, connect, HAND_RANK, potOdds, handClass, parseRange, RANGES, openRangeKey, preflopAdvice, grid, pct, toInt };
+  const api = { TUNE, PUSHFOLD, pfSet, behindOf, score7, equity, equityVs, postflopAdvice, continueProb, rankPct, makeSampler, playerRange, topRange, connect, HAND_RANK, potOdds, handClass, parseRange, RANGES, openRangeKey, preflopAdvice, grid, pct, toInt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PokerOdds = api;
 })(typeof window !== 'undefined' ? window : globalThis);
