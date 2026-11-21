@@ -168,6 +168,21 @@
       ],
     },
     {
+      id: 'tells', title: 'Lire les adversaires (les « tells »)',
+      intro: "Les petits signes involontaires (gestes, regards, voix, façon de miser) qui trahissent une main forte ou un bluff. Utiles entre amis, mais à manier avec prudence : chaque personne a les siens, et la façon de miser reste un indice bien plus fiable.",
+      items: [
+        { id: 'tl-prudence', t: "D'abord : observer avant de conclure", a: 'baseline', d: "Un signe ne veut rien dire tout seul : certains joueurs tremblent toujours, d'autres parlent tout le temps. Observe chaque pote pendant plusieurs mains pour connaître son comportement habituel, puis repère ce qui change quand il a une grosse main (tu le sauras quand il montre ses cartes). Ne décide jamais sur un seul signe." },
+        { id: 'tl-fort-faible', t: 'Fort = faible, faible = fort', d: "Le grand classique : un joueur qui fait semblant d'être fort (mise théâtrale, jette ses jetons, te fixe, parle de sa main) est souvent faible et veut te faire coucher. Celui qui fait semblant d'être faible (soupire, hausse les épaules, « bon, je suis… ») a souvent une grosse main et veut que tu paies.", ex: "Paul soupire « bon allez, je suis » puis relance : méfie-toi, il a souvent mieux qu'il ne le dit." },
+        { id: 'tl-jetons', t: 'Le regard vers ses jetons', d: "Juste après avoir regardé ses cartes ou le flop, un joueur qui jette un coup d'œil rapide à ses jetons pense souvent déjà à miser : bonne main. Celui qui regarde ailleurs, l'air désintéressé, juste après une carte, cache parfois aussi une bonne main." },
+        { id: 'tl-tremble', t: 'Les mains qui tremblent', d: "Contrairement à ce qu'on croit, des mains qui tremblent au moment de miser trahissent plus souvent l'excitation d'une très grosse main que la peur d'un bluff. Un bluffeur, lui, se fige souvent : il bouge le moins possible." },
+        { id: 'tl-rythme', t: 'Le rythme de la mise', d: "Une mise ou un « je suis » immédiat veut souvent dire une main moyenne ou un tirage (la décision était facile). Une longue hésitation suivie d'une grosse mise est souvent… une grosse main qui joue la comédie. Mais chaque joueur a son rythme : compare à ses habitudes." },
+        { id: 'tl-parole', t: 'Le bavard qui se tait, le silencieux qui parle', d: "Un changement de comportement en cours de main est plus parlant qu'un comportement fixe. Le bavard qui devient soudain silencieux est souvent concentré sur une grosse main… ou tendu par un bluff ; le silencieux qui se met à parler essaie souvent de paraître détendu." },
+        { id: 'tl-cartes', t: 'Revérifier ses cartes', d: "Un joueur qui regarde à nouveau ses cartes quand une couleur possible tombe au tableau vérifie souvent s'il a une carte de cette couleur : il ne l'a généralement pas (sinon il s'en souviendrait)." },
+        { id: 'tl-moi', t: 'Tes propres tells', d: "Les autres te lisent aussi. Le plus simple pour ne rien montrer : toujours le même geste et à peu près le même temps pour miser, qu'importe ta main ; regarde tes cartes une seule fois ; et ne commente jamais ta main pendant le coup." },
+        { id: 'tl-montrer', t: 'Retenir ce qu’ils montrent', d: "À chaque abattage, rappelle-toi comment le joueur s'est comporté pendant le coup. Avec l'appli, tape les cartes montrées (onglet Partie) : elle apprend aussi si ce joueur bluffe, et ton observation des gestes vient compléter ses chiffres." },
+      ],
+    },
+    {
       id: 'messages', title: 'Les messages pour Claude',
       intro: "Le code des messages que l'appli prépare. Tu n'as pas besoin de les écrire, mais les comprendre aide à suivre les réponses de Claude.",
       items: [
