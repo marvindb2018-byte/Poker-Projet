@@ -1462,7 +1462,8 @@
       myPos = h && h.meIn ? h.pos[h.meId] : null;
       myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : ui.chartHand || null;
     }
-    const views = [['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['vs', 'Face à une relance']];
+    // dans l'ordre autour de la table, en partant du bouton
+    const views = [['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['vs', 'Face à une relance']];
     const sit = quick && myPos ? quickSituation() : null;
     let v = sit ? 'vs' : ui.chart;
     if (!v) {
