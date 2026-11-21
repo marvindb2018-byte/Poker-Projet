@@ -198,8 +198,16 @@
     },
   ];
 
+  // Les grandes parties de la page Apprendre, dans l'ordre où apprendre
+  const GROUPS = [
+    { id: 'bases', title: '1. Les bases', intro: 'Pour commencer : le déroulement, les places, les actions, les cartes et les combinaisons.', sections: ['deroule', 'places', 'actions', 'cartes', 'combis'] },
+    { id: 'avance', title: '2. Jouer mieux', intro: 'Les tirages, les calculs, la taille des mises et les styles de joueurs.', sections: ['tirages', 'calculs', 'tailles', 'styles'] },
+    { id: 'bluff', title: '3. Bluffer', intro: 'Quand, contre qui et comment bluffer.', sections: ['bluffs'] },
+    { id: 'lire', title: '4. Lire un joueur', intro: 'Les signes qui trahissent une main forte ou un bluff.', sections: ['tells'] },
+    { id: 'appli', title: "5. Utiliser l'appli avec Claude", intro: 'Le code des messages envoyés à Claude.', sections: ['messages'] },
+  ];
   const all = () => SECTIONS.reduce((a, s) => a.concat(s.items), []);
-  const api = { SECTIONS, all };
+  const api = { SECTIONS, GROUPS, all };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PokerLearn = api;
 })(typeof window !== 'undefined' ? window : globalThis);

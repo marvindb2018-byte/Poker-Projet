@@ -973,21 +973,32 @@
     if (ui.quiz) out += quizCard();
     const drillHtml = ui.drill ? drillCard() : `<button class="btn quick-btn wide dr-start" data-a="drill-start">🎯 Entraînement : les mains de départ
       <small>une main, une place, une situation : tu décides, l'appli corrige${drillStats.n ? ` · ${drillStats.ok} / ${drillStats.n} jusqu'ici` : ''}</small></button>`;
-    LEARN.SECTIONS.forEach((sec) => {
+    const groups = (LEARN.GROUPS || []).concat([{ id: 'autres', title: 'Autres', sections: LEARN.SECTIONS.map((x) => x.id).filter((id) => !(LEARN.GROUPS || []).some((g) => g.sections.includes(id))) }]);
+    const byId = Object.fromEntries(LEARN.SECTIONS.map((x) => [x.id, x]));
+    groups.filter((g) => g.sections.length).forEach((g) => {
+      const items = g.sections.flatMap((id) => byId[id].items);
+      const gk = items.filter((it) => learned.has(it.id)).length;
+      out += `<div class="lr-group" data-group="${g.id}"><h3>${esc(g.title)}</h3>${g.intro ? `<span class="muted">${esc(g.intro)}</span>` : ''}<span class="lr-count">${gk}/${items.length}</span></div>`;
+      g.sections.forEach((sid) => { out += learnSection(byId[sid], g.id); });
+    });
+    return `<div class="learn-play"><div class="lp-a"><div class="lp-zone">${drillHtml}</div></div><div class="lp-b">${out}</div></div>`;
+  }
+  function learnSection(sec, gid) {
+    let out = '';
+    {
       const known = sec.items.filter((it) => learned.has(it.id)).length;
       let combos = '';
       if (sec.combos) {
         combos = `<ol class="lr-combos">${HANDS.CATEGORIES.slice().reverse().map((c) => `<li><b>${esc(c.name)}</b><span class="lr-cards">${c.ex.map((x) => cardHtml(x, 'xs')).join('')}</span><small>${esc(c.desc)}</small></li>`).join('')}</ol>`;
       }
       const open = ui.learnOpen && ui.learnOpen.has(sec.id);
-      out += `<details class="panel lr-sec" data-sec="${sec.id}" ${open ? 'open' : ''}>
+      out += `<details class="panel lr-sec" data-sec="${sec.id}" data-group="${gid}" ${open ? 'open' : ''}>
         <summary><span>${esc(sec.title)}</span><span class="lr-count" data-count="${sec.id}">${known}/${sec.items.length}</span></summary>
         <p class="hint">${esc(sec.intro)}</p>${combos}
         <ul class="lr-list">${sec.items.map(learnItem).join('')}</ul>
       </details>`;
-    });
-    // comme la page Mains : les notions à gauche, l'entraînement au milieu
-    return `<div class="learn-play"><div class="lp-a"><div class="lp-zone">${drillHtml}</div></div><div class="lp-b">${out}</div></div>`;
+    }
+    return out;
   }
 
   // Filtre sans redessiner (pour garder le curseur dans la recherche)
@@ -1008,6 +1019,9 @@
       else if (!q) sec.open = !!(ui.learnOpen && ui.learnOpen.has(sec.dataset.sec)); // recherche effacée : comme avant
       if (n) any = true;
     });
+    document.querySelectorAll('.lr-group').forEach((g) => {
+      g.hidden = ![...document.querySelectorAll(`.lr-sec[data-group="${g.dataset.group}"]`)].some((x) => !x.hidden);
+    });
     const none = document.querySelector('.lr-none');
     if (none) none.hidden = any || !q;
   }
@@ -1021,6 +1035,11 @@
     LEARN.SECTIONS.forEach((sec) => {
       const el = document.querySelector(`[data-count="${sec.id}"]`);
       if (el) el.textContent = sec.items.filter((it) => learned.has(it.id)).length + '/' + sec.items.length;
+    });
+    (LEARN.GROUPS || []).forEach((g) => {
+      const el = document.querySelector(`.lr-group[data-group="${g.id}"] .lr-count`);
+      const items = LEARN.SECTIONS.filter((x) => g.sections.includes(x.id)).flatMap((x) => x.items);
+      if (el) el.textContent = items.filter((it) => learned.has(it.id)).length + '/' + items.length;
     });
   }
 
@@ -2556,6 +2575,7 @@
     const q = ev.target.closest && ev.target.closest(TIP_SEL);
     clearTimeout(tipTimer);
     if (!q || bubble.pinned) return;
+    if (q.closest('.nav, .top-right') && touchUI()) return; // téléphone : toucher un onglet ouvre la page, sans bulle
     if (q.closest('.nav, .top-right')) tipTimer = setTimeout(() => { if (q.matches(':hover') && !bubble.pinned) showTip(q, false); }, 350);
     else showTip(q, false);
   });

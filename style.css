@@ -1099,3 +1099,9 @@ details.plain > div p + p { margin-top: 6px; }
 .stk-chips .chip { padding: 5px 11px; font-size: 13px; }
 .stack-box .hint { margin: 0; font-size: 12.5px; }
 .stack-box .link-btn { font-size: 12.5px; margin-left: 4px; }
+
+/* page Apprendre : grandes parties */
+.lr-group { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 18px 2px 8px; }
+.lr-group h3 { margin: 0; font-size: 17px; color: var(--gold); }
+.lr-group .muted { font-size: 12.5px; flex: 1 1 200px; }
+.lr-group .lr-count { margin-left: auto; font: 700 12px var(--mono); color: var(--muted); }
