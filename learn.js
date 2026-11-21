@@ -155,6 +155,19 @@
       ],
     },
     {
+      id: 'tailles', title: 'Choisir la taille de sa mise',
+      intro: "Chaque main a besoin d'un certain prix pour continuer. En choisissant combien tu mises, tu choisis quelles mains peuvent encore payer et lesquelles doivent se coucher.",
+      items: [
+        { id: 'ts-prix', t: 'Le prix pour payer', d: "Pour savoir si payer une mise est rentable, compare ce qu'il faut payer à ce qu'il y aura dans le pot. La règle : il faut gagner au moins « mise ÷ (pot + 2 × mise) » des fois. Une mise du tiers du pot demande de gagner 1 fois sur 5 (20 %), la moitié du pot 1 fois sur 4 (25 %), les deux tiers 29 %, le pot 1 fois sur 3 (33 %).", ex: "Pot de 300, mise de 100 : tu paies 100 pour un pot de 500. Il faut gagner au moins 100 ÷ 500 = 20 % des fois." },
+        { id: 'ts-tirages', t: 'Faire payer cher les tirages', d: "Un tirage couleur a 9 cartes qui l'aident sur 47 : il touche environ 1 fois sur 5 à la carte suivante (19 %), et 1 fois sur 3 en voyant la turn et la river (35 %). Une petite mise (un tiers du pot) lui donne le bon prix pour suivre ; une mise de la moitié du pot ou plus est trop chère pour une seule carte : il devrait se coucher, et s'il paie quand même, il te fait un cadeau.", ex: "Tu as une paire de Rois, le flop a deux cœurs. Mise les deux tiers du pot plutôt qu'un tiers : le joueur avec deux cœurs paie trop cher." },
+        { id: 'ts-paires', t: 'Avant le flop : écarter les petites paires', d: "Une petite paire ne gagne vraiment que si elle fait un brelan au flop, environ 1 fois sur 8. Pour que payer soit rentable, il faut pouvoir gagner gros ensuite : en gros 15 fois ce qu'on paie. Plus ta relance est grosse (ou plus les tapis sont petits), moins c'est le cas : les petites paires doivent se coucher.", ex: "Relance à 3 grosses blindes avec 100 devant : une petite paire peut payer (100 = 33 fois sa mise). Relance à 8 grosses blindes avec 60 devant : 60 = 7 fois sa mise seulement, elle doit se coucher." },
+        { id: 'ts-hautes', t: 'Faire coucher les cartes hautes', d: "Une main comme A-Q qui n'a rien touché sur un flop 9-6-2 a encore 6 cartes pour te dépasser (3 As, 3 Dames). Une mise de la moitié du pot la fait souvent coucher, alors qu'en checkant, tu la laisses voir la carte suivante gratuitement." },
+        { id: 'ts-petite', t: 'Petite mise pour se faire payer', d: "Avec une très grosse main contre un adversaire prudent, une petite mise garde ses mains moyennes dans le coup : il paie, alors qu'une grosse mise l'aurait fait coucher. Contre un joueur qui paie tout, au contraire, mise gros : il paiera quand même." },
+        { id: 'ts-revers', t: 'Le revers des grosses mises', d: "Plus tu mises gros, plus tu fais coucher les mains faibles… mais plus tu restes seul face aux mains fortes, et plus tu perds quand on te paie. Choisis la taille selon ce que tu veux : faire coucher (tirages, cartes hautes) ou te faire payer (mains plus faibles que la tienne)." },
+        { id: 'ts-appli', t: "Ce que fait l'appli", d: "Après le flop, l'appli essaie plusieurs tailles (un tiers, deux tiers, le pot, une fois et demie le pot) : pour chacune, elle estime quelles mains de l'adversaire paient ou se couchent, puis elle choisit la plus rentable. Avant le flop, elle relance plus gros quand des joueurs ont déjà suivi, et elle ne paie avec les petites paires que s'il reste assez de jetons derrière." },
+      ],
+    },
+    {
       id: 'messages', title: 'Les messages pour Claude',
       intro: "Le code des messages que l'appli prépare. Tu n'as pas besoin de les écrire, mais les comprendre aide à suivre les réponses de Claude.",
       items: [
