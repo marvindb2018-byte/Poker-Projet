@@ -134,7 +134,8 @@
         { id: 'blocker', t: 'Bloqueur', d: "Une carte dans ta main qui rend certaines mains de l'adversaire moins probables. Avec un As, il a moins souvent AA ou AK : c'est pourquoi A5s est un bon candidat pour une sur-relance « bluff »." },
         { id: 'value', t: 'Mise de valeur', a: 'value bet', d: 'Miser avec une bonne main pour être payé par une moins bonne. La plus grande source de gains contre des joueurs qui suivent beaucoup.' },
         { id: 'slowplay', t: 'Jouer lentement', a: 'slowplay', d: 'Checker ou seulement suivre avec une très grosse main pour piéger l\'adversaire et le laisser miser.' },
-        { id: 'tilt', t: 'Tilt', d: "Jouer mal sous le coup de l'énervement, souvent après un mauvais coup. Le meilleur remède : faire une pause." },
+        { id: 'tilt', t: 'Tilt', d: "Jouer mal sous le coup de l'énervement : après un mauvais coup, mais aussi par ennui quand on se couche depuis longtemps. Le meilleur remède : faire une pause." },
+        { id: 'impatience', t: "L'impatience", d: "Un bon joueur se couche environ 3 mains sur 4 avant le flop : folder souvent, c'est normal. Le piège, c'est la frustration : après une longue série de mauvaises mains, on joue à fond la première main correcte pour « rattraper » le temps perdu, et on y laisse son tapis. Quand tu te dis « allez, cette fois je joue », c'est le signal pour ralentir. Pour jouer plus sans prendre de risques, profite plutôt du bouton et du cut-off, où les tableaux de l'onglet Mains ouvrent beaucoup plus de mains.", ex: "Vingt mains couchées, puis A-7 : tu relances, tu touches un As et tu fais tapis. Seuls A-K, A-Q, A-J… te paient : tu sors du tournoi avec une main qui méritait juste une mise moyenne." },
         { id: 'badbeat', t: 'Bad beat', d: "Perdre un coup où l'on était largement favori, à cause d'une dernière carte. Ça arrive à tout le monde : ce qui compte, c'est d'avoir pris la bonne décision." },
       ],
     },
@@ -164,6 +165,7 @@
         { id: 'ts-hautes', t: 'Faire coucher les cartes hautes', d: "Une main comme A-Q qui n'a rien touché sur un flop 9-6-2 a encore 6 cartes pour te dépasser (3 As, 3 Dames). Une mise de la moitié du pot la fait souvent coucher, alors qu'en checkant, tu la laisses voir la carte suivante gratuitement." },
         { id: 'ts-petite', t: 'Petite mise pour se faire payer', d: "Avec une très grosse main contre un adversaire prudent, une petite mise garde ses mains moyennes dans le coup : il paie, alors qu'une grosse mise l'aurait fait coucher. Contre un joueur qui paie tout, au contraire, mise gros : il paiera quand même." },
         { id: 'ts-revers', t: 'Le revers des grosses mises', d: "Plus tu mises gros, plus tu fais coucher les mains faibles… mais plus tu restes seul face aux mains fortes, et plus tu perds quand on te paie. Choisis la taille selon ce que tu veux : faire coucher (tirages, cartes hautes) ou te faire payer (mains plus faibles que la tienne)." },
+        { id: 'ts-unepaire', t: 'Une seule paire : pas de tapis', a: 'seules les meilleures paient', d: "Quand tu fais tapis, les mains plus faibles que la tienne se couchent (tu ne gagnes rien de plus), et seules les mains meilleures paient. Avec une seule paire, même la plus haute du tableau, c'est la pire situation : tu risques tout pour presque rien. Mise plutôt la moitié du pot pour te faire payer par les mains plus faibles. Le tapis se garde pour deux paires, un brelan ou mieux, ou quand il te reste peu de jetons par rapport au pot (à peu près le pot ou moins) : là, tu es de toute façon engagé.", ex: "Pot de 3 000, il te reste 20 000. Tu as A-7, le tableau K-8-3-A. Tapis : seuls A-K, A-Q, A-J, deux paires ou un brelan te paient. Mise de 1 500 : A-5, K-Q ou Q-Q, toutes moins bonnes que toi, peuvent encore payer." },
         { id: 'ts-appli', t: "Ce que fait l'appli", d: "Après le flop, l'appli essaie plusieurs tailles (un tiers, deux tiers, le pot, une fois et demie le pot) : pour chacune, elle estime quelles mains de l'adversaire paient ou se couchent, puis elle choisit la plus rentable. Avant le flop, elle relance plus gros quand des joueurs ont déjà suivi, et elle ne paie avec les petites paires que s'il reste assez de jetons derrière." },
       ],
     },
@@ -180,6 +182,20 @@
         { id: 'tl-cartes', t: 'Revérifier ses cartes', d: "Un joueur qui regarde à nouveau ses cartes quand une couleur possible tombe au tableau vérifie souvent s'il a une carte de cette couleur : il ne l'a généralement pas (sinon il s'en souviendrait)." },
         { id: 'tl-moi', t: 'Tes propres tells', d: "Les autres te lisent aussi. Le plus simple pour ne rien montrer : toujours le même geste et à peu près le même temps pour miser, qu'importe ta main ; regarde tes cartes une seule fois ; et ne commente jamais ta main pendant le coup." },
         { id: 'tl-montrer', t: 'Retenir ce qu’ils montrent', d: "À chaque abattage, rappelle-toi comment le joueur s'est comporté pendant le coup. Avec l'appli, tape les cartes montrées (onglet Partie) : elle apprend aussi si ce joueur bluffe, et ton observation des gestes vient compléter ses chiffres." },
+      ],
+    },
+    {
+      id: 'tournoi', title: 'Jouer un tournoi',
+      intro: "En tournoi, tout le monde part avec le même tapis, les blindes montent à intervalles réguliers, et on ne peut pas racheter de jetons : perdre son tapis, c'est sortir. Seuls les premiers (en général 10 à 15 % des joueurs) sont payés. Quelques réflexes changent beaucoup les choses.",
+      items: [
+        { id: 'to-bb', t: 'Compter son tapis en grosses blindes', d: "Ce qui compte n'est pas ton nombre de jetons, mais combien de grosses blindes il représente : c'est ce qui dit combien de tours tu peux attendre et comment jouer. Divise ton tapis par la grosse blinde, et regarde-le de nouveau à chaque montée des blindes.", ex: "12 000 jetons avec des blindes 300/600 : 12 000 ÷ 600 = 20 grosses blindes." },
+        { id: 'to-montee', t: 'Les blindes qui montent', d: "Au début, les blindes sont petites : tu as le temps, joue serré et attends les bonnes mains. Plus le tournoi avance, plus elles mangent ton tapis (avec l'ante en plus) : un tapis qui ne bouge pas fond tout seul. Au milieu du tournoi, beaucoup de joueurs n'ont plus que 15 à 30 grosses blindes." },
+        { id: 'to-pushfold', t: 'Sous 12 grosses blindes : tapis ou couché', a: 'push/fold', d: "Avec peu de grosses blindes, une relance normale suivie d'un abandon te coûte trop cher. On joue alors tapis ou couché : quand personne n'a relancé, soit tu mets tout, soit tu te couches. Le tapis fait souvent coucher tout le monde et te fait gagner blindes et antes, ce qui fait vivre ton tapis. Dans l'onglet Mains, règle « Ton tapis » : les tableaux passent en tapis ou couché quand il le faut." },
+        { id: 'to-tapis-reglage', t: 'Mettre à jour « Ton tapis »', d: "Sans réglage, l'appli suppose 100 grosses blindes, comme en début de partie : c'est faux en fin de tournoi, où ses conseils deviennent trop prudents ou trop gourmands. Pense à le changer à chaque montée des blindes, surtout sous 20 grosses blindes." },
+        { id: 'to-survie', t: 'Ne pas risquer tout son tournoi pour rien', d: "En partie normale, un mauvais coup se rattrape en remettant des jetons. En tournoi, un tapis perdu, c'est fini. Avec un tapis confortable, évite les gros coups avec une main moyenne (une seule paire, un tirage) : garde tes jetons pour les situations où tu es nettement devant." },
+        { id: 'to-patience', t: 'La patience fait gagner des places', d: "Beaucoup de joueurs s'éliminent tout seuls en jouant trop. Te coucher souvent et attendre te fait monter au classement sans rien faire. Le classement final dépend du moment où tu sors : survivre plus longtemps, c'est déjà gagner des places." },
+        { id: 'to-bulle', t: 'La bulle', a: 'bubble', d: "Le moment juste avant les places payées : le prochain éliminé ne gagne rien. Beaucoup de joueurs deviennent très prudents. Avec un gros tapis, relance plus souvent pour voler leurs blindes ; avec un petit tapis, attends une bonne main pour faire tapis." },
+        { id: 'to-vol', t: 'Voler les blindes devient rentable', d: "Quand les blindes et les antes sont grosses, les gagner sans combat fait une vraie différence. Une relance (ou un tapis avec un petit tapis) au cut-off, au bouton ou en petite blinde, quand personne n'a joué avant toi, rapporte souvent le pot tout de suite." },
       ],
     },
     {
@@ -204,7 +220,8 @@
     { id: 'avance', title: '2. Jouer mieux', intro: 'Les tirages, les calculs, la taille des mises et les styles de joueurs.', sections: ['tirages', 'calculs', 'tailles', 'styles'] },
     { id: 'bluff', title: '3. Bluffer', intro: 'Quand, contre qui et comment bluffer.', sections: ['bluffs'] },
     { id: 'lire', title: '4. Lire un joueur', intro: 'Les signes qui trahissent une main forte ou un bluff.', sections: ['tells'] },
-    { id: 'appli', title: "5. Utiliser l'appli avec Claude", intro: 'Le code des messages envoyés à Claude.', sections: ['messages'] },
+    { id: 'tournoi', title: '5. Les tournois', intro: 'Les blindes qui montent, le tapis ou couché et la patience.', sections: ['tournoi'] },
+    { id: 'appli', title: "6. Utiliser l'appli avec Claude", intro: 'Le code des messages envoyés à Claude.', sections: ['messages'] },
   ];
   const all = () => SECTIONS.reduce((a, s) => a.concat(s.items), []);
   const api = { SECTIONS, GROUPS, all };
