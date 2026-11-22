@@ -1109,3 +1109,13 @@ details.plain > div p + p { margin-top: 6px; }
 /* fenêtre des cartes : touche du clavier sous chaque valeur */
 .qp .rk { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.1; }
 .qp .rk .k { margin: 0; font-size: 10px; padding: 0 4px; opacity: .65; }
+
+/* vue « Toutes les places » : couleur = première place d'où l'on relance */
+.hc.p-utg { background: #14603b; color: #e9fff3; border-color: #14603b; }
+.hc.p-mp { background: #2f9e63; color: #062314; border-color: #2f9e63; }
+.hc.p-co { background: #3d84c6; color: #06192b; border-color: #3d84c6; }
+.hc.p-btn { background: #d6a640; color: #241703; border-color: #d6a640; }
+.memo { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 6px; }
+.memo li { display: grid; grid-template-columns: 16px 40px 1fr; gap: 8px; align-items: start; font-size: 13px; line-height: 1.35; }
+.memo li i.hc { width: 14px; height: 14px; margin-top: 2px; border-radius: 3px; display: inline-block; }
+.memo li b { font: 800 12.5px var(--mono); }

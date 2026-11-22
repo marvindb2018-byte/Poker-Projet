@@ -100,6 +100,7 @@
 
   // Bulles d'aide : un « ? » à côté d'un mot ; survol (PC) ou toucher (téléphone) pour lire l'explication.
   const TIPS = {
+    allpos: "Toutes les places d'un coup : chaque main est colorée selon la première place d'où on la relance. Une main jouable en UTG se joue partout après.",
     sb: "Petite blinde (SB) : mise obligatoire payée avant de voir ses cartes par le joueur juste à gauche du jeton D. Elle vaut en général la moitié de la grosse blinde.",
     bb: "Grosse blinde (BB) : mise obligatoire du 2e joueur à gauche du jeton D. C'est le prix minimum pour jouer la main : les autres doivent au moins la suivre pour rester dans le coup. En tournoi, les blindes augmentent régulièrement.",
     ante: "Ante : petite mise obligatoire posée avant la distribution, en plus des blindes. Elle grossit le pot dès le départ, ce qui pousse à jouer plus de mains. On la trouve surtout en tournoi, une fois que les blindes ont bien monté (souvent à partir du milieu du tournoi), et rarement en partie classique. Mets 0 s'il n'y en a pas.",
@@ -1216,6 +1217,17 @@
   }
   const openCardPop = () => { ui.qgPick = { kind: 'hand', need: 2, cards: [], rank: null }; };
 
+  // Mémo court par place (vue « Toutes les places ») : ce qui s'ajoute à chaque place
+  function memoBox() {
+    const rows = [
+      ['p-utg', 'UTG', 'paires 66+ · As-Roi à As-Valet · As assortis A9+ et A5 · figures assorties (KT+, QT+, J10) · KQ'],
+      ['p-mp', 'MP', '+ paire 55 · As assortis A7, A8, A4 · K9, Q9, J9, 10-9 assortis · A10, KJ, QJ dépareillés'],
+      ['p-co', 'CO', '+ paires 33, 44 · tous les As assortis · Rois assortis K7+ · Q8, J8, 10-8 assortis · connecteurs assortis 9-8, 8-7, 7-6 · A8, A9, K10, Q10, J10 dépareillés'],
+      ['p-btn', 'BTN', '+ toutes les paires · presque tous les assortis (K2+, Q5+…, 5-4) · tous les As · K8+, Q9+, J9+, 10-9, 9-8 dépareillés'],
+    ];
+    return `<ul class="memo">${rows.map(([c, pos, t]) => `<li><i class="hc ${c}"></i><b>${pos}</b><span>${t}</span></li>`).join('')}</ul>`;
+  }
+
   // Deux cartes qui représentent une main du tableau (pour l'algorithme : les couleurs exactes ne comptent pas ici)
   function classCards(cls) {
     if (cls.length === 2) return [cls[0] + 'p', cls[1] + 'c'];
@@ -1463,7 +1475,7 @@
       myClass = h && h.cards.length === 2 ? ODDS.handClass(h.cards[0], h.cards[1]) : ui.chartHand || null;
     }
     // dans l'ordre autour de la table, en partant du bouton
-    const views = [['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['vs', 'Face à une relance']];
+    const views = [['BTN', 'BTN'], ['SB', 'SB'], ['BB', 'BB (défense)'], ['UTG', 'UTG'], ['MP', 'MP'], ['CO', 'CO'], ['all', 'Toutes les places'], ['vs', 'Face à une relance']];
     const sit = quick && myPos ? quickSituation() : null;
     let v = sit ? 'vs' : ui.chart;
     if (!v) {
@@ -1478,7 +1490,13 @@
       return a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : 'fold';
     };
     let cat, legend, text;
-    if (v === 'BB') {
+    if (v === 'all') {
+      // vue d'ensemble : chaque main colorée selon la première place d'où on la relance (les tableaux s'emboîtent)
+      const P4 = [['UTG', 'p-utg'], ['MP', 'p-mp'], ['CO', 'p-co'], ['BTN', 'p-btn']];
+      cat = (c) => { const f = P4.find(([k]) => R.open[k].has(c)); return f ? f[1] : 'fold'; };
+      legend = [['p-utg', 'Dès UTG'], ['p-mp', 'Dès MP'], ['p-co', 'Dès CO'], ['p-btn', 'Au bouton seulement'], ['fold', 'Jamais (couche-toi)']];
+      text = `Personne n'a relancé avant toi : une main se relance à sa place et à toutes les places suivantes. En UTG, seulement le vert foncé ; en MP, on ajoute le vert ; en CO, le bleu ; au bouton, le doré. Plus tu es proche du bouton, plus la tache grandit (${R.open.UTG ? ODDS.pct(R.open.UTG) : 11} % → ${ODDS.pct(R.open.MP)} % → ${ODDS.pct(R.open.CO)} % → ${ODDS.pct(R.open.BTN)} % des mains). La petite blinde joue à part (« SB »).`;
+    } else if (v === 'BB') {
       cat = vsCat('BB');
       legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
       text = "En grosse blinde, face à une relance normale (jusqu'à 3 grosses blindes) : tu as déjà misé, donc tu peux payer avec beaucoup de mains. Si personne n'a relancé : check (ou relance avec TT+, AQs+, AKo). Relance plus grosse : touche ta main pour voir le plan selon la taille.";
@@ -1511,8 +1529,9 @@
     const chart = `<section class="panel">
       <h2>Mains de départ</h2>
       ${quick ? '' : '<p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c\'est ce qui fait le plus progresser un débutant.</p>'}
-      <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : 'pos:' + k}">${l}</button>`).join('')}</div>
-      ${myClass ? sizePlan(myClass, quick && myPos ? myPos : v === 'vs' ? vsPos : v, n) : quick && myPos ? '<p class="v-empty">Touche ta main dans le tableau.</p>' : ''}
+      <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : k === 'all' ? 'allpos' : 'pos:' + k}">${l}</button>`).join('')}</div>
+      ${myClass ? sizePlan(myClass, quick && myPos ? myPos : v === 'vs' ? vsPos : v === 'all' ? myPos || 'CO' : v, n) : quick && myPos ? '<p class="v-empty">Touche ta main dans le tableau.</p>' : ''}
+      ${v === 'all' ? memoBox() : ''}
       <div class="hc-grid">${grid}</div>
       <div class="hc-legend">${legend.map(([c, l]) => `<span><i class="hc ${c}"></i>${l}</span>`).join('')}${myClass ? `<span><i class="hc mine"></i>Ta main (${myClass})</span>` : ''}</div>
       <p class="hint">${text}</p>
