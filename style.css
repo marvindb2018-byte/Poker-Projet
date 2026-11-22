@@ -1125,6 +1125,6 @@ details.plain > div p + p { margin-top: 6px; }
 .qg-box { container: qgbox / inline-size; }
 .qg-pt .qg-next-in { display: none; }
 @container qgbox (min-width: 460px) {
-  .qg-pt .qg-next-in { display: inline-flex; }
+  .qg-pt .qg-next-in { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
   .qg-next-out { display: none; }
 }
