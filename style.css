@@ -1105,3 +1105,7 @@ details.plain > div p + p { margin-top: 6px; }
 .lr-group h3 { margin: 0; font-size: 17px; color: var(--gold); }
 .lr-group .muted { font-size: 12.5px; flex: 1 1 200px; }
 .lr-group .lr-count { margin-left: auto; font: 700 12px var(--mono); color: var(--muted); }
+
+/* fenêtre des cartes : touche du clavier sous chaque valeur */
+.qp .rk { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.1; }
+.qp .rk .k { margin: 0; font-size: 10px; padding: 0 4px; opacity: .65; }

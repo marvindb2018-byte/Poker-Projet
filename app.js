@@ -1201,7 +1201,7 @@
       : i === pk.cards.length && pk.rank ? `<span class="card empty qp-cur"><b>${L(pk.rank)}</b></span>` : `<span class="card empty ${i === pk.cards.length ? 'qp-cur' : ''}"></span>`)).join('');
     const body = !pk.rank
       ? `<div class="pk-title">${nth} : la valeur</div>
-        <div class="ranks">${E.RANKS.map((r) => `<button class="rk" data-a="qp-rank" data-r="${r}" ${E.SUITS.every((x) => used.has(r + x)) ? 'disabled' : ''}>${L(r)}</button>`).join('')}</div>`
+        <div class="ranks">${E.RANKS.map((r) => `<button class="rk" data-a="qp-rank" data-r="${r}" ${E.SUITS.every((x) => used.has(r + x)) ? 'disabled' : ''}>${L(r)}${K(r)}</button>`).join('')}</div>`
       : `<div class="pk-title">${nth} : ${L(pk.rank)} de quelle couleur ?</div>
         <div class="suits">${E.SUITS.map((x) => `<button class="su s-${x}" data-a="qp-suit" data-s="${x}" ${used.has(pk.rank + x) ? 'disabled' : ''}>${SUIT_SYM[x]}<small>${SUIT_NAME[x]}</small>${K(x.toUpperCase())}</button>`).join('')}</div>`;
     const mineSmall = board && qg.cards ? `<span class="qp-mine">${qg.cards.map((c) => cardHtml(c, 'xs')).join('')}${(qg.board || []).length ? '<i>·</i>' + qg.board.map((c) => cardHtml(c, 'xs')).join('') : ''}</span>` : '';
@@ -2632,6 +2632,7 @@
   ['pointerup', 'pointercancel'].forEach((t) => document.addEventListener(t, () => clearTimeout(qgTimer)));
 
   document.addEventListener('click', (ev) => {
+    if (ev.target.classList && ev.target.classList.contains('qp-back')) { handlers['qp-close'](); return; } // clic à côté de la fenêtre des cartes
     let q = ev.target.closest(TIP_SEL);
     // dans un bouton : le bouton d'abord ; sauf dans la ligne d'un joueur, où la position (UTG…) montre sa bulle
     // et le reste de la ligne ouvre les options du joueur
