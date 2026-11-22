@@ -1111,9 +1111,9 @@
         </div></div>`;
     return `<section class="panel qg-box ${b == null ? 'todo' : ''}">
       ${b == null ? '<div class="mt-label">À faire · touche le joueur qui a le jeton D</div>' : ''}
-      <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div></div>
+      <div class="ptable qg-pt">${head}<div class="pt-felt"></div>${seats}<div class="pt-center">${center}</div>${mine && postOn ? `<button class="btn primary qg-next-in" data-a="qg-next" title="Main suivante : le jeton D avance (Entrée)">Main suivante ${K('Entrée')}</button>` : ''}</div>
       ${mine ? `${postOn ? (post ? postBox() : '<p class="q-me-txt">Donne tes cartes (clic sur toi) pour le conseil après le flop.</p>') : `<p class="q-me-txt">${esc(POS_TIPS[mine] || '')}</p>`}
-        <button class="btn primary big" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
+        <button class="btn primary big ${postOn ? 'qg-next-out' : ''}" data-a="qg-next">Main suivante : le jeton D avance ${K('Entrée')}</button>
 `
         : '<p class="hint">Toi, tu es en bas ; les autres suivent dans le sens des aiguilles d\'une montre.</p>'}
     </section>`;

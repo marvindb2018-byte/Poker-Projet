@@ -1119,3 +1119,12 @@ details.plain > div p + p { margin-top: 6px; }
 .memo li { display: grid; grid-template-columns: 16px 40px 1fr; gap: 8px; align-items: start; font-size: 13px; line-height: 1.35; }
 .memo li i.hc { width: 14px; height: 14px; margin-top: 2px; border-radius: 3px; display: inline-block; }
 .memo li b { font: 800 12.5px var(--mono); }
+
+/* Après le flop, le conseil allonge la colonne : « Main suivante » passe dans le coin bas-droit de la table (écran large) */
+.qg-pt .qg-next-in { position: absolute; right: 0; bottom: -6px; z-index: 4; min-height: 46px; padding: 6px 14px; font-size: 15px; max-width: calc(50% - 62px); line-height: 1.2; }
+.qg-box { container: qgbox / inline-size; }
+.qg-pt .qg-next-in { display: none; }
+@container qgbox (min-width: 460px) {
+  .qg-pt .qg-next-in { display: inline-flex; }
+  .qg-next-out { display: none; }
+}
