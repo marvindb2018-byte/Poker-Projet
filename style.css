@@ -1128,3 +1128,13 @@ details.plain > div p + p { margin-top: 6px; }
   .qg-pt .qg-next-in { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
   .qg-next-out { display: none; }
 }
+
+/* Entraînement : le tableau des mains montré après une erreur */
+.dr-grid { margin: 14px 0 2px; }
+.dr-gcap { margin: 0 0 8px !important; font-size: 14px; }
+.dr-gcap b { color: var(--gold); }
+.dr-grid .hc-grid { gap: 2px; }
+.dr-grid .hc { font-size: 10.5px; }
+.dr-grid .hc.mine { outline: 3px solid #fff; outline-offset: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px rgba(241, 195, 95, .9), 0 0 14px rgba(255, 255, 255, .6); animation: dr-pulse 1.2s ease-in-out 3; }
+@keyframes dr-pulse { 50% { transform: scale(1.35); } }
+@media (min-width: 1000px) { .dr-grid .hc { font-size: 12px; } }

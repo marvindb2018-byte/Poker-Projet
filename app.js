@@ -929,6 +929,28 @@
     return { pos, kind, raiserPos, cls, cards, adv, answer: null };
   }
   const drillGood = (a) => (a.action === 'raise' || a.action === 'allin' ? 'r' : a.action === 'call' ? 's' : a.action === 'check' ? 'x' : 'f');
+  // Après une erreur : le tableau des 169 mains pour cette situation, avec la main du moment bien visible
+  function drillGrid(d) {
+    if (!d.gridHtml) {
+      const none = d.kind === 'none';
+      const cb = none ? 20 : d.kind === 'r' ? 60 : 100;
+      const seen = new Set();
+      const cat = (c) => {
+        const a = chartAdvice(c, d.pos, 6, none ? 0 : 1, cb, { raiserPos: d.raiserPos });
+        const k = a.action === 'raise' || a.action === 'allin' ? (none ? 'raise' : 'r3') : a.action === 'call' || a.action === 'check' ? 'call' : 'fold';
+        seen.add(k);
+        return k;
+      };
+      const cells = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === d.cls ? 'mine' : ''}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
+      const L = { raise: 'Relance', r3: 'Sur-relance', call: none ? 'Check' : 'Suis', fold: 'Couche-toi' };
+      const legend = ['raise', 'r3', 'call', 'fold'].filter((k) => seen.has(k)).map((k) => `<span><i class="hc ${k}"></i>${L[k]}</span>`).join('');
+      const where = none ? `en ${d.pos}, personne n'a relancé` : `en ${d.pos}, face à la relance de ${d.raiserPos}`;
+      d.gridHtml = `<div class="dr-grid"><p class="dr-gcap">Voici où se trouve <b>${d.cls}</b> dans le tableau (${esc(where)}) :</p>
+        <div class="hc-grid">${cells}</div>
+        <div class="hc-legend">${legend}<span><i class="hc mine"></i>Ta main (${d.cls})</span></div></div>`;
+    }
+    return d.gridHtml;
+  }
   function drillCard() {
     const d = ui.drill;
     const st = drillStats;
@@ -946,6 +968,7 @@
         <b>${d.answer === good ? '✓ Bonne réponse' : `✗ Pas tout à fait : ici, ${esc(goodTxt)}`}</b>
         <p>${esc(d.adv.plain || '')}</p>
         <button class="btn primary" data-a="drill-next">Main suivante ${K('Entrée')}</button>
+        ${d.answer === good ? '' : drillGrid(d)}
       </div>`;
     const pct = st.n ? Math.round((st.ok / st.n) * 100) : 0;
     return `<section class="panel drill ${d.answer ? '' : 'todo'}">
