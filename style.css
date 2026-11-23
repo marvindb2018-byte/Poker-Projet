@@ -1081,10 +1081,13 @@ details.plain > div p + p { margin-top: 6px; }
 
 /* ---------- page Apprendre : notions à gauche, entraînement au milieu */
 .learn-play { display: grid; gap: 14px; }
-@media (min-width: 1000px) {
-  .learn-play { grid-template-columns: minmax(400px, 600px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (min-width: 1000px) { .lp-zone { max-width: 640px; margin: 0 auto; } }
+@media (min-width: 1250px) {
+  /* la liste à gauche, l'entraînement à côté : assez de place pour le tableau, de la même taille que dans Mains */
+  .learn-play { grid-template-columns: minmax(340px, 520px) minmax(420px, 1fr); gap: 20px; align-items: start; }
   .learn-play .lp-b { order: -1; }
-  .lp-zone { max-width: 640px; margin: 0 auto; }
+}
+@media (min-width: 1000px) {
   .lp-zone .dr-start { margin-top: 0; }
   /* Combinaisons : plus aéré sur cette page (il y a la place) */
   body.tab-learn .combos li { padding: 8px 8px; }
@@ -1129,12 +1132,18 @@ details.plain > div p + p { margin-top: 6px; }
   .qg-next-out { display: none; }
 }
 
-/* Entraînement : le tableau des mains montré après une erreur */
-.dr-grid { margin: 14px 0 2px; }
-.dr-gcap { margin: 0 0 8px !important; font-size: 14px; }
+/* Entraînement : le tableau des mains, le même que dans l'onglet Mains (mêmes cases, mêmes couleurs, même taille) */
+.dr-grid { margin: 16px 0 0; }
+.dr-gcap { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
 .dr-gcap b { color: var(--gold); }
-.dr-grid .hc-grid { gap: 2px; }
-.dr-grid .hc { font-size: 10.5px; }
-.dr-grid .hc.mine { outline: 3px solid #fff; outline-offset: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px rgba(241, 195, 95, .9), 0 0 14px rgba(255, 255, 255, .6); animation: dr-pulse 1.2s ease-in-out 3; }
-@keyframes dr-pulse { 50% { transform: scale(1.35); } }
-@media (min-width: 1000px) { .dr-grid .hc { font-size: 12px; } }
+/* la taille du texte suit la largeur du tableau (13 px, comme dans Mains, quand il y a la place) ; les cases ne débordent jamais */
+.dr-grid { container-type: inline-size; }
+.dr-grid .hc-grid { grid-template-columns: repeat(13, minmax(0, 1fr)); }
+.dr-grid .hc { font-size: clamp(8px, 2.68cqw, 13px); }
+
+/* Mains · « Face à une relance » / « BB » : qui a relancé, et de combien */
+.vs-opts { margin: 0 0 12px; }
+.vs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.vs-row .lbl { font-size: 13px; color: var(--muted); font-weight: 600; width: 82px; flex: none; }
+.vs-row .chip { min-height: 34px; padding: 0 12px; font-size: 14px; }
+@media (max-width: 520px) { .vs-row .lbl { width: 100%; } }

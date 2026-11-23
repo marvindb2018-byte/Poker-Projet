@@ -933,19 +933,16 @@
   function drillGrid(d) {
     if (!d.gridHtml) {
       const none = d.kind === 'none';
-      const cb = none ? 20 : d.kind === 'r' ? 60 : 100;
       const seen = new Set();
-      const cat = (c) => {
-        const a = chartAdvice(c, d.pos, 6, none ? 0 : 1, cb, { raiserPos: d.raiserPos });
-        const k = a.action === 'raise' || a.action === 'allin' ? (none ? 'raise' : 'r3') : a.action === 'call' || a.action === 'check' ? 'call' : 'fold';
-        seen.add(k);
-        return k;
-      };
-      const cells = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === d.cls ? 'mine' : ''}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
+      let cat;
+      if (none && d.pos !== 'BB') { const range = ODDS.RANGES.open[d.pos]; cat = (c) => (range.has(c) ? 'raise' : 'fold'); } // le tableau de l'onglet Mains
+      else if (none) cat = (c) => { const a = chartAdvice(c, 'BB', 6, 0, 20); return a.action === 'raise' || a.action === 'allin' ? 'raise' : a.action === 'check' ? 'call' : 'fold'; };
+      else cat = vsCatOf(d.pos, 6, d.raiserPos, d.kind === 'R'); // même calcul que « Face à une relance » de l'onglet Mains
+      const cells = ODDS.grid().map((row) => row.map((c) => { const k = cat(c); seen.add(k); return `<span class="hc ${k} ${c === d.cls ? 'mine' : ''}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`; }).join('')).join('');
       const L = { raise: 'Relance', r3: 'Sur-relance', call: none ? 'Check' : 'Suis', fold: 'Couche-toi' };
       const legend = ['raise', 'r3', 'call', 'fold'].filter((k) => seen.has(k)).map((k) => `<span><i class="hc ${k}"></i>${L[k]}</span>`).join('');
-      const where = none ? `en ${d.pos}, personne n'a relancé` : `en ${d.pos}, face à la relance de ${d.raiserPos}`;
-      d.gridHtml = `<div class="dr-grid"><p class="dr-gcap">Voici où se trouve <b>${d.cls}</b> dans le tableau (${esc(where)}) :</p>
+      const where = none ? `en ${d.pos}, personne n'a relancé` : `en ${d.pos}, face à la relance ${d.kind === 'R' ? 'de 5 grosses blindes' : 'de 3 grosses blindes'} de ${d.raiserPos}`;
+      d.gridHtml = `<div class="dr-grid"><p class="dr-gcap">Voici où se trouve <b>${d.cls}</b> dans le tableau des mains de départ (${esc(where)}) :</p>
         <div class="hc-grid">${cells}</div>
         <div class="hc-legend">${legend}<span><i class="hc mine"></i>Ta main (${d.cls})</span></div></div>`;
     }
@@ -968,8 +965,7 @@
         <b>${d.answer === good ? '✓ Bonne réponse' : `✗ Pas tout à fait : ici, ${esc(goodTxt)}`}</b>
         <p>${esc(d.adv.plain || '')}</p>
         <button class="btn primary" data-a="drill-next">Main suivante ${K('Entrée')}</button>
-        ${d.answer === good ? '' : drillGrid(d)}
-      </div>`;
+      </div>${drillGrid(d)}`;
     const pct = st.n ? Math.round((st.ok / st.n) * 100) : 0;
     return `<section class="panel drill ${d.answer ? '' : 'todo'}">
       <div class="dr-top"><div class="mt-label">${d.answer ? 'Entraînement · mains de départ' : 'À faire · que fais-tu ?'}</div>
@@ -1263,6 +1259,11 @@
     return ODDS.preflopAdvice(Object.assign({ cards: classCards(cls), pos, n, bb: 20, sb: 10, cb, myBet, myStack: stackBB() * 20 - myBet, raises, limpers: 0, callers: 0 }, extra || {}));
   }
   const catOf = (a) => (a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : a.action === 'check' ? 'call' : 'fold');
+  // Places qui peuvent avoir relancé avant `pos` (table de 6), et couleur d'une main face à une relance de 3 BB (normale) ou 5 BB (grosse),
+  // selon la place du relanceur : le même calcul sert à l'onglet Mains et à l'entraînement, pour que les tableaux soient identiques.
+  const PRE_ORDER = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
+  const raisersBefore = (pos) => PRE_ORDER.slice(0, PRE_ORDER.indexOf(pos)).filter((x) => x !== 'SB' || pos === 'BB');
+  const vsCatOf = (pos, n, raiserPos, big) => (c) => catOf(chartAdvice(c, pos, n, 1, big ? 100 : 60, raiserPos ? { raiserPos } : undefined));
   const ACT_TXT = { raise: 'Sur-relance', allin: 'Tapis', call: 'Suis', fold: 'Couche-toi', check: 'Check' };
 
   // Les lignes du conseil pour la situation touchée sur la table : { head, lines: [{ label, a, again }] }
@@ -1508,10 +1509,13 @@
     const R = ODDS.RANGES;
     // place pour « Face à une relance » : la mienne si je la connais, sinon la dernière place choisie
     const vsPos = myPos && myPos !== 'BB' ? myPos : ui.chartPos && ui.chartPos !== 'BB' ? ui.chartPos : 'CO';
-    const vsCat = (pos) => (c) => {
-      const a = chartAdvice(c, pos, n, 1, 60);
-      return a.action === 'raise' || a.action === 'allin' ? 'r3' : a.action === 'call' ? 'call' : 'fold';
-    };
+    // « Face à une relance » et « BB » : on peut préciser qui a relancé et la taille (sinon : cas moyen, relance normale)
+    const vsFor = v === 'BB' ? 'BB' : vsPos;
+    const rOpts = raisersBefore(vsFor);
+    const rSel = !sit && rOpts.includes(ui.vsRaiser) ? ui.vsRaiser : null;
+    const vsBig = !sit && !!ui.vsBig;
+    const vsCat = (pos) => vsCatOf(pos, n, rSel, vsBig);
+    const vsWho = rSel || vsBig ? ` Les couleurs tiennent compte de ${rSel ? `la place du relanceur (${rSel})` : 'la taille de la relance'}${rSel && vsBig ? ' et de sa taille' : ''} : un joueur de début de table relance avec de meilleures mains qu\'un joueur du bouton, et une grosse relance demande une main plus forte pour continuer.` : '';
     let cat, legend, text;
     if (v === 'all') {
       // vue d'ensemble : chaque main colorée selon la première place d'où on la relance (les tableaux s'emboîtent)
@@ -1522,11 +1526,13 @@
     } else if (v === 'BB') {
       cat = vsCat('BB');
       legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
-      text = "En grosse blinde, face à une relance normale (jusqu'à 3 grosses blindes) : tu as déjà misé, donc tu peux payer avec beaucoup de mains. Si personne n'a relancé : check (ou relance avec TT+, AQs+, AKo). Relance plus grosse : touche ta main pour voir le plan selon la taille.";
+      text = (rSel || vsBig ? `En grosse blinde, face à une relance ${vsBig ? 'grosse (5 grosses blindes)' : 'normale (3 grosses blindes)'}${rSel ? ` de ${rSel}` : ''}.${vsWho}`
+        : "En grosse blinde, face à une relance normale (jusqu'à 3 grosses blindes) : tu as déjà misé, donc tu peux payer avec beaucoup de mains. Si personne n'a relancé : check (ou relance avec TT+, AQs+, AKo). Relance plus grosse : touche ta main pour voir le plan selon la taille, ou choisis la taille et la place du relanceur au-dessus du tableau.");
     } else if (v === 'vs') {
       cat = vsCat(vsPos);
       legend = [['r3', 'Sur-relance'], ['call', 'Suis'], ['fold', 'Couche-toi']];
-      text = `Face à une relance normale (jusqu'à 3 grosses blindes), ${vsPos === myPos ? 'à ta place' : 'en'} ${vsPos}. Relance plus grosse : touche ta main pour voir le plan selon la taille. Face à deux relances : relance encore avec AA et KK, suis avec QQ et AK, couche le reste.`;
+      text = (rSel || vsBig ? `Face à une relance ${vsBig ? 'grosse (5 grosses blindes)' : 'normale (3 grosses blindes)'}${rSel ? ` de ${rSel}` : ''}, ${vsPos === myPos ? 'à ta place' : 'en'} ${vsPos}.${vsWho}`
+        : `Face à une relance normale (jusqu'à 3 grosses blindes), ${vsPos === myPos ? 'à ta place' : 'en'} ${vsPos}. Relance plus grosse : touche ta main pour voir le plan selon la taille, ou choisis la taille et la place du relanceur au-dessus du tableau.`) + ' Face à deux relances : relance encore avec AA et KK, suis avec QQ et AK, couche le reste.';
     } else {
       const key = v === 'UTG' && n >= 8 ? 'UTG9' : v;
       const range = R.open[key];
@@ -1547,12 +1553,16 @@
       text = `Les couleurs suivent ce que tu as touché sur la table${big ? ' (ici, pour une relance de 3 à 6 BB : touche ta main pour les autres tailles)' : ''}. Retouche le joueur pour changer, ou passe à la main suivante.`;
     }
     const grid = ODDS.grid().map((row) => row.map((c) => `<span class="hc ${cat(c)} ${c === myClass ? 'mine' : ''}" data-a="chart-hand" data-c="${c}">${c.replace(/[so]$/, (m) => `<small>${m}</small>`)}</span>`).join('')).join('');
+    const vsOpts = (v === 'vs' || v === 'BB') && !sit && rOpts.length ? `<div class="vs-opts">
+        <div class="vs-row"><span class="lbl">Relance de</span>${[[null, 'Peu importe']].concat(rOpts.map((x) => [x, x])).map(([x, l]) => `<button class="chip ${rSel === x ? 'on' : ''}" data-a="vs-raiser" data-p="${x || ''}">${l}</button>`).join('')}</div>
+        <div class="vs-row"><span class="lbl">Taille</span><button class="chip ${vsBig ? '' : 'on'}" data-a="vs-big" data-b="0">Normale (3 BB)</button><button class="chip ${vsBig ? 'on' : ''}" data-a="vs-big" data-b="1">Grosse (5 BB)</button></div></div>` : '';
     const resume = !quick && qgHist.length ? `<button class="btn ghost wide qg-resume" data-a="qg-undo">↶ Reprendre la partie rapide arrêtée</button>` : '';
     const top = quick ? quickTable() : resume + `<button class="btn quick-btn wide" data-a="qg-start">🎯 Partie rapide</button>`;
     const chart = `<section class="panel">
       <h2>Mains de départ</h2>
       ${quick ? '' : '<p class="hint">Quoi faire avant le flop, selon ta place. Apprends-les petit à petit : c\'est ce qui fait le plus progresser un débutant.</p>'}
       <div class="chart-tabs">${views.map(([k, l]) => `<button class="chip tipped ${v === k ? 'on' : ''} ${myPos && (k === myPos || (k === 'UTG' && myPos.startsWith('UTG')) || (k === 'MP' && myPos.startsWith('MP'))) ? 'here' : ''}" data-a="chart" data-v="${k}" data-tip="${k === 'vs' ? 'vsraise' : k === 'all' ? 'allpos' : 'pos:' + k}">${l}</button>`).join('')}</div>
+      ${vsOpts}
       ${myClass ? sizePlan(myClass, quick && myPos ? myPos : v === 'vs' ? vsPos : v === 'all' ? myPos || 'CO' : v, n) : quick && myPos ? '<p class="v-empty">Touche ta main dans le tableau.</p>' : ''}
       ${v === 'all' ? memoBox() : ''}
       <div class="hc-grid">${grid}</div>
@@ -2324,6 +2334,8 @@
     },
     'copy-msg'() { copy(E.buildMessage(state), 'Message copié'); },
     'share-msg'() { share(E.buildMessage(state)); },
+    'vs-raiser'(d) { ui.vsRaiser = d.p || null; render(); },
+    'vs-big'(d) { ui.vsBig = d.b === '1'; render(); },
     chart(d) {
       ui.chart = d.v;
       if (d.v !== 'vs') ui.chartPos = d.v;
@@ -2460,7 +2472,11 @@
     },
     'drill-start'() { ui.drill = newDrill(); render(); },
     'drill-stop'() { ui.drill = null; render(); },
-    'drill-next'() { ui.drill = newDrill(); render(); },
+    'drill-next'() {
+      ui.drill = newDrill(); render();
+      const pn = document.querySelector('.drill'); // la nouvelle question se lit en haut : on remonte si on était descendu voir le tableau
+      if (pn && pn.getBoundingClientRect().top < 60) window.scrollTo({ top: Math.max(0, pn.getBoundingClientRect().top + window.scrollY - 70) });
+    },
     'drill-answer'(d) {
       const dr = ui.drill;
       if (!dr || dr.answer) return;
@@ -2469,6 +2485,8 @@
       drillStats.n++; if (ok) { drillStats.ok++; drillStats.streak++; drillStats.best = Math.max(drillStats.best, drillStats.streak); } else drillStats.streak = 0;
       store.set(DKEY, JSON.stringify(drillStats));
       render();
+      const g = document.querySelector('.dr-grid'); // le tableau est juste en dessous : on le montre en entier (sans faire défiler plus que nécessaire)
+      if (g) g.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     },
     'quiz-start'() { ui.quiz = pickQuiz(null); render(); window.scrollTo(0, 0); },
     'quiz-show'() { if (ui.quiz) { ui.quiz.shown = true; render(); } },
